@@ -1,84 +1,1296 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cómo peinarte cuando salís de Masivo</title>
-<meta name="description" content="La guía de Masivo Barber para que el corte te salga igual en tu casa.">
-<meta property="og:title" content="Cómo peinarte cuando salís de Masivo">
-<meta property="og:description" content="Paso a paso, estilos, errores comunes y un regalo al final.">
-<meta property="og:image" content="https://masivo-tan.vercel.app/img/cover.jpg">
-<meta name="theme-color" content="#000000">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{--c:#00e5ff;--p:#0d1115;--l:#1d262d;--t:#e9eef1;--m:#97a3ac}
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-body{font:400 16px/1.65 Poppins,system-ui,sans-serif;background:#000;color:var(--t)}
-.wrap{max-width:720px;margin:0 auto;padding:0 18px}
-.hero img{width:100%;max-width:560px;display:block;margin:0 auto}
-.top{text-align:center;padding:22px 18px 8px}
-.btn{display:inline-block;background:var(--c);color:#000;font-weight:700;text-decoration:none;border-radius:99px;padding:14px 28px}
-.btn.ghost{background:none;color:var(--c);border:1.5px solid var(--c);padding:11px 22px;font-size:.9rem}
-nav{position:sticky;top:0;z-index:5;background:#000e;backdrop-filter:blur(8px);border-bottom:1px solid var(--l);overflow-x:auto;white-space:nowrap;padding:10px 18px;margin-top:18px}
-nav a{display:inline-block;color:var(--t);text-decoration:none;font-size:.85rem;font-weight:600;padding:6px 14px;border:1px solid var(--l);border-radius:99px;margin-right:6px}
-section{padding-top:46px;scroll-margin-top:52px}
-h2{font-size:1.65rem;line-height:1.2;font-weight:800;margin-bottom:6px}
-.sub{color:var(--m);margin-bottom:22px}
-h3{font-size:1rem;font-weight:700;line-height:1.35}
-p{color:#cfd7dc}
-ol{list-style:none;counter-reset:s}
-ol li{counter-increment:s;background:var(--p);border:1px solid var(--l);border-radius:16px;padding:16px 18px 16px 62px;margin-bottom:10px;position:relative}
-ol li:before{content:counter(s);position:absolute;left:16px;top:16px;width:34px;height:34px;border-radius:50%;background:var(--c);color:#000;font-weight:800;display:grid;place-items:center}
-.note{border-left:3px solid var(--c);padding:4px 0 4px 16px;margin-top:20px}
-.note ul,.box ul{list-style:none}
-.note li,.box li{margin:6px 0;color:#cfd7dc}
-details{background:var(--p);border:1px solid var(--l);border-radius:16px;margin-bottom:10px}
-summary{list-style:none;cursor:pointer;padding:16px 50px 16px 18px;font-weight:700;position:relative}
-summary::-webkit-details-marker{display:none}
-summary:after{content:"+";position:absolute;right:20px;top:11px;font-size:1.5rem;color:var(--c);font-weight:400}
-details[open] summary:after{content:"–"}
-details[open]{border-color:var(--c)}
-details p{padding:0 18px 12px}
-details div{padding:0 18px 18px}
-.tag{display:inline-block;background:#000;color:var(--c);border:1px solid var(--c);font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:99px;margin:0 6px 6px 0}
-.box{background:var(--p);border:1px solid var(--l);border-radius:16px;padding:18px 20px;margin-top:18px}
-.box h3{color:var(--c);margin-bottom:6px}
-.errs{display:grid;gap:10px}
-.err,.job{background:var(--p);border:1px solid var(--l);border-radius:16px;padding:16px 18px}
-.err h3 span{color:#ff5d6c;margin-right:8px}
-.err p span{color:var(--c);font-weight:700;margin-right:6px}
-.err p,.job p{margin-top:4px;font-size:.93rem}
-table{width:100%;border-collapse:collapse;border-radius:16px;overflow:hidden;margin-bottom:26px}
-td{background:var(--p);border-bottom:1px solid var(--l);padding:14px 16px;font-size:.93rem}
-td:last-child{font-weight:700;color:var(--c);white-space:nowrap;text-align:right}
-.jobs{display:grid;gap:10px}
-.center{text-align:center}
-.stars{color:var(--c);font-size:2rem;letter-spacing:6px;margin-bottom:12px}
-.coupon{border:2px dashed var(--c);border-radius:26px;padding:34px 18px;text-align:center;background:radial-gradient(circle at 50% 35%,#0b3a44,#06141a 60%,#000)}
-.coupon b{display:block;font-size:clamp(3rem,16vw,4.6rem);line-height:1.05;font-weight:800;color:var(--c)}
-.coupon .e{font-weight:700;letter-spacing:.06em;margin:6px 0 20px}
-.coupon small{display:block;color:var(--m);margin-top:18px;font-size:.78rem}
-.banner{width:100%;border-radius:16px;display:block;margin-top:26px}
-footer{text-align:center;color:var(--m);font-size:.78rem;padding:34px 18px 44px}
-a:focus-visible,summary:focus-visible{outline:3px solid var(--c);outline-offset:3px}
-</style></head><body>
-<header class="hero"><img src="img/cover.jpg" alt="Cómo peinarte cuando salís de Masivo"></header>
-<div class="top"><a class="btn ghost" href="guia-peinado.pdf" download>Descargar en PDF</a></div>
-<nav><a href="#paso">Mañana siguiente</a><a href="#estilos">Estilos</a><a href="#errores">Errores</a><a href="#volver">Cuándo volver</a><a href="#regalo">Tu regalo</a></nav>
-<main class="wrap">
-<section id="paso"><h2>El paso a paso de la mañana siguiente</h2><p class="sub">Salir de la barbería con el corte perfecto es fácil. Que te salga igual en tu casa es otra historia. Hacelo así.</p><ol><li><h3>Lavalo, si toca</h3><p>No hace falta todos los días. Si no sudaste ni te pusiste mucho producto, alcanza con mojarlo. Cuando lo lavás: agua tibia, shampoo solo en el cuero cabelludo y masajeá con las yemas, sin uñas.</p></li><li><h3>Enjuagá bien</h3><p>Que no te quede shampoo. Si querés, cerrá con un chorro de agua fría: el pelo queda con más brillo.</p></li><li><h3>Secalo con toalla, sin frotar</h3><p>Apretalo y sacudí el agua. Frotar rompe la fibra y te lo esponja.</p></li><li><h3>Secador, en la dirección correcta</h3><p>Calor medio, a unos 15 cm. Secalo para el lado en que quiere ir el pelo. Cuando está al 80% seco ya lo podés peinar. Cerrá con 10 segundos de aire frío para fijar la forma.</p></li><li><h3>Producto y a la calle</h3><p>Una cantidad del tamaño de una arveja. Entibiala entre las palmas, repartila y acomodá según el estilo que quieras (lo ves en la próxima sección).</p></li></ol>
-<div class="note"><h3>Ojo con esto</h3><ul><li>No te frotes con la toalla ni uses agua hirviendo.</li><li>No te pongas cera con el pelo chorreando.</li><li>No te acuestes con producto puesto.</li><li>Si te levantaste con el pelo parado, mojá solo esa parte. No hace falta la cabeza entera.</li></ul></div></section>
-<section id="estilos"><h2>Cómo peinarte según cómo lo quieras</h2><p class="sub">Un tip concreto para cada estilo. Tocá el tuyo.</p><details><summary>Flequillo para adelante</summary><p>Secalo con el flequillo cayendo hacia adelante y el aire desde arriba, así no se te levanta. Una arveja de cera en la punta de los dedos, solo para separar mechones. No lo aplastes.</p><div><span class="tag">CERA MATE</span></div></details><details><summary>Flequillo para el costado</summary><p>Primero secalo un ratito para el lado contrario: levantás la raíz y le das volumen. Después lo llevás al costado con los dedos o con peine. Con la cera justa para que se mueva sin desarmarse.</p><div><span class="tag">CERA FLEX MATE</span></div></details><details><summary>Todo para atrás</summary><p>Peinalo hacia atrás mientras lo secás, con peine o con los dedos, para marcarle el camino. Con el pelo al 80%, ponete el producto: arrancá por atrás y terminá adelante, así no se te junta todo en el frente.</p><div><span class="tag">CERA FIJACIÓN EXTREMA</span></div></details><details><summary>Con texturizado</summary><p>Con el pelo húmedo, un poco de salt spray a 20 cm y secalo moviéndolo con los dedos. Ya seco, polvo en la raíz y marcá con las manos. Si querés más control, un toque de cera mate arriba.</p><div><span class="tag">SALT SPRAY</span><span class="tag">POLVO TEXTURIZADOR</span><span class="tag">CERA MATE</span></div></details><details><summary>Flequillo levantado</summary><p>Secalo desde la raíz empujándolo hacia arriba con los dedos, con el aire desde abajo. Cerrá con aire frío para que quede. El polvo en la raíz hace que aguante todo el día.</p><div><span class="tag">POLVO TEXTURIZADOR</span><span class="tag">CERA FIJACIÓN EXTREMA</span></div></details><details><summary>Librito</summary><p>Pelo húmedo y peine fino. Marcá la raya siguiendo la que te dejó el barbero y secalo peinándolo con calor medio. Natural con flex mate; si tenés que aguantar todo el día, fijación extrema.</p><div><span class="tag">CERA FLEX MATE</span><span class="tag">CERA FIJACIÓN EXTREMA</span></div></details><details><summary>No me peino, lo uso despeinado</summary><p>Despeinado no es dejarlo como te levantaste. Pelo húmedo, salt spray y secalo con las manos moviéndolo para todos lados. Listo, sin peine.</p><div><span class="tag">SALT SPRAY</span></div></details>
-<div class="box"><h3>Los productos de Masivo</h3><ul><li><b>SALT SPRAY</b> Textura y volumen natural. Ideal para el look despeinado.</li><li><b>CERA MATE</b> Fijación suave y acabado sin brillo.</li><li><b>CERA FLEX MATE</b> Fijación flexible: se mueve pero no se cae.</li><li><b>CERA FIJACIÓN EXTREMA</b> La más fuerte. Para peinados que tienen que aguantar.</li><li><b>POLVO TEXTURIZADOR</b> Volumen y agarre en la raíz.</li></ul><p style="margin-top:10px">¿No sabés cuál va con tu pelo? Preguntale a tu barbero.</p></div></section>
-<section id="errores"><h2>Errores que estás cometiendo</h2><p class="sub">Los hacen casi todos. Fijate cuáles te suenan y cómo se arreglan.</p><div class="errs"><div class="err"><h3><span>✕</span>Te pasás con el producto</h3><p><span>✓</span>Arrancá con una arveja. Si falta, agregás. Sacar es imposible.</p></div><div class="err"><h3><span>✕</span>Ponés cera con el pelo chorreando</h3><p><span>✓</span>Secalo al 80% primero. Con el pelo muy mojado la cera no agarra.</p></div><div class="err"><h3><span>✕</span>Te frotás con la toalla</h3><p><span>✓</span>Apretá y sacudí. Frotar te lo esponja.</p></div><div class="err"><h3><span>✕</span>Te lavás con agua muy caliente</h3><p><span>✓</span>Tibia, y fría al final. Y no hace falta lavarlo todos los días: cada 2 días si no sudás mucho.</p></div><div class="err"><h3><span>✕</span>Peleás contra el remolino</h3><p><span>✓</span>Secalo primero en el sentido en que crece y recién después lo acomodás.</p></div><div class="err"><h3><span>✕</span>Te dormís con cera</h3><p><span>✓</span>Lavate antes de dormir. Si no podés, mojalo y peinalo.</p></div><div class="err"><h3><span>✕</span>Lo dejás secar solo y después te peinás</h3><p><span>✓</span>Peinalo mientras se seca. Seco ya tiene su forma y cuesta cambiarla.</p></div><div class="err"><h3><span>✕</span>Usás el mismo producto para todo</h3><p><span>✓</span>Mate para natural, polvo para volumen, fijación extrema para lo que tiene que aguantar.</p></div></div>
-<div class="box"><h3>El error más caro</h3><p>Esperar a que el corte se vea mal para sacar turno. Cuando se nota, ya pasó de largo.</p></div></section>
-<section id="volver"><h2>Cada cuántos días volver</h2><p class="sub">El máximo que recomendamos es 30 días. Según tu corte y tu laburo, conviene antes.</p><table><tr><td>Rapado, buzz o skin fade</td><td>10 a 15 días</td></tr><tr><td>Fade o degradé con tope corto</td><td>15 a 20 días</td></tr><tr><td>Medio largo con laterales cortos (pompadour, quiff, crop)</td><td>20 a 25 días</td></tr><tr><td>Largo, medio largo o rulos</td><td>25 a 30 días</td></tr></table>
-<h3 style="margin-bottom:10px">Según tu laburo</h3><div class="jobs"><div class="job"><h3>Atención al público u oficina</h3><p>Te ven todo el día. Corto, cada 15 días, y no pases de 3 semanas.</p></div><div class="job"><h3>Uniforme o reglamento</h3><p>Si te piden prolijidad, cada 10 a 15 días.</p></div><div class="job"><h3>Obra, casco o gorra</h3><p>El casco te aplasta y te transpira el pelo. Corto y cada 15 a 20 días.</p></div><div class="job"><h3>Deporte o gimnasio</h3><p>Sudás, lavás más y el degradé se ensucia. Cada 10 a 15 días.</p></div><div class="job"><h3>Facultad o home office</h3><p>Podés estirar hasta los 30. Más no.</p></div><div class="job"><h3>Si salís en cámara</h3><p>Redes o streaming: cada 10 a 15 días.</p></div></div>
-<div class="box"><h3>Si ya pasaron los 30 días</h3><ul><li><b>Se te perdió el degradé:</b> pedí corte completo, no un retoque.</li><li><b>Lo querés dejar crecer:</b> pasá a emprolijar nuca y laterales, sin tocar el largo.</li><li><b>Venís de corto y vas a largo:</b> una pasada cada 30 días para que crezca parejo y no se arme un casco.</li><li><b>Tenés rulos u ondas:</b> venite a sacarle peso, no largo.</li></ul></div></section>
-<section class="center"><div class="stars" aria-hidden="true">★★★★★</div><h2>¿Saliste conforme?</h2><p class="sub">Si te sobra un minuto, dejanos una reseña en Google Maps. Es la forma en que más gente nos encuentra. Y si algo no te cerró, también lo queremos leer, para mejorarlo.</p><a class="btn" href="https://g.page/r/CUXgko6IPGfOEBE/review" target="_blank" rel="noopener">Dejar mi reseña</a></section>
-<section id="regalo"><div class="coupon"><p>Llegaste al final de la guía. Esto es para vos.</p><b>15% OFF</b><div class="e">EN TU PRÓXIMO CORTE</div><span class="btn">¡Reclamalo ya!</span><small>Presentá este cupón en tu próxima visita a Masivo · Cupón válido por tiempo limitado</small></div>
-<img class="banner" src="img/banner.jpg" alt="Masivo Barber: tu estilo, nuestra pasión" loading="lazy"></section>
-</main>
-<footer>Masivo Barber · Felix Aguilar 2809, Canning</footer>
-</body></html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Masivo Barber — Tu corte, también en casa</title>
+  <meta name="description" content="La guía de Masivo Barber: cómo peinarte, cuidar tu corte y cuándo volver. Reservá en Canning y llevate un 15% OFF en tu próximo corte.">
+  <meta property="og:title" content="Masivo Barber — Tu corte, también en casa">
+  <meta property="og:description" content="Tu guía de peinado, los productos de Masivo y un regalo para tu próximo corte.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="img/cover.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#13171b">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,900&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --radius: .5rem;
+      --background: oklch(.135 .004 230);
+      --foreground: oklch(.96 .003 230);
+      --card: oklch(.185 .006 230);
+      --card-foreground: var(--foreground);
+      --primary: oklch(.84 .145 210);
+      --primary-foreground: oklch(.13 .007 230);
+      --secondary: oklch(.25 .012 230);
+      --secondary-foreground: var(--foreground);
+      --muted: oklch(.205 .006 230);
+      --muted-foreground: oklch(.67 .012 230);
+      --border: oklch(.29 .008 230);
+      --destructive: oklch(.7 .18 22);
+      --hero-shade: linear-gradient(0deg, var(--background) 2%, transparent 100%);
+      --coupon-surface: oklch(.19 .024 215);
+      --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-display: 'Barlow Condensed', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 85px; }
+    body {
+      background-color: var(--background);
+      color: var(--foreground);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    a, button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; font-family: inherit; }
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+    a { text-decoration: none; color: inherit; }
+
+    .page-width { width: calc(100% - 96px); max-width: 1120px; margin-inline: auto; }
+
+    /* Masthead */
+    .masthead {
+      height: 88px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 40px;
+    }
+    .wordmark {
+      font-family: var(--font-display);
+      font-weight: 900;
+      font-style: italic;
+      font-size: 33px;
+      line-height: .85;
+      display: inline-flex;
+      flex-direction: column;
+      width: max-content;
+      letter-spacing: .5px;
+    }
+    .wordmark span {
+      font-size: 13px;
+      color: var(--primary);
+      align-self: flex-end;
+      line-height: 1.4;
+      font-style: normal;
+      letter-spacing: 2px;
+    }
+    .header-location {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 10px;
+      color: var(--muted-foreground);
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 18px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      transition: background-color .2s, color .2s, border-color .2s, transform .1s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-foreground);
+    }
+    .btn-primary:hover {
+      opacity: .92;
+    }
+    .btn-outline {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--foreground);
+    }
+    .btn-outline:hover {
+      background: var(--muted);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .btn-secondary {
+      background: var(--secondary);
+      color: var(--secondary-foreground);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted-foreground);
+    }
+    .btn-ghost:hover {
+      background: var(--muted);
+      color: var(--foreground);
+    }
+    .btn-link {
+      background: transparent;
+      color: var(--primary);
+      padding: 0;
+      font-weight: 700;
+    }
+    .btn-link:hover {
+      text-decoration: underline;
+    }
+    .header-book { height: 40px; font-size: 12px; }
+
+    /* Hero */
+    .hero { position: relative; overflow: hidden; max-width: 1120px; }
+    .hero-cover {
+      width: 100%;
+      height: auto;
+      display: block;
+      aspect-ratio: 1672/941;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+    .hero-bottom {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-top: -135px;
+      padding: 90px 34px 27px;
+      background: var(--hero-shade);
+      border-radius: 0 0 6px 6px;
+    }
+    .eyebrow {
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+      letter-spacing: 1.5px;
+    }
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+    }
+    h1, h2, .products>h3, .coupon h3, .interval-result>strong {
+      font-family: var(--font-display);
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    h1 { font-size: 30px; line-height: 1.05; margin: 10px 0; }
+    .hero-bottom p { color: var(--muted-foreground); font-size: 12px; }
+    .hero-scroll {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      color: var(--primary);
+      background: var(--card);
+      transition: border-color .2s, transform .2s;
+    }
+    .hero-scroll:hover { border-color: var(--primary); transform: translateY(3px); }
+
+    /* 3 Action Buttons */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      padding: 22px 0 30px;
+    }
+    .quick-actions > a {
+      height: 49px;
+      border-radius: 4px;
+      font-size: 12px;
+      justify-content: flex-start;
+      padding: 0 18px;
+    }
+    .action-arrow { margin-left: auto; }
+
+    /* Sticky Nav */
+    .guide-nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--background);
+      border-block: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+    }
+    .nav-inner {
+      display: flex;
+      justify-content: space-between;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .nav-inner::-webkit-scrollbar { display: none; }
+    .nav-inner > a {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      white-space: nowrap;
+      padding: 19px 9px 17px;
+      color: var(--muted-foreground);
+      font-size: 12px;
+      font-weight: 600;
+      border-bottom: 2px solid transparent;
+      transition: color .2s, border-color .2s;
+    }
+    .nav-inner > a > span { font-size: 10px; color: var(--muted-foreground); }
+    .nav-inner > a.active { color: var(--primary); border-color: var(--primary); }
+
+    /* Body sections */
+    .guide-body { max-width: 1040px; }
+    .guide-section {
+      padding: 65px 0;
+      border-bottom: 1px solid var(--border);
+      scroll-margin-top: 10px;
+    }
+    .section-heading {
+      display: grid;
+      grid-template-columns: 45px minmax(0, 1fr);
+      gap: 17px;
+      margin-bottom: 30px;
+      align-items: start;
+    }
+    .section-number {
+      color: var(--primary);
+      font-family: var(--font-display);
+      font-size: 22px;
+      border: 1px solid var(--border);
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      margin-top: 2px;
+    }
+    h2 { font-size: 38px; line-height: 1.1; }
+    .section-heading p {
+      max-width: 650px;
+      color: var(--muted-foreground);
+      font-size: 13px;
+      line-height: 1.8;
+      margin-top: 10px;
+    }
+
+    /* Steps grid */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 14px;
+      list-style: none;
+    }
+    .step-card {
+      grid-column: span 2;
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 22px;
+      border-radius: 6px;
+      transition: border-color .2s, transform .2s;
+    }
+    .step-card:nth-child(n+4) { grid-column: span 3; }
+    .step-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+    .step-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      color: var(--primary);
+    }
+    .step-count { font-family: var(--font-display); font-size: 30px; font-weight: 600; line-height: 1; }
+    h3 { font-size: 15px; font-weight: 800; line-height: 1.4; }
+    .step-card p { color: var(--muted-foreground); font-size: 12px; line-height: 1.9; margin-top: 9px; }
+
+    /* Tip band */
+    .tip-band {
+      display: grid;
+      grid-template-columns: 175px 1fr;
+      gap: 24px;
+      border-left: 2px solid var(--primary);
+      padding: 21px 23px;
+      margin-top: 22px;
+      background: var(--muted);
+      border-radius: 0 4px 4px 0;
+    }
+    .tip-title { display: flex; align-items: center; gap: 10px; color: var(--primary); }
+    .tip-band ul { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; list-style: none; }
+    .tip-band li { display: flex; gap: 8px; font-size: 11px; color: var(--muted-foreground); }
+    .tip-band li svg { color: var(--primary); flex-shrink: 0; margin-top: 3px; }
+
+    /* Section 2: Styles */
+    .styles-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+      gap: 45px;
+      align-items: start;
+    }
+    .style-item {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      margin-bottom: 10px;
+      background: var(--card);
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .style-item.open { border-color: var(--primary); }
+    .style-trigger {
+      width: 100%;
+      background: transparent;
+      border: none;
+      padding: 19px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--foreground);
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .style-trigger:hover { color: var(--primary); }
+    .style-label { display: flex; gap: 18px; align-items: center; }
+    .style-index { font-family: var(--font-display); font-size: 18px; color: var(--primary); }
+    .style-content {
+      display: none;
+      padding: 0 20px 22px 56px;
+      color: var(--muted-foreground);
+      font-size: 12px;
+      line-height: 1.9;
+    }
+    .style-item.open .style-content { display: block; }
+    .style-item.open .chevron-toggle { transform: rotate(180deg); color: var(--primary); }
+    .chevron-toggle { transition: transform .2s, color .2s; }
+    .product-tags { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 15px; }
+    .product-tags span {
+      font-size: 9px;
+      font-weight: 800;
+      border: 1px solid var(--border);
+      background: var(--background);
+      color: var(--primary);
+      padding: 3px 8px;
+      border-radius: 3px;
+      letter-spacing: .5px;
+    }
+
+    /* Products column */
+    .products { padding: 8px 0; }
+    .products > h3 { font-size: 32px; line-height: 1.05; margin: 12px 0 22px; }
+    .product-row {
+      display: grid;
+      grid-template-columns: 50px minmax(0, 1fr);
+      gap: 15px;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .product-row h4 { font-size: 11px; font-weight: 800; letter-spacing: .5px; }
+    .product-row p { font-size: 11px; color: var(--muted-foreground); line-height: 1.7; margin-top: 3px; }
+    .product-symbol {
+      width: 48px;
+      height: 48px;
+      background: var(--muted);
+      border-radius: 4px;
+      display: grid;
+      place-items: center;
+      color: var(--primary);
+    }
+    .wax-jar {
+      width: 28px;
+      height: 20px;
+      border: 1px solid var(--muted-foreground);
+      border-top: 4px solid var(--muted-foreground);
+      border-radius: 4px 4px 7px 7px;
+      line-height: 16px;
+      font-size: 12px;
+      font-weight: 900;
+      text-align: center;
+    }
+    .spray-bottle {
+      width: 18px;
+      height: 30px;
+      border: 1px solid var(--muted-foreground);
+      border-top: 5px solid var(--muted-foreground);
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 900;
+      text-align: center;
+    }
+    .barber-tip {
+      display: flex;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--muted-foreground);
+      padding-top: 18px;
+    }
+    .barber-tip svg { flex-shrink: 0; color: var(--primary); }
+
+    /* Section 3: Errors */
+    .errors-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .error-card { padding: 20px; border: 1px solid var(--border); background: var(--card); border-radius: 5px; }
+    .error-card h3 { display: flex; gap: 10px; font-size: 13px; }
+    .error-card h3 svg { color: var(--destructive); flex-shrink: 0; }
+    .error-card p {
+      display: flex;
+      gap: 10px;
+      color: var(--muted-foreground);
+      font-size: 12px;
+      line-height: 1.8;
+      margin-top: 12px;
+    }
+    .error-card p svg { flex-shrink: 0; color: var(--primary); margin-top: 3px; }
+    .expensive-error {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      padding: 24px 0 0;
+    }
+    .expensive-error > svg { color: var(--primary); }
+    .expensive-error h3 { font-size: 13px; }
+    .expensive-error p { font-size: 12px; color: var(--muted-foreground); margin-top: 3px; }
+
+    /* Section 4: Intervals */
+    .interval-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 30px; }
+    .mode-tabs { display: flex; gap: 5px; margin-bottom: 18px; }
+    .mode-tabs button {
+      font-size: 12px;
+      border-radius: 4px;
+      padding: 8px 16px;
+      height: 36px;
+    }
+    .mode-tabs button.active {
+      background: var(--secondary);
+      color: var(--foreground);
+    }
+    .interval-table { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .interval-row {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto 16px;
+      gap: 15px;
+      height: auto;
+      min-height: 62px;
+      white-space: normal;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      justify-content: start;
+      border-radius: 0;
+      padding: 15px 18px;
+      font-size: 12px;
+      background: transparent;
+      color: var(--foreground);
+      cursor: pointer;
+      align-items: center;
+      transition: background-color .15s;
+    }
+    .interval-row:last-child { border-bottom: none; }
+    .interval-row strong { font-size: 12px; color: var(--primary); white-space: nowrap; }
+    .interval-row.selected { background: var(--muted); border-left: 3px solid var(--primary); }
+    .job-row { grid-template-columns: minmax(0, 1fr) 16px; }
+    .job-row small { display: block; color: var(--muted-foreground); margin-top: 7px; font-weight: 400; }
+    .interval-result {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 30px;
+      background: var(--coupon-surface);
+      border-top: 2px solid var(--primary);
+      border-radius: 6px;
+    }
+    .interval-result > svg { color: var(--primary); margin-bottom: 24px; }
+    .interval-result > strong { font-size: 41px; line-height: 1.2; margin-top: 10px; color: var(--foreground); }
+    .interval-result > p { color: var(--muted-foreground); font-size: 12px; margin: 9px 0 25px; }
+    .interval-result > h3 { margin-top: 10px; }
+    .interval-result > a { font-size: 12px; }
+
+    /* Late advice accordion */
+    .late-advice {
+      margin-top: 25px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+    }
+    .late-trigger {
+      width: 100%;
+      background: transparent;
+      border: none;
+      padding: 16px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--foreground);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .late-content {
+      display: none;
+      padding: 0 20px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .late-advice.open .late-content { display: block; }
+    .late-advice.open .chevron-toggle { transform: rotate(180deg); color: var(--primary); }
+    .late-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+    .late-grid p { font-size: 12px; color: var(--muted-foreground); }
+    .late-grid strong { color: var(--foreground); }
+
+    /* Section 5: Review */
+    .review-section {
+      padding: 65px 0;
+      text-align: center;
+      max-width: 570px;
+      margin: auto;
+    }
+    .stars { display: flex; justify-content: center; gap: 7px; color: var(--primary); margin-bottom: 20px; }
+    .review-section .eyebrow { justify-content: center; margin-bottom: 12px; }
+    .review-section p { color: var(--muted-foreground); font-size: 13px; margin: 17px 0 25px; }
+    .review-section > a { font-size: 12px; border-radius: 4px; height: 45px; }
+    .google-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--muted-foreground);
+      margin-top: 14px;
+    }
+    .google-label > span { font-weight: 800; font-size: 15px; color: var(--foreground); }
+
+    /* Section 6: Gift / Coupon */
+    .gift-section { padding: 0 0 45px; scroll-margin-top: 85px; }
+    .coupon {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      background: var(--coupon-surface);
+      border: 1px dashed var(--primary);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .coupon-copy { padding: 40px 45px; }
+    .coupon h2 {
+      font-size: 100px;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1;
+      margin: 15px 0 8px;
+    }
+    .coupon h2 span { font-size: 62px; }
+    .coupon-copy > h3 { font-size: 26px; }
+    .coupon-copy > p { font-size: 12px; color: var(--muted-foreground); margin-top: 10px; }
+    .coupon-action {
+      border-left: 1px dashed var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 30px;
+      gap: 12px;
+    }
+    .coupon-stamp {
+      color: var(--primary);
+      width: 65px;
+      height: 65px;
+      border: 1px solid var(--primary);
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      margin-bottom: 9px;
+    }
+    .coupon-action > a, .coupon-action > button { font-size: 12px; border-radius: 4px; height: 45px; }
+    .coupon-action small {
+      font-size: 9px;
+      color: var(--muted-foreground);
+      line-height: 1.8;
+      margin-top: 5px;
+    }
+    .coupon-action p { font-size: 12px; color: var(--muted-foreground); }
+    .barber-banner {
+      width: 100%;
+      display: block;
+      aspect-ratio: 1200/533;
+      object-fit: cover;
+      margin-top: 28px;
+      border-radius: 5px;
+    }
+
+    /* Footer */
+    .footer {
+      border-top: 1px solid var(--border);
+      min-height: 125px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 25px;
+      align-items: center;
+    }
+    .footer .wordmark { font-size: 27px; }
+    .footer .wordmark span { font-size: 11px; }
+    .footer p {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 7px;
+      font-size: 10px;
+      color: var(--muted-foreground);
+    }
+    .footer > a:last-child {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .footer > a:last-child:hover { color: var(--primary); }
+
+    /* Responsive Queries */
+    @media (max-width: 800px) {
+      .page-width { width: calc(100% - 40px); }
+      .masthead { height: 74px; gap: 12px; grid-template-columns: minmax(0, 1fr) auto; }
+      .header-location { display: none; }
+      .styles-layout { gap: 25px; }
+      .quick-actions > a { font-size: 10px; padding: 0 12px; }
+      .quick-actions > a .action-arrow { display: none; }
+      .tip-band { grid-template-columns: 1fr; gap: 12px; }
+      .step-card { padding: 18px; }
+      .coupon-copy { padding: 30px; }
+      .coupon h2 { font-size: 85px; }
+      .coupon h2 span { font-size: 48px; }
+      .nav-inner > a { font-size: 11px; }
+    }
+
+    @media (max-width: 600px) {
+      .page-width { width: calc(100% - 32px); }
+      .masthead { height: 68px; }
+      .wordmark { font-size: 29px; }
+      .header-book { height: 35px; font-size: 11px; padding-inline: 11px; }
+      .header-book .action-arrow { display: none; }
+      .hero { width: 100%; }
+      .hero-bottom {
+        margin-top: 0;
+        padding: 21px 20px 12px;
+        background: var(--background);
+      }
+      .hero-cover { aspect-ratio: 1672/941; }
+      .hero-bottom h1 { font-size: 26px; }
+      .hero-bottom p { font-size: 11px; }
+      .hero-scroll { width: 32px; height: 32px; flex-shrink: 0; margin-left: 10px; }
+      .eyebrow { font-size: 9px; }
+      .quick-actions {
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
+        padding: 18px 0 24px;
+      }
+      .quick-actions > a:first-child {
+        grid-column: span 2;
+        justify-content: center;
+        font-size: 12px;
+      }
+      .quick-actions > a {
+        height: 45px;
+        font-size: 10px;
+        padding-inline: 9px;
+        justify-content: center;
+      }
+      .quick-actions > a svg { width: 14px; }
+      .nav-inner {
+        width: 100%;
+        padding-inline: 12px;
+        gap: 15px;
+        justify-content: flex-start;
+      }
+      .nav-inner > a { padding: 16px 4px 14px; font-size: 11px; gap: 6px; }
+      .nav-inner > a span { font-size: 9px; }
+      .guide-section { padding: 38px 0; }
+      .section-heading {
+        grid-template-columns: 33px minmax(0, 1fr);
+        gap: 11px;
+        margin-bottom: 23px;
+      }
+      .section-number { width: 32px; height: 33px; font-size: 18px; }
+      h2 { font-size: 30px; }
+      .section-heading p { font-size: 12px; margin-top: 8px; }
+      .steps-grid { grid-template-columns: 1fr; gap: 10px; }
+      .step-card, .step-card:nth-child(n+4) { grid-column: auto; padding: 18px 19px; }
+      .step-top { margin-bottom: 11px; }
+      .step-count { font-size: 26px; }
+      .step-card h3 { font-size: 15px; }
+      .step-card p { font-size: 12px; }
+      .tip-band { padding: 18px; margin-top: 16px; }
+      .tip-band ul { grid-template-columns: 1fr; gap: 9px; }
+      .styles-layout { grid-template-columns: 1fr; gap: 30px; }
+      .style-trigger { padding: 17px 15px; font-size: 12px; }
+      .style-label { gap: 12px; }
+      .style-content { padding: 0 15px 18px 44px; }
+      .products > h3 br { display: none; }
+      .products > h3 { font-size: 28px; }
+      .errors-grid { grid-template-columns: 1fr; gap: 10px; }
+      .error-card { padding: 18px; }
+      .expensive-error { grid-template-columns: auto minmax(0, 1fr); gap: 12px; }
+      .expensive-error > a { grid-column: 2; justify-self: start; padding: 0; height: 25px; }
+      .interval-layout { grid-template-columns: 1fr; gap: 20px; }
+      .interval-result { padding: 23px; }
+      .interval-result > svg { margin-bottom: 15px; }
+      .interval-result > strong { font-size: 37px; }
+      .interval-row { padding: 15px 10px; font-size: 11px; gap: 8px; }
+      .interval-row strong { font-size: 11px; }
+      .late-grid { grid-template-columns: 1fr; }
+      .review-section { padding: 42px 5px; }
+      .review-section h2 { font-size: 34px; }
+      .review-section p { font-size: 12px; }
+      .coupon { grid-template-columns: 1fr; }
+      .coupon-copy { padding: 28px 22px; text-align: center; }
+      .coupon-copy > .eyebrow { justify-content: center; }
+      .coupon h2 { font-size: 100px; }
+      .coupon h2 span { font-size: 62px; }
+      .coupon-copy > h3 { font-size: 25px; }
+      .coupon-action {
+        padding: 24px 20px;
+        border-left: 0;
+        border-top: 1px dashed var(--border);
+      }
+      .coupon-stamp { display: none; }
+      .coupon-action > button, .coupon-action > a { width: 100%; height: 45px; }
+      .barber-banner { margin-top: 20px; }
+      .gift-section { padding-bottom: 30px; }
+      .footer { grid-template-columns: 1fr auto; gap: 20px; padding-block: 28px; }
+      .footer p { grid-column: span 2; grid-row: 2; justify-content: flex-start; font-size: 10px; }
+      .footer > a:last-child { font-size: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+      .step-card:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="masivo-site">
+    <!-- Header -->
+    <header class="masthead page-width">
+      <a class="wordmark" href="#top" aria-label="Masivo Barber, inicio">MASIVO<span>BARBER</span></a>
+      <span class="header-location"><svg class="icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg> CANNING, BUENOS AIRES</span>
+      <a class="btn btn-primary header-book" href="https://app.growthbarber.com/reserva/masivo?ref=historia" target="_blank" rel="noopener noreferrer">
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg> Reservar turno <svg class="icon action-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+    </header>
+
+    <main id="top">
+      <!-- Hero -->
+      <section class="hero page-width" aria-labelledby="hero-title">
+        <img class="hero-cover" src="img/cover.jpg" alt="Cómo peinarte cuando salís de Masivo: un cliente en Masivo Barber" fetchpriority="high">
+        <div class="hero-bottom">
+          <div>
+            <span class="eyebrow"><span class="live-dot"></span> LA GUÍA POST-CORTE DE MASIVO</span>
+            <h1 id="hero-title">EL BUEN CORTE NO TERMINA<br>CUANDO SALÍS DE LA SILLA.</h1>
+            <p>Te llevás el corte. Acá tenés cómo mantenerlo.</p>
+          </div>
+          <a class="hero-scroll" href="#paso" aria-label="Ir a la guía"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></a>
+        </div>
+      </section>
+
+      <!-- 3 Quick Action Buttons -->
+      <div class="quick-actions page-width">
+        <a class="btn btn-primary" href="https://app.growthbarber.com/reserva/masivo?ref=historia" target="_blank" rel="noopener noreferrer">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg> Reservar mi próximo turno <svg class="icon action-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+        <a class="btn btn-outline" href="https://g.page/r/CUXgko6IPGfOEBE/review" target="_blank" rel="noopener noreferrer">
+          <svg class="icon star-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Dejar una reseña en Google <svg class="icon action-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+        <a class="btn btn-outline" href="guia-peinado.pdf" target="_blank" rel="noopener noreferrer" download="guia-peinado.pdf">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg> Descargar la guía en PDF <svg class="icon action-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <!-- Sticky Guide Navigation -->
+      <nav class="guide-nav" aria-label="Secciones de la guía">
+        <div class="page-width nav-inner">
+          <a href="#paso" class="nav-link active"><span>01</span>Mañana siguiente</a>
+          <a href="#estilos" class="nav-link"><span>02</span>Estilos</a>
+          <a href="#errores" class="nav-link"><span>03</span>Errores</a>
+          <a href="#volver" class="nav-link"><span>04</span>Cuándo volver</a>
+          <a href="#regalo" class="nav-link"><svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg> Tu regalo</a>
+        </div>
+      </nav>
+
+      <div class="page-width guide-body">
+        <!-- 01 Mañana siguiente -->
+        <section id="paso" class="guide-section">
+          <div class="section-heading">
+            <span class="section-number">01</span>
+            <div class="min-w-0">
+              <h2>LA MAÑANA SIGUIENTE.</h2>
+              <p>Salir de la barbería con el corte perfecto es fácil. Que te salga igual en tu casa es otra historia. Hacelo así.</p>
+            </div>
+          </div>
+          <ol class="steps-grid">
+            <li class="step-card">
+              <div class="step-top">
+                <span class="step-count">01</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/></svg>
+              </div>
+              <h3>Lavalo, si toca</h3>
+              <p>No hace falta todos los días. Si no sudaste ni te pusiste mucho producto, alcanza con mojarlo. Cuando lo lavás: agua tibia, shampoo solo en el cuero cabelludo y masajeá con las yemas, sin uñas.</p>
+            </li>
+            <li class="step-card">
+              <div class="step-top">
+                <span class="step-count">02</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+              </div>
+              <h3>Enjuagá bien</h3>
+              <p>Que no te quede shampoo. Si querés, cerrá con un chorro de agua fría: el pelo queda con más brillo.</p>
+            </li>
+            <li class="step-card">
+              <div class="step-top">
+                <span class="step-count">03</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7A2.5 2.5 0 1 1 20 10H2"/><path d="M19.7 14.7A2.5 2.5 0 1 0 22 12H2"/><path d="M15.7 18.7A2.5 2.5 0 1 0 18 16H2"/></svg>
+              </div>
+              <h3>Secalo con toalla, sin frotar</h3>
+              <p>Apretalo y sacudí el agua. Frotar rompe la fibra y te lo esponja.</p>
+            </li>
+            <li class="step-card">
+              <div class="step-top">
+                <span class="step-count">04</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7A2.5 2.5 0 1 1 20 10H2"/><path d="M19.7 14.7A2.5 2.5 0 1 0 22 12H2"/><path d="M15.7 18.7A2.5 2.5 0 1 0 18 16H2"/></svg>
+              </div>
+              <h3>Secador, en la dirección correcta</h3>
+              <p>Calor medio, a unos 15 cm. Secalo para el lado en que quiere ir el pelo. Cuando está al 80% seco ya lo podés peinar. Cerrá con 10 segundos de aire frío para fijar la forma.</p>
+            </li>
+            <li class="step-card">
+              <div class="step-top">
+                <span class="step-count">05</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+              </div>
+              <h3>Producto y a la calle</h3>
+              <p>Una cantidad del tamaño de una arveja. Entibiala entre las palmas, repartila y acomodá según el estilo que quieras (lo ves en la próxima sección).</p>
+            </li>
+          </ol>
+          <aside class="tip-band">
+            <div class="tip-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+              <h3>Ojo con esto</h3>
+            </div>
+            <ul>
+              <li><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>No te frotes con la toalla ni uses agua hirviendo.</li>
+              <li><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>No te pongas cera con el pelo chorreando.</li>
+              <li><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>No te acuestes con producto puesto.</li>
+              <li><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Si te levantaste con el pelo parado, mojá solo esa parte. No hace falta la cabeza entera.</li>
+            </ul>
+          </aside>
+        </section>
+
+        <!-- 02 Estilos -->
+        <section id="estilos" class="guide-section">
+          <div class="section-heading">
+            <span class="section-number">02</span>
+            <div class="min-w-0">
+              <h2>TU PELO. TU FORMA.</h2>
+              <p>Cómo peinarte según cómo lo quieras. Un tip concreto para cada estilo.</p>
+            </div>
+          </div>
+          <div class="styles-layout">
+            <div class="style-list">
+              <div class="style-item open">
+                <button class="style-trigger" type="button" aria-expanded="true">
+                  <span class="style-label"><span class="style-index">01</span>Flequillo para adelante</span>
+                  <svg class="chevron-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="style-content">
+                  <p>Secalo con el flequillo cayendo hacia adelante y el aire desde arriba, así no se te levanta. Una arveja de cera en la punta de los dedos, solo para separar mechones. No lo aplastes.</p>
+                  <div class="product-tags"><span>CERA MATE</span></div>
+                </div>
+              </div>
+              <div class="style-item ">
+                <button class="style-trigger" type="button" aria-expanded="false">
+                  <span class="style-label"><span class="style-index">02</span>Flequillo para el costado</span>
+                  <svg class="chevron-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="style-content">
+                  <p>Primero secalo un ratito para el lado contrario: levantás la raíz y le das volumen. Después lo llevás al costado con los dedos o con peine. Con la cera justa para que se mueva sin desarmarse.</p>
+                  <div class="product-tags"><span>CERA FLEX MATE</span></div>
+                </div>
+              </div>
+              <div class="style-item ">
+                <button class="style-trigger" type="button" aria-expanded="false">
+                  <span class="style-label"><span class="style-index">03</span>Todo para atrás</span>
+                  <svg class="chevron-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="style-content">
+                  <p>Peinalo hacia atrás mientras lo secás, con peine o con los dedos, para marcarle el camino. Con el pelo al 80%, ponete el producto: arrancá por atrás y terminá adelante, así no se te junta todo en el frente.</p>
+                  <div class="product-tags"><span>CERA FIJACIÓN EXTREMA</span></div>
+                </div>
+              </div>
+              <div class="style-item ">
+                <button class="style-trigger" type="button" aria-expanded="false">
+                  <span class="style-label"><span class="style-index">04</span>Con texturizado</span>
+                  <svg class="chevron-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="style-content">
+                  <p>Con el pelo húmedo, un poco de salt spray a 20 cm y secalo moviéndolo con los dedos. Ya seco, polvo en la raíz y marcá con las manos. Si querés más control, un toque de cera mate arriba.</p>
+                  <div class="product-tags"><span>SALT SPRAY</span><span>POLVO TEXTURIZADOR</span><span>CERA MATE</span></div>
+                </div>
+              </div>
+              <div class="style-item ">
+                <button class="style-trigger" type="button" aria-expanded="false">
+                  <span class="style-label"><span class="style-index">05</span>Flequillo levantado</span>
+                  <svg class="chevron-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="style-content">
+                  <p>Secalo desde la raíz empujándolo hacia arriba con los dedos, con el aire desde abajo. Cerrá con aire frío para que quede. El polvo en la raíz hace que aguante todo el día.</p>
+                  <div class="product-tags"><span>POLVO TEXTURIZADOR</span><span>CERA FIJACIÓN EXTREMA</span></div>
+                </div>
+              </div>
+              <div class="style-item ">
+                <button class="style-trigger" type="button" aria-expanded="false">
+                  <span class="style-label"><span class="style-index">06</span>Librito</span>
+                  <svg class="chevron-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="style-content">
+                  <p>Pelo húmedo y peine fino. Marcá la raya siguiendo la que te dejó el barbero y secalo peinándolo con calor medio. Natural con flex mate; si tenés que aguantar todo el día, fijación extrema.</p>
+                  <div class="product-tags"><span>CERA FLEX MATE</span><span>CERA FIJACIÓN EXTREMA</span></div>
+                </div>
+              </div>
+              <div class="style-item ">
+                <button class="style-trigger" type="button" aria-expanded="false">
+                  <span class="style-label"><span class="style-index">07</span>No me peino, lo uso despeinado</span>
+                  <svg class="chevron-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="style-content">
+                  <p>Despeinado no es dejarlo como te levantaste. Pelo húmedo, salt spray y secalo con las manos moviéndolo para todos lados. Listo, sin peine.</p>
+                  <div class="product-tags"><span>SALT SPRAY</span></div>
+                </div>
+              </div>
+            </div>
+            <aside class="products">
+              <span class="eyebrow">EL EQUIPO PARA TU PELO</span>
+              <h3>Los productos<br>de Masivo.</h3>
+              <div class="product-row">
+                <div class="product-symbol"><span class="wax-jar">M</span></div>
+                <div>
+                  <h4>SALT SPRAY</h4>
+                  <p>Textura y volumen natural. Ideal para el look despeinado.</p>
+                </div>
+              </div>
+              <div class="product-row">
+                <div class="product-symbol"><span class="wax-jar">M</span></div>
+                <div>
+                  <h4>CERA MATE</h4>
+                  <p>Fijación suave y acabado sin brillo.</p>
+                </div>
+              </div>
+              <div class="product-row">
+                <div class="product-symbol"><span class="wax-jar">M</span></div>
+                <div>
+                  <h4>CERA FLEX MATE</h4>
+                  <p>Fijación flexible: se mueve pero no se cae.</p>
+                </div>
+              </div>
+              <div class="product-row">
+                <div class="product-symbol"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></div>
+                <div>
+                  <h4>CERA FIJACIÓN EXTREMA</h4>
+                  <p>La más fuerte. Para peinados que tienen que aguantar.</p>
+                </div>
+              </div>
+              <div class="product-row">
+                <div class="product-symbol"><span class="spray-bottle">M</span></div>
+                <div>
+                  <h4>POLVO TEXTURIZADOR</h4>
+                  <p>Volumen y agarre en la raíz.</p>
+                </div>
+              </div>
+              <p class="barber-tip"><svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg> ¿No sabés cuál va con tu pelo? Preguntale a tu barbero.</p>
+            </aside>
+          </div>
+        </section>
+
+        <!-- 03 Errores -->
+        <section id="errores" class="guide-section">
+          <div class="section-heading">
+            <span class="section-number">03</span>
+            <div class="min-w-0">
+              <h2>NO ARRUINES UN BUEN CORTE.</h2>
+              <p>Errores que estás cometiendo. Los hacen casi todos: fijate cuáles te suenan y cómo se arreglan.</p>
+            </div>
+          </div>
+          <div class="errors-grid">
+            <article class="error-card">
+              <h3><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Te pasás con el producto</h3>
+              <p><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Arrancá con una arveja. Si falta, agregás. Sacar es imposible.</p>
+            </article>
+            <article class="error-card">
+              <h3><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Ponés cera con el pelo chorreando</h3>
+              <p><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Secalo al 80% primero. Con el pelo muy mojado la cera no agarra.</p>
+            </article>
+            <article class="error-card">
+              <h3><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Te frotás con la toalla</h3>
+              <p><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Apretá y sacudí. Frotar te lo esponja.</p>
+            </article>
+            <article class="error-card">
+              <h3><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Te lavás con agua muy caliente</h3>
+              <p><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Tibia, y fría al final. Y no hace falta lavarlo todos los días: cada 2 días si no sudás mucho.</p>
+            </article>
+            <article class="error-card">
+              <h3><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Peleás contra el remolino</h3>
+              <p><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Secalo primero en el sentido en que crece y recién después lo acomodás.</p>
+            </article>
+            <article class="error-card">
+              <h3><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Te dormís con cera</h3>
+              <p><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Lavate antes de dormir. Si no podés, mojalo y peinalo.</p>
+            </article>
+            <article class="error-card">
+              <h3><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Lo dejás secar solo y después te peinás</h3>
+              <p><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Peinalo mientras se seca. Seco ya tiene su forma y cuesta cambiarla.</p>
+            </article>
+            <article class="error-card">
+              <h3><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Usás el mismo producto para todo</h3>
+              <p><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Mate para natural, polvo para volumen, fijación extrema para lo que tiene que aguantar.</p>
+            </article>
+          </div>
+          <aside class="expensive-error">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16.5 12"/></svg>
+            <div>
+              <h3>El error más caro</h3>
+              <p>Esperar a que el corte se vea mal para sacar turno. Cuando se nota, ya pasó de largo.</p>
+            </div>
+            <a class="btn btn-link" href="https://app.growthbarber.com/reserva/masivo?ref=historia" target="_blank" rel="noopener noreferrer">Sacá tu turno <svg class="icon action-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+          </aside>
+        </section>
+
+        <!-- 04 Cuándo volver -->
+        <section id="volver" class="guide-section">
+          <div class="section-heading">
+            <span class="section-number">04</span>
+            <div class="min-w-0">
+              <h2>VOLVÉ ANTES DE QUE SE NOTE.</h2>
+              <p>Cada cuántos días volver. El máximo que recomendamos es 30 días. Según tu corte y tu laburo, conviene antes.</p>
+            </div>
+          </div>
+          <div class="interval-layout">
+            <div>
+              <div class="mode-tabs" role="group" aria-label="Recomendaciones según">
+                <button class="btn btn-ghost active" id="tab-corte" type="button"><svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg> Según tu corte</button>
+                <button class="btn btn-ghost" id="tab-laburo" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16.5 12"/></svg> Según tu laburo</button>
+              </div>
+              <div class="interval-table" id="interval-table">
+                <!-- Populated dynamically via JS -->
+              </div>
+            </div>
+            <aside class="interval-result" id="interval-result">
+              <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+              <span class="eyebrow">TU PRÓXIMA VISITA</span>
+              <strong id="result-days">10 a 15 días</strong>
+              <p id="result-desc">Rapado, buzz o skin fade</p>
+              <a class="btn btn-primary" href="https://app.growthbarber.com/reserva/masivo?ref=historia" target="_blank" rel="noopener noreferrer">Reservar turno <svg class="icon action-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+            </aside>
+          </div>
+
+          <div class="late-advice" id="late-accordion">
+            <button class="late-trigger" type="button" aria-expanded="false">
+              <span>¿Ya pasaron los 30 días?</span>
+              <svg class="chevron-toggle" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="late-content">
+              <div class="late-grid">
+                <p><strong>Se te perdió el degradé:</strong> pedí corte completo, no un retoque.</p>
+                <p><strong>Lo querés dejar crecer:</strong> pasá a emprolijar nuca y laterales, sin tocar el largo.</p>
+                <p><strong>Venís de corto y vas a largo:</strong> una pasada cada 30 días para que crezca parejo y no se arme un casco.</p>
+                <p><strong>Tenés rulos u ondas:</strong> venite a sacarle peso, no largo.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 05 Review -->
+        <section class="review-section" aria-labelledby="review-title">
+          <div class="stars" aria-label="5 estrellas">
+            <svg class="icon star-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="icon star-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="icon star-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="icon star-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="icon star-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <span class="eyebrow">TU OPINIÓN NOS HACE CRECER</span>
+          <h2 id="review-title">¿SALISTE CONFORME?</h2>
+          <p>Si te sobra un minuto, dejanos una reseña en Google Maps. Es la forma en que más gente nos encuentra. Y si algo no te cerró, también lo queremos leer, para mejorarlo.</p>
+          <a class="btn btn-primary" href="https://g.page/r/CUXgko6IPGfOEBE/review" target="_blank" rel="noopener noreferrer" style="height: 48px; padding-inline: 24px;">
+            <svg class="icon star-fill" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Dejar mi reseña <svg class="icon action-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </a>
+          <span class="google-label"><span>G</span> Google Maps</span>
+        </section>
+
+        <!-- 06 Regalo / Coupon -->
+        <section id="regalo" class="gift-section">
+          <div class="coupon" id="coupon-card">
+            <div class="coupon-copy">
+              <span class="eyebrow"><svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg> UN REGALO POR LLEGAR HASTA ACÁ</span>
+              <h2>15% <span>OFF</span></h2>
+              <h3>EN TU PRÓXIMO CORTE.</h3>
+              <p>Llegaste al final de la guía. Esto es para vos.</p>
+            </div>
+            <div class="coupon-action" id="coupon-action">
+              <span class="coupon-stamp"><svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg></span>
+              <button class="btn btn-primary" id="claim-coupon-btn" type="button">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg> ¡Reclamalo ya! <svg class="icon action-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </button>
+              <small>Presentá este cupón en tu próxima visita a Masivo.<br>Cupón válido por tiempo limitado.</small>
+            </div>
+          </div>
+          <img class="barber-banner" src="img/banner.jpg" alt="Masivo Barber: tu estilo, nuestra pasión. Cortes, lavado y cuidado de barba." loading="lazy">
+        </section>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer page-width">
+      <a class="wordmark" href="#top">MASIVO<span>BARBER</span></a>
+      <p><svg class="icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg> Masivo Barber · Felix Aguilar 2809, Canning</p>
+      <a href="guia-peinado.pdf" target="_blank" rel="noopener noreferrer" download="guia-peinado.pdf">
+        Llevate la guía <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>
+      </a>
+    </footer>
+  </div>
+
+  <script>
+    (function() {
+      // Guide data embedded for interactivity
+      const intervals = [{"title": "Rapado, buzz o skin fade", "days": "10 a 15 d\u00edas"}, {"title": "Fade o degrad\u00e9 con tope corto", "days": "15 a 20 d\u00edas"}, {"title": "Medio largo con laterales cortos (pompadour, quiff, crop)", "days": "20 a 25 d\u00edas"}, {"title": "Largo, medio largo o rulos", "days": "25 a 30 d\u00edas"}];
+      const jobs = [{"title": "Atenci\u00f3n al p\u00fablico u oficina", "text": "Te ven todo el d\u00eda. Corto, cada 15 d\u00edas, y no pases de 3 semanas."}, {"title": "Uniforme o reglamento", "text": "Si te piden prolijidad, cada 10 a 15 d\u00edas."}, {"title": "Obra, casco o gorra", "text": "El casco te aplasta y te transpira el pelo. Corto y cada 15 a 20 d\u00edas."}, {"title": "Deporte o gimnasio", "text": "Sud\u00e1s, lav\u00e1s m\u00e1s y el degrad\u00e9 se ensucia. Cada 10 a 15 d\u00edas."}, {"title": "Facultad o home office", "text": "Pod\u00e9s estirar hasta los 30. M\u00e1s no."}, {"title": "Si sal\u00eds en c\u00e1mara", "text": "Redes o streaming: cada 10 a 15 d\u00edas."}];
+
+      let currentMode = 'corte';
+      let selectedIndex = 0;
+
+      const tableEl = document.getElementById('interval-table');
+      const resultDaysEl = document.getElementById('result-days');
+      const resultDescEl = document.getElementById('result-desc');
+      const tabCorte = document.getElementById('tab-corte');
+      const tabLaburo = document.getElementById('tab-laburo');
+
+      function renderIntervalTable() {
+        tableEl.innerHTML = '';
+        const list = currentMode === 'corte' ? intervals : jobs;
+        list.forEach((item, index) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'interval-row' + (index === selectedIndex ? ' selected' : '');
+          if (currentMode === 'corte') {
+            btn.innerHTML = '<span>' + item.title + '</span><strong>' + item.days + '</strong><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+          } else {
+            btn.classList.add('job-row');
+            btn.innerHTML = '<span>' + item.title + (index === selectedIndex ? '<small>' + item.text + '</small>' : '') + '</span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+          }
+          btn.addEventListener('click', () => {
+            selectedIndex = index;
+            renderIntervalTable();
+            updateResultCard();
+          });
+          tableEl.appendChild(btn);
+        });
+      }
+
+      function updateResultCard() {
+        if (currentMode === 'corte') {
+          const item = intervals[selectedIndex] || intervals[0];
+          resultDaysEl.textContent = item.days;
+          resultDescEl.textContent = item.title;
+        } else {
+          const item = jobs[selectedIndex] || jobs[0];
+          resultDaysEl.textContent = '10 a 20 días';
+          resultDescEl.textContent = item.title + ' — ' + item.text;
+        }
+      }
+
+      tabCorte.addEventListener('click', () => {
+        currentMode = 'corte';
+        selectedIndex = 0;
+        tabCorte.classList.add('active');
+        tabLaburo.classList.remove('active');
+        renderIntervalTable();
+        updateResultCard();
+      });
+
+      tabLaburo.addEventListener('click', () => {
+        currentMode = 'laburo';
+        selectedIndex = 0;
+        tabLaburo.classList.add('active');
+        tabCorte.classList.remove('active');
+        renderIntervalTable();
+        updateResultCard();
+      });
+
+      renderIntervalTable();
+
+      // Accordion for styles
+      document.querySelectorAll('.style-trigger').forEach(trigger => {
+        trigger.addEventListener('click', () => {
+          const item = trigger.closest('.style-item');
+          const isOpen = item.classList.contains('open');
+          document.querySelectorAll('.style-item').forEach(i => {
+            i.classList.remove('open');
+            i.querySelector('.style-trigger').setAttribute('aria-expanded', 'false');
+          });
+          if (!isOpen) {
+            item.classList.add('open');
+            trigger.setAttribute('aria-expanded', 'true');
+          }
+        });
+      });
+
+      // Accordion for late advice
+      const lateAcc = document.getElementById('late-accordion');
+      if (lateAcc) {
+        const lateTrigger = lateAcc.querySelector('.late-trigger');
+        lateTrigger.addEventListener('click', () => {
+          const isOpen = lateAcc.classList.contains('open');
+          lateAcc.classList.toggle('open');
+          lateTrigger.setAttribute('aria-expanded', (!isOpen).toString());
+        });
+      }
+
+      // Coupon claim
+      const claimBtn = document.getElementById('claim-coupon-btn');
+      const couponAction = document.getElementById('coupon-action');
+      if (claimBtn && couponAction) {
+        claimBtn.addEventListener('click', () => {
+          couponAction.innerHTML = `
+            <svg style="color:var(--primary);margin-bottom:6px;" xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+            <h3 style="font-size:16px;">¡Tu cupón está listo!</h3>
+            <p style="font-size:12px;color:var(--muted-foreground);">Mostrá esta pantalla en tu próxima visita.</p>
+            <a class="btn btn-primary" href="https://app.growthbarber.com/reserva/masivo?ref=historia" target="_blank" rel="noopener noreferrer" style="width:100%;height:45px;">
+              Reservar con mi cupón <svg class="icon action-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+            <small style="font-size:9px;color:var(--muted-foreground);margin-top:5px;">Presentá este cupón en tu próxima visita a Masivo.<br>Cupón válido por tiempo limitado.</small>
+          `;
+        });
+      }
+
+      // ScrollSpy for Nav links
+      const sections = ['paso', 'estilos', 'errores', 'volver', 'regalo'];
+      const navLinks = document.querySelectorAll('.nav-link');
+      window.addEventListener('scroll', () => {
+        let current = 'paso';
+        sections.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            const top = el.getBoundingClientRect().top;
+            if (top <= 120) {
+              current = id;
+            }
+          }
+        });
+        navLinks.forEach(link => {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === '#' + current) {
+            link.classList.add('active');
+          }
+        });
+      }, { passive: true });
+    })();
+  </script>
+</body>
+</html>
