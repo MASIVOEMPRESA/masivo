@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/admin.css?v=20261028n">
-  <link rel="stylesheet" href="/css/admin-v2.css?v=20261028n">
+  <link rel="stylesheet" href="/css/admin.css?v=20261028o">
+  <link rel="stylesheet" href="/css/admin-v2.css?v=20261028o">
 </head>
 <body class="admin-body">
   <a class="skip-link" href="#view">Saltar al contenido</a>
@@ -118,11 +118,12 @@
           </label>
           <p class="login-error" id="login-error" role="alert" hidden></p>
           <button class="btn btn--primary login-submit" type="submit"><svg><use href="#i-arrow"/></svg>Entrar al panel</button>
+          <p class="login-busy" id="login-busy" hidden>Conectando con la nube…</p>
         </form>
         <p class="login-hint" id="login-demo-hint">Demo inicial: <b>nico</b> / <b>masivo</b> · usuarios y claves se editan en Configuración.</p>
         <p class="login-note">
           <svg><use href="#i-lock"/></svg>
-          Acceso básico: las cuentas y los datos se guardan en este dispositivo.
+          <span id="login-note-text">Acceso básico: las cuentas y los datos se guardan en este dispositivo.</span>
         </p>
         <div class="login-foot">
           <a href="/" class="login-back"><svg><use href="#i-arrow-left"/></svg> Volver a la landing</a>
@@ -178,6 +179,11 @@
         </div>
 
         <div class="topbar-right">
+          <button class="sync-chip sync-chip--muted" id="sync-chip" type="button" data-action="sync-now" aria-label="Estado de sincronización" title="Sincronización">
+            <span class="sync-dot" aria-hidden="true"></span>
+            <span data-sync-text>Solo este dispositivo</span>
+          </button>
+
           <button class="search-trigger" type="button" data-action="open-search" aria-label="Buscar en el panel">
             <svg><use href="#i-search"/></svg>
             <span>Buscar o saltar a…</span>
@@ -215,9 +221,11 @@
   <div class="modal-root" id="modal-root"></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/js/admin-data.js?v=20261028n" defer></script>
-  <script src="/js/admin-store.js?v=20261028n" defer></script>
-  <script src="/js/admin-charts.js?v=20261028n" defer></script>
-  <script src="/js/admin-app.js?v=20261028n" defer></script>
+  <script src="/js/admin-data.js?v=20261028o" defer></script>
+  <script src="/js/supabase-config.js?v=20261028o" defer></script>
+  <script src="/js/admin-cloud.js?v=20261028o" defer></script>
+  <script src="/js/admin-store.js?v=20261028o" defer></script>
+  <script src="/js/admin-charts.js?v=20261028o" defer></script>
+  <script src="/js/admin-app.js?v=20261028o" defer></script>
 </body>
 </html>

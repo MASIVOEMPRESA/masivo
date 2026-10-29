@@ -250,6 +250,43 @@
     bindGlobal();
     if (S.currentUser()) enterApp();
     else showLogin();
+    renderSyncChip();
+  }
+
+  async function boot() {
+    const cloud = window.MasivoCloud;
+    if (cloud && cloud.enabled) {
+      setLoginBusy(true);
+      let restored = null;
+      try {
+        restored = await cloud.restore();
+      } catch {
+        restored = null;
+      }
+      setLoginBusy(false);
+      if (restored && restored.ok) {
+        const keepPending = Number(restored.version || 0) <= 1 && Boolean(S.cloudInfo().hasPendingLocal);
+        S.applyCloud(restored, { keepPending });
+        if (keepPending) {
+          init();
+          promptPendingLocal();
+          return;
+        }
+      } else if (S.currentUser()) {
+        S.clearSession();
+      }
+    }
+    init();
+  }
+
+  function setLoginBusy(busy) {
+    const button = $("#login-form button[type=submit]");
+    const hint = $("#login-busy");
+    if (button) {
+      button.disabled = busy;
+      button.classList.toggle("is-busy", busy);
+    }
+    if (hint) hint.hidden = !busy;
   }
 
   function showLogin() {
@@ -276,6 +313,56 @@
     enterApp();
     const user = S.currentUser();
     toast(`Entraste como ${user?.name || "equipo"}.`);
+    renderSyncChip();
+  }
+
+  /* ---------------- nube y sincronización ---------------- */
+
+  function cloudInfo() {
+    return S.cloudInfo ? S.cloudInfo() : { enabled: false, mode: "local", status: "local" };
+  }
+
+  function syncLabel(info) {
+    if (!info.enabled) return { text: "Solo este dispositivo", tone: "muted" };
+    if (info.mode !== "cloud") return { text: "Sin conectar", tone: "muted" };
+    if (info.status === "offline") return { text: "Sin internet", tone: "red" };
+    if (info.status === "expired") return { text: "Sesión vencida", tone: "red" };
+    if (info.status === "error") return { text: "Error al guardar", tone: "red" };
+    if (info.status === "saving" || info.pending) return { text: "Guardando…", tone: "amber" };
+    return { text: "Sincronizado", tone: "green" };
+  }
+
+  function renderSyncChip() {
+    const chip = $("#sync-chip");
+    if (!chip) return;
+    const info = cloudInfo();
+    const label = syncLabel(info);
+    chip.className = `sync-chip sync-chip--${label.tone}`;
+    const text = chip.querySelector("[data-sync-text]");
+    if (text) text.textContent = label.text;
+    chip.title = info.enabled
+      ? `Supabase · ${info.status}${info.lastSyncAt ? ` · ${dateTime(new Date(info.lastSyncAt).toISOString())}` : ""}`
+      : "Los datos se guardan solo en este dispositivo";
+    chip.dataset.mode = info.mode;
+  }
+
+  function promptPendingLocal() {
+    const info = cloudInfo();
+    if (!info.enabled || !info.hasPendingLocal) return;
+    openModal({
+      kicker: "Primera conexión",
+      title: "¿Subimos los datos de este dispositivo?",
+      sub: "La nube todavía tiene los datos de ejemplo.",
+      hideSubmit: true,
+      cancelLabel: "Ahora no",
+      body: `<div style="display:flex;flex-direction:column;gap:12px">
+        <p class="form-hint" style="margin:0">Si subís, todo lo que ya cargaste en este navegador (usuarios, movimientos, academia, contenido) pasa a ser la versión compartida para todos los dispositivos. Si elegís la nube, este dispositivo empieza con los datos de ejemplo.</p>
+        <div class="data-actions">
+          <button class="btn btn--primary btn--sm" type="button" data-action="upload-local"><svg><use href="#i-upload"/></svg>Subir los de este dispositivo</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-action="discard-local"><svg><use href="#i-download"/></svg>Usar los de la nube</button>
+        </div>
+      </div>`
+    });
   }
 
   /* ---------------- login ---------------- */
@@ -291,9 +378,16 @@
     const user = $("#login-user");
     const pass = $("#login-password");
     const hint = $("#login-demo-hint");
+    const info = S.cloudInfo ? S.cloudInfo() : { enabled: false };
     if (hint) {
       const demo = S.getState().users.find((item) => item.username === "nico" && item.active);
-      hint.hidden = !(demo && demo.password === "masivo");
+      hint.hidden = info.enabled || !(demo && demo.password === "masivo");
+    }
+    const note = $("#login-note-text");
+    if (note) {
+      note.textContent = info.enabled
+        ? "Conectado a la nube: usuarios, claves y datos se sincronizan entre dispositivos."
+        : "Acceso básico: las cuentas y los datos se guardan en este dispositivo.";
     }
     if (pass) pass.value = "";
     if (user && !form.dataset.touched) {
@@ -346,7 +440,16 @@
     }).join("");
 
     const storage = S.storageInfo();
-    $("#storage-label").textContent = `${Math.max(1, Math.round(storage.bytes / 1024))} KB · local`;
+    const cloud = storage.cloud || {};
+    $("#storage-label").textContent =
+      cloud.mode === "cloud"
+        ? `Nube · ${cloud.status === "saving" || cloud.pending ? "guardando" : relative(S.getState().updatedAt)}`
+        : `${Math.max(1, Math.round(storage.bytes / 1024))} KB · local`;
+    const pill = $("#storage-pill");
+    if (pill) {
+      pill.classList.toggle("is-cloud", cloud.mode === "cloud");
+      pill.classList.toggle("is-offline", cloud.status === "offline" || cloud.status === "error");
+    }
     updateNotificationBadge();
   }
 
@@ -2855,7 +2958,7 @@
         title: "Configuración",
         desc: "Metas, puntos, límites de strikes, usuarios y permisos por módulo. Todo lo que define cómo funciona el panel.",
         actions: btn("Exportar backup", { action: "export", icon: "download", variant: "primary" }),
-        meta: `<span><svg><use href="#i-database"/></svg>${Math.round(info.bytes / 1024)} KB locales</span><span><svg><use href="#i-refresh"/></svg>${relative(state.updatedAt)}</span>`,
+        meta: `<span><svg><use href="#i-database"/></svg>${info.cloud?.mode === "cloud" ? `Nube · v${info.cloud.version || 1}` : `${Math.round(info.bytes / 1024)} KB locales`}</span><span><svg><use href="#i-refresh"/></svg>${relative(state.updatedAt)}</span>`,
         hero: true
       })}
 
@@ -2878,11 +2981,32 @@
         </article>
 
         <div class="stack">
+          <article class="panel panel--violet" data-reveal>
+            <div class="panel-head panel-head--bordered">
+              <div><h2 class="panel-title">Nube y dispositivos</h2><p class="panel-sub">${info.cloud?.enabled ? "Supabase · estado compartido" : "Sin nube configurada"}</p></div>
+              <button class="sync-chip sync-chip--${syncLabel(info.cloud || {}).tone}" type="button" data-action="sync-now"><span class="sync-dot" aria-hidden="true"></span><span>${syncLabel(info.cloud || {}).text}</span></button>
+            </div>
+            <div class="panel-body" style="display:flex;flex-direction:column;gap:11px">
+              ${
+                info.cloud?.enabled
+                  ? `<div class="row row--between"><b>Versión compartida</b><small class="mono">v${info.cloud.version || 1}</small></div>
+                     <div class="row row--between"><b>Última sincronización</b><small>${info.cloud.lastSyncAt ? dateTime(new Date(info.cloud.lastSyncAt).toISOString()) : "—"}</small></div>
+                     <div class="row row--between"><b>Este dispositivo</b><small>${info.cloud.mode === "cloud" ? "Conectado" : "Sin sesión"}</small></div>
+                     <p class="form-hint">Los usuarios, las claves y todos los movimientos se guardan en la nube. Entrá desde la compu o el celular y vas a ver lo mismo.</p>
+                     <div class="data-actions">
+                       ${btn("Sincronizar ahora", { action: "sync-now", icon: "refresh", size: "sm", variant: "primary" })}
+                       ${info.cloud.hasPendingLocal ? btn("Subir datos locales", { action: "upload-local", icon: "upload", size: "sm", variant: "soft" }) : ""}
+                     </div>`
+                  : `<p class="form-hint">Falta pegar la URL y la anon key del proyecto en <span class="mono">js/supabase-config.js</span>. Mientras tanto el panel sigue funcionando guardando todo en este navegador.</p>`
+              }
+            </div>
+          </article>
+
           <article class="panel" data-reveal>
-            <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Datos y respaldo</h2><p class="panel-sub">Todo se guarda en este dispositivo</p></div></div>
+            <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Datos y respaldo</h2><p class="panel-sub">${info.cloud?.mode === "cloud" ? "Copia local + respaldo en la nube" : "Todo se guarda en este dispositivo"}</p></div></div>
             <div class="panel-body" style="display:flex;flex-direction:column;gap:11px">
               <div class="storage-meter"><div class="row row--between"><b>${Math.round(info.bytes / 1024)} KB usados</b><small>de ~5 MB disponibles</small></div>${progressBar(used, used > 80 ? "red" : used > 50 ? "amber" : "green")}<small>Última actualización: ${dateTime(info.updatedAt)}</small></div>
-              <p class="form-hint">El panel funciona sin servidor: los cambios viven en <span class="mono">localStorage</span>. Exportá un backup antes de limpiar el navegador o cambiar de dispositivo.</p>
+              <p class="form-hint">${info.cloud?.mode === "cloud" ? "El navegador guarda una copia para abrir rápido, pero la versión válida es la de la nube. Exportá un backup igual antes de cambios grandes." : "El panel funciona sin servidor: los cambios viven en <span class=\"mono\">localStorage</span>. Exportá un backup antes de limpiar el navegador o cambiar de dispositivo."}</p>
               <div class="data-actions">
                 ${btn("Exportar JSON", { action: "export", icon: "download", size: "sm", variant: "soft" })}
                 ${btn("Importar JSON", { action: "import", icon: "upload", size: "sm" })}
@@ -2891,10 +3015,10 @@
             </div>
           </article>
 
-          <article class="panel panel--violet" data-reveal>
+          <article class="panel" data-reveal>
             <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Cómo funciona el acceso</h2><p class="panel-sub">Login simple y permisos por módulo</p></div></div>
             <div class="panel-body" style="display:flex;flex-direction:column;gap:7px">
-              ${[["Usuario y contraseña", "Cada persona entra con su usuario. Las claves se cambian desde esta pantalla."], ["Encargado academia", "Ve y maneja toda la academia: alumnos, cobranzas, métricas y stock."], ["Permisos por módulo", "El dueño decide qué sectores ve cada jerarquía."], ["Sin backend", "Las cuentas viven en este dispositivo. Para producción hace falta API + base de datos."]].map(([title, detail]) => `<div class="row" style="align-items:flex-start;gap:8px"><span class="pulse-dot" style="margin-top:5px"></span><div><b style="font-size:12px">${title}</b><small style="display:block;color:var(--muted-2);font-size:12.5px;line-height:1.5">${detail}</small></div></div>`).join("")}
+              ${[["Usuario y contraseña", "Cada persona entra con su usuario. Las claves se cambian desde esta pantalla y quedan guardadas con hash bcrypt."], ["Encargado academia", "Ve y maneja toda la academia: alumnos, cobranzas, métricas y stock."], ["Permisos por módulo", "El dueño decide qué sectores ve cada jerarquía. El servidor vuelve a validarlo al guardar."], ["Un solo lugar", info.cloud?.enabled ? "Todo vive en Supabase: entrás desde cualquier dispositivo y ves los mismos datos." : "Hoy los datos viven en este dispositivo. Con Supabase configurado se comparten entre todos."]].map(([title, detail]) => `<div class="row" style="align-items:flex-start;gap:8px"><span class="pulse-dot" style="margin-top:5px"></span><div><b style="font-size:12px">${title}</b><small style="display:block;color:var(--muted-2);font-size:12.5px;line-height:1.5">${detail}</small></div></div>`).join("")}
             </div>
           </article>
 
@@ -4375,6 +4499,18 @@
       case "import":
         importBackup();
         return;
+      case "upload-local":
+        uploadLocalData();
+        return;
+      case "discard-local":
+        S.discardLocal();
+        closeModal();
+        renderSyncChip();
+        toast("Seguimos con los datos de la nube.");
+        return;
+      case "sync-now":
+        syncNow();
+        return;
       case "reset-permissions": {
         confirmDialog({
           title: "RESTAURAR PERMISOS",
@@ -4451,6 +4587,50 @@
           afterChange("Pieza eliminada.");
         }
       });
+    }
+  }
+
+  async function uploadLocalData() {
+    closeModal();
+    if (!S.cloudEnabled || !S.cloudEnabled()) {
+      toast("La nube no está configurada todavía.", "error");
+      return;
+    }
+    toast("Subiendo los datos de este dispositivo…");
+    const result = await S.uploadLocal();
+    renderShell();
+    renderView();
+    renderSyncChip();
+    if (result.ok) {
+      toast("Listo: este dispositivo es ahora la versión compartida.");
+    } else if (result.error === "invalid_session") {
+      toast("La sesión venció. Volvé a entrar.", "error");
+    } else {
+      toast("No se pudo subir. Revisá la conexión e intentá de nuevo.", "error");
+    }
+  }
+
+  async function syncNow() {
+    const info = cloudInfo();
+    if (!info.enabled) {
+      toast("La nube no está configurada: los datos viven en este dispositivo.");
+      return;
+    }
+    if (info.mode !== "cloud") {
+      toast("Iniciá sesión para sincronizar.", "error");
+      return;
+    }
+    toast("Sincronizando…");
+    await S.pushNow();
+    const result = await S.syncNow();
+    if (result && result.ok) {
+      renderShell();
+      renderView();
+      renderSyncChip();
+      toast("Datos al día.");
+    } else {
+      renderSyncChip();
+      toast("No se pudo sincronizar. Revisá internet.", "error");
     }
   }
 
@@ -4543,7 +4723,26 @@
       sparkAt(event.clientX, event.clientY);
     });
 
-    document.addEventListener("submit", (event) => {
+    /* ---------------- eventos de la nube ---------------- */
+
+    document.addEventListener("masivo:cloud-status", () => renderSyncChip());
+    document.addEventListener("masivo:synced", () => renderSyncChip());
+    document.addEventListener("masivo:pending-local", () => promptPendingLocal());
+    document.addEventListener("masivo:remote-change", () => {
+      renderShell();
+      renderView();
+      renderSyncChip();
+      toast("Se actualizaron los datos desde otro dispositivo.");
+    });
+    document.addEventListener("masivo:session-expired", () => {
+      S.clearSession();
+      closeModal();
+      closePopovers();
+      showLogin();
+      toast("La sesión venció. Volvé a entrar.", "error");
+    });
+
+    document.addEventListener("submit", async (event) => {
       const form = event.target;
       const inline = form.dataset.inline;
       if (!inline) return;
@@ -4556,10 +4755,24 @@
           showLoginError("Completá usuario y contraseña.");
           return;
         }
-        const result = S.login(username, password);
+        setLoginBusy(true);
+        let result = null;
+        try {
+          result = await S.login(username, password);
+        } catch {
+          result = null;
+        }
+        setLoginBusy(false);
         if (!result) {
-          showLoginError("Usuario o contraseña incorrectos.");
-          toast("Usuario o contraseña incorrectos.", "error");
+          const reason = S.loginError ? S.loginError() : "";
+          const message =
+            reason === "network" || reason === "fetch"
+              ? "No pudimos conectar con la nube. Revisá internet e intentá de nuevo."
+              : reason === "app_not_initialized"
+                ? "La base todavía no tiene datos. Avisá al administrador."
+                : "Usuario o contraseña incorrectos.";
+          showLoginError(message);
+          toast(message, "error");
           const pass = $("#login-password");
           if (pass) {
             pass.value = "";
@@ -4660,5 +4873,5 @@
     });
   }
 
-  init();
+  boot();
 })();

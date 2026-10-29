@@ -58,6 +58,24 @@
   let state = null;
   let session = null;
 
+  /* ---------------- nube (Supabase) ---------------- */
+
+  const Cloud = window.MasivoCloud || null;
+  let cloudMode = false;
+  let cloudVersion = 0;
+  let pendingLocal = null;
+  let pushTimer = null;
+  let pushRetry = null;
+  let pushing = false;
+  let dirty = false;
+  let pollTimer = null;
+  let syncStarted = false;
+  let lastLoginError = "";
+
+  function cloudEnabled() {
+    return Boolean(Cloud && Cloud.enabled);
+  }
+
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
   }
@@ -87,10 +105,39 @@
   function persist() {
     if (!state) return;
     state.updatedAt = new Date().toISOString();
+    writeLocal();
+    if (cloudMode) {
+      dirty = true;
+      schedulePush();
+    }
+  }
+
+  /* En modo nube, el navegador nunca guarda contraseñas en texto plano. */
+  function snapshot() {
+    if (!state) return null;
+    if (!cloudMode) return state;
+    const copy = clone(state);
+    (copy.users || []).forEach((user) => {
+      delete user.password;
+    });
+    return copy;
+  }
+
+  function writeLocal() {
+    if (!state) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot()));
     } catch {
       // almacenamiento lleno o bloqueado: seguimos en memoria
+    }
+  }
+
+  function writeSession() {
+    try {
+      if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      else localStorage.removeItem(SESSION_KEY);
+    } catch {
+      // sin persistencia de sesión
     }
   }
 
@@ -99,6 +146,159 @@
     state = existing || window.MasivoData.createSeed();
     if (!existing) persist();
     normalize();
+    /* Guardamos lo que había en este dispositivo: si la nube todavía
+       tiene los datos demo, ofrecemos subir estos. */
+    pendingLocal = existing ? clone(existing) : null;
+  }
+
+  /* ---------------- sincronización con la nube ---------------- */
+
+  function handleExpired() {
+    cloudMode = false;
+    dirty = false;
+    session = null;
+    writeSession();
+    if (Cloud) {
+      Cloud.setToken("");
+      Cloud.setStatus("expired", "invalid_session");
+    }
+    document.dispatchEvent(new CustomEvent("masivo:session-expired"));
+  }
+
+  function adoptCloud(payload, options = {}) {
+    if (!payload || !payload.state) return false;
+    cloudMode = true;
+    state = payload.state;
+    cloudVersion = Number(payload.version || 0);
+    normalize();
+    if (payload.userId) {
+      session = { userId: payload.userId, at: new Date().toISOString(), cloud: true };
+      writeSession();
+    }
+    writeLocal();
+    if (!options.keepPending) pendingLocal = null;
+    startCloudSync();
+    return true;
+  }
+
+  function startCloudSync() {
+    if (syncStarted || !Cloud) return;
+    syncStarted = true;
+    pollTimer = setInterval(() => pullCloud(), 20000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") pullCloud();
+      else if (dirty) pushNow();
+    });
+    window.addEventListener("pagehide", () => {
+      if (dirty) pushNow();
+    });
+    window.addEventListener("online", () => {
+      if (cloudMode) pullCloud();
+    });
+  }
+
+  function schedulePush(delay = 600) {
+    if (!cloudMode || !Cloud) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => pushNow(), delay);
+  }
+
+  async function pushNow() {
+    if (!cloudMode || !Cloud) return { ok: false, error: "local_mode" };
+    if (pushing) {
+      dirty = true;
+      return { ok: false, busy: true };
+    }
+    clearTimeout(pushRetry);
+    pushing = true;
+    dirty = false;
+    Cloud.setStatus("saving");
+
+    let result;
+    try {
+      result = await Cloud.save(state);
+    } catch (error) {
+      result = { ok: false, error: error.message || "network" };
+    }
+    pushing = false;
+
+    if (result.ok) {
+      state = result.state || state;
+      cloudVersion = Number(result.version || cloudVersion);
+      normalize();
+      writeLocal();
+      document.dispatchEvent(new CustomEvent("masivo:synced", { detail: { version: cloudVersion } }));
+      if (dirty) schedulePush(700);
+      return { ok: true, version: cloudVersion };
+    }
+
+    if (String(result.error || "").includes("invalid_session")) {
+      handleExpired();
+      return { ok: false, error: "invalid_session" };
+    }
+
+    dirty = true;
+    pushRetry = setTimeout(() => schedulePush(0), 6000);
+    return { ok: false, error: result.error };
+  }
+
+  async function pullCloud(force = false) {
+    if (!cloudMode || !Cloud) return { ok: false, error: "local_mode" };
+    if (pushing || dirty) return { ok: false, busy: true };
+
+    const result = await Cloud.session();
+    if (!result.ok) {
+      if (result.error === "invalid_session" || result.error === "no_token") handleExpired();
+      return result;
+    }
+
+    const remoteVersion = Number(result.version || 0);
+    if (remoteVersion !== cloudVersion || force) {
+      const changed = remoteVersion !== cloudVersion;
+      adoptCloud(result);
+      if (changed) {
+        document.dispatchEvent(new CustomEvent("masivo:remote-change", { detail: { version: cloudVersion } }));
+      }
+    }
+    return result;
+  }
+
+  /* Sube el estado de este dispositivo (el que había antes de la nube). */
+  async function uploadLocal() {
+    if (!cloudMode) return { ok: false, error: "local_mode" };
+    if (pendingLocal) {
+      const previous = state;
+      state = pendingLocal;
+      pendingLocal = null;
+      normalize();
+      const result = await pushNow();
+      if (!result.ok) {
+        state = previous;
+        normalize();
+        pendingLocal = pendingLocal || previous;
+        return result;
+      }
+      document.dispatchEvent(new CustomEvent("masivo:pending-cleared"));
+      return result;
+    }
+    dirty = true;
+    return pushNow();
+  }
+
+  function discardLocal() {
+    pendingLocal = null;
+    document.dispatchEvent(new CustomEvent("masivo:pending-cleared"));
+  }
+
+  function cloudInfo() {
+    const info = Cloud && Cloud.info ? Cloud.info() : { enabled: false, status: "local" };
+    return {
+      ...info,
+      mode: cloudMode ? "cloud" : "local",
+      version: cloudVersion,
+      pending: dirty || pushing,
+      hasPendingLocal: Boolean(pendingLocal)
+    };
   }
 
   function normalize() {
@@ -142,7 +342,7 @@
       while (usedUsernames.has(username)) username = `${base}${suffix++}`;
       usedUsernames.add(username);
       user.username = username;
-      if (!user.password) user.password = "masivo";
+      if (!user.password && !user.hasPassword && !user.passwordHash) user.password = "masivo";
     });
 
     /* paleta violeta: recolorea datos guardados con la identidad anterior */
@@ -186,14 +386,33 @@
   function login(username, password) {
     const clean = normalizeUsername(username);
     if (!clean || !password) return null;
+
+    /* Con Supabase configurado, la clave se valida en el servidor. */
+    if (cloudEnabled()) {
+      return Cloud.login(clean, password)
+        .then((result) => {
+          if (!result.ok) {
+            lastLoginError = result.error || "invalid_credentials";
+            return false;
+          }
+          lastLoginError = "";
+          const keepPending = Number(result.version || 0) <= 1 && Boolean(pendingLocal);
+          adoptCloud(result, { keepPending });
+          if (keepPending) {
+            document.dispatchEvent(new CustomEvent("masivo:pending-local"));
+          }
+          return currentUser();
+        })
+        .catch(() => {
+          lastLoginError = "network";
+          return false;
+        });
+    }
+
     const user = state.users.find((item) => item.active && normalizeUsername(item.username) === clean && String(item.password) === String(password));
     if (!user) return false;
     session = { userId: user.id, at: new Date().toISOString() };
-    try {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    } catch {
-      // sin persistencia de sesión
-    }
+    writeSession();
     return user;
   }
 
@@ -207,20 +426,22 @@
     const user = state.users.find((item) => item.id === userId && item.active);
     if (!user) return false;
     session = { userId, at: new Date().toISOString() };
-    try {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    } catch {
-      // sin persistencia de sesión
-    }
+    writeSession();
     return true;
   }
 
   function clearSession() {
     session = null;
-    try {
-      localStorage.removeItem(SESSION_KEY);
-    } catch {
-      // sin persistencia de sesión
+    writeSession();
+    if (cloudMode) {
+      cloudMode = false;
+      dirty = false;
+      pendingLocal = null;
+      clearTimeout(pushTimer);
+      if (Cloud) {
+        Cloud.logout();
+        Cloud.setStatus("idle");
+      }
     }
   }
 
@@ -815,7 +1036,7 @@
         active: data.active !== undefined ? Boolean(data.active) : user.active
       });
       if (data.password) user.password = String(data.password);
-      if (!user.password) user.password = "masivo";
+      if (!user.password && !user.hasPassword && !cloudMode) user.password = "masivo";
       user.initials = user.name
         .split(" ")
         .filter(Boolean)
@@ -1555,12 +1776,14 @@
   }
 
   function storageInfo() {
+    let bytes = 0;
     try {
       const raw = localStorage.getItem(STORAGE_KEY) || "";
-      return { bytes: new Blob([raw]).size, updatedAt: state.updatedAt };
+      bytes = new Blob([raw]).size;
     } catch {
-      return { bytes: 0, updatedAt: state.updatedAt };
+      bytes = 0;
     }
+    return { bytes, updatedAt: state.updatedAt, cloud: cloudInfo() };
   }
 
   window.MasivoStore = {
@@ -1568,9 +1791,18 @@
     currentUser,
     currentUserId: () => currentUser()?.id || null,
     login,
+    loginError: () => lastLoginError,
     usernameTaken,
     setSession,
     clearSession,
+    applyCloud: adoptCloud,
+    cloudInfo,
+    uploadLocal,
+    downloadCloud: pullCloud,
+    discardLocal,
+    pushNow,
+    syncNow: () => (cloudMode ? pullCloud(true) : Promise.resolve({ ok: false })),
+    cloudEnabled,
     can,
     permissionsFor,
     modules: () => MODULES.slice(),

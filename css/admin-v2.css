@@ -4327,3 +4327,126 @@ body.admin-body {
     margin-left: 31px;
   }
 }
+
+/* ---------------- estado de sincronización (nube) ---------------- */
+
+.sync-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.sync-chip:hover {
+  border-color: var(--line-strong);
+  background: rgba(167, 139, 250, 0.09);
+  color: var(--white);
+}
+
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted-2);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
+  flex: none;
+}
+
+.sync-chip--green {
+  color: var(--green);
+  border-color: rgba(52, 211, 153, 0.28);
+}
+.sync-chip--green .sync-dot {
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.14);
+}
+
+.sync-chip--amber {
+  color: var(--amber);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+.sync-chip--amber .sync-dot {
+  background: var(--amber);
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.14);
+  animation: syncPulse 1.1s ease-in-out infinite;
+}
+
+.sync-chip--red {
+  color: var(--red);
+  border-color: rgba(251, 113, 133, 0.32);
+}
+.sync-chip--red .sync-dot {
+  background: var(--red);
+  box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.14);
+}
+
+.sync-chip--muted .sync-dot {
+  background: var(--muted-2);
+}
+
+.storage-pill.is-cloud .pulse-dot {
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+}
+
+.storage-pill.is-offline .pulse-dot {
+  background: var(--red);
+  box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.12);
+}
+
+.login-busy {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.login-busy::after {
+  content: "";
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-left: 8px;
+  border: 1.5px solid rgba(167, 139, 250, 0.3);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  vertical-align: -1px;
+  animation: syncSpin 0.8s linear infinite;
+}
+
+.login-submit.is-busy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+@keyframes syncPulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@keyframes syncSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 760px) {
+  .topbar .sync-chip {
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+  .topbar .sync-chip [data-sync-text] {
+    display: none;
+  }
+}
