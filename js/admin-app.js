@@ -666,6 +666,7 @@
     if (!stage) return;
     const svg = $("#tm-links", stage);
     const hub = $(".tm-hub", stage);
+    const hubPhoto = $(".tm-hub-photo", stage);
     if (!svg || !hub) return;
     const userId = stage.dataset.mapUser || "";
     const nodes = $$(".tm-node", stage);
@@ -693,7 +694,7 @@
     function draw() {
       const stageRect = stage.getBoundingClientRect();
       if (stageRect.width < 20) return;
-      const origin = centerOf(hub);
+      const origin = centerOf(hubPhoto || hub);
       const targets = nodes.map((node) => ({ element: node, tone: toneOf(node, "tm-node") }));
       if (daily) targets.push({ element: daily, tone: toneOf(daily, "tm-daily") });
       svg.setAttribute("viewBox", `0 0 ${stageRect.width} ${stageRect.height}`);
@@ -2422,15 +2423,15 @@
       return (order[a.role] ?? 4) - (order[b.role] ?? 4) || a.name.localeCompare(b.name);
     });
     const managers = S.managers();
-    const managersWithMap = managers.filter((user) => user.active);
+    const managersWithMap = state.users.filter((user) => user.active && (managers.some((item) => item.id === user.id) || Boolean(state.teamMaps?.[user.id])));
 
     if (!managersWithMap.length) {
       return `<section class="page">
         ${pageHead({
           kicker: "Personas · mapa de responsabilidades",
           title: "Equipo y roles",
-          desc: "Todavía no hay encargados con mapa. Sumá una persona con rol de encargado para empezar.",
-          actions: owner ? btn("Sumar encargado", { action: "new-manager", icon: "plus", variant: "primary" }) : "",
+          desc: "Todavía no hay mapas mentales. Creá uno para cualquier persona del equipo y elegí sus responsabilidades.",
+          actions: owner ? btn("Crear mapa mental", { action: "map-create", icon: "spark", variant: "primary" }) : "",
           hero: true
         })}
         <article class="panel"><div class="panel-body">${emptyState("Sin encargados", "Creá un encargado desde Equipo para ver su mapa.", "users")}</div></article>
@@ -2466,15 +2467,16 @@
               <h1 class="tm-title">Equipo <span>y roles</span></h1>
               <p class="tm-sub">Cada encargado tiene su propio mapa vivo. Los globos se conectan con su núcleo, cambian de color según el cumplimiento y muestran los pendientes. Arrastralos para ordenar el flujo.</p>
               <div class="tm-head-meta">
-                <span><svg><use href="#i-users"/></svg>${managersWithMap.length} encargados</span>
+                <span><svg><use href="#i-users"/></svg>${managersWithMap.length} mapas</span>
                 <span><svg><use href="#i-grid"/></svg>${statuses.length} responsabilidades</span>
                 <span><svg><use href="#i-zap"/></svg>${pendingTotal} pendientes</span>
                 <span><svg><use href="#i-shield"/></svg>${roles.length} jerarquías</span>
               </div>
             </div>
             <div class="tm-head-actions">
-              <button class="tm-ctl tm-ctl--primary" type="button" data-action="map-add-task" data-id="${esc(selected.id)}"><svg><use href="#i-plus"/></svg>Sumar tarea</button>
-              <button class="tm-ctl" type="button" data-action="map-add-node" data-id="${esc(selected.id)}"><svg><use href="#i-spark"/></svg>Responsabilidad</button>
+              <button class="tm-ctl tm-ctl--primary" type="button" data-action="map-create"><svg><use href="#i-spark"/></svg>Crear mapa mental</button>
+              <button class="tm-ctl" type="button" data-action="map-add-task" data-id="${esc(selected.id)}"><svg><use href="#i-plus"/></svg>Sumar tarea</button>
+              <button class="tm-ctl tm-ctl--ghost" type="button" data-action="map-add-node" data-id="${esc(selected.id)}"><svg><use href="#i-spark"/></svg>Responsabilidad</button>
               ${owner ? `<button class="tm-ctl tm-ctl--ghost" type="button" data-action="new-manager"><svg><use href="#i-users"/></svg>Encargado</button>` : ""}
               <button class="tm-ctl tm-ctl--icon" type="button" data-action="map-reset-layout" data-id="${esc(selected.id)}" title="Restablecer posiciones" aria-label="Restablecer posiciones"><svg><use href="#i-refresh"/></svg></button>
             </div>
@@ -4000,6 +4002,46 @@
 
   /* ---------------- modales: mapa de responsabilidades ---------------- */
 
+  function openMentalMap() {
+    if (!S.can("equipo")) return toast("No tenés permiso para crear mapas.", "error");
+    const state = S.getState();
+    const presets = window.MasivoData.teamMapPresets || [];
+    const order = { owner: 0, manager: 1, academy: 2, barber: 3 };
+    const users = state.users
+      .filter((user) => user.active)
+      .slice()
+      .sort((a, b) => (order[a.role] ?? 4) - (order[b.role] ?? 4) || a.name.localeCompare(b.name));
+    if (!users.length) return toast("No hay personas activas para asignar un mapa.", "error");
+    const selectedUser = users.some((user) => user.id === ui.teamMapUser) ? ui.teamMapUser : users[0].id;
+    const userOptions = users.map((user) => [user.id, `${user.name} · ${S.roleLabel(user.role)}`]);
+    const body = `<div class="form-grid">
+      ${selectField("userId", "¿Para quién es el mapa?", optionsFrom(userOptions, selectedUser), selectedUser, "", true)}
+      <div class="field field--full">
+        <label>Responsabilidades iniciales</label>
+        <div class="tm-preset-grid">
+          ${presets.map((preset) => checkField(`preset-${preset.key}`, preset.label, true)).join("")}
+        </div>
+        <p class="form-hint">Podés destildar todo y asignarlas después desde el mapa, globo por globo.</p>
+      </div>
+    </div>`;
+    openModal({
+      kicker: "Equipo · mapa mental",
+      title: "CREAR MAPA MENTAL",
+      sub: "Elegí la persona y qué responsabilidades arrancan en su mapa.",
+      body,
+      submitLabel: "Crear mapa mental",
+      onSubmit: (data) => {
+        const userId = String(data.userId || "").trim();
+        if (!userId) throw new Error("Elegí para quién es el mapa.");
+        const keys = presets.filter((preset) => data[`preset-${preset.key}`]).map((preset) => preset.key);
+        const map = S.createMentalMap(userId, keys);
+        if (!map) throw new Error("No pudimos crear el mapa.");
+        ui.teamMapUser = userId;
+        afterChange(`Mapa mental creado para ${S.userById(userId)?.name || "el equipo"}.`);
+      }
+    });
+  }
+
   function openTeamNode(userId, nodeId) {
     const user = S.userById(userId);
     const map = S.teamMap(userId);
@@ -5049,6 +5091,9 @@
           const stage = $("#team-map-stage");
           if (stage) stage.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 160);
+        return;
+      case "map-create":
+        openMentalMap();
         return;
       case "map-node":
         openTeamNode(target.dataset.user, id);

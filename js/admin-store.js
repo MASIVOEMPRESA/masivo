@@ -674,6 +674,40 @@
     return true;
   }
 
+  function createMentalMap(userId, keys = []) {
+    const user = userById(userId);
+    if (!user) return null;
+    const presets = window.MasivoData.teamMapPresets || [];
+    const allowed = new Set(Array.isArray(keys) ? keys : []);
+    const existing = state.teamMaps?.[userId];
+    if (existing && Array.isArray(existing.nodes)) {
+      const have = new Set(existing.nodes.map((node) => node.key));
+      presets.forEach((preset) => {
+        if (!allowed.has(preset.key) || have.has(preset.key)) return;
+        existing.nodes.push({
+          id: `tm-${userId}-${preset.key}`,
+          key: preset.key,
+          label: preset.label,
+          icon: preset.icon,
+          metric: preset.metric,
+          note: preset.note,
+          x: preset.x,
+          y: preset.y,
+          percent: 0,
+          pending: 0
+        });
+      });
+      commit({ action: "creó", entity: "Mapa mental", entityId: userId, detail: `${user.name} · responsabilidades agregadas` });
+      return existing;
+    }
+    const map = window.MasivoData.createTeamMap(user);
+    map.nodes = map.nodes.filter((node) => allowed.has(node.key));
+    state.teamMaps = state.teamMaps || {};
+    state.teamMaps[userId] = map;
+    commit({ action: "creó", entity: "Mapa mental", entityId: userId, detail: `${user.name} · ${map.nodes.length} responsabilidades` });
+    return map;
+  }
+
   function resetTeamMap(userId) {
     const user = userById(userId);
     if (!user) return false;
@@ -2050,6 +2084,7 @@
     deleteTeamNode,
     moveTeamNode,
     moveTeamDaily,
+    createMentalMap,
     resetTeamMap,
     setUserPhoto,
     updateRoles,
