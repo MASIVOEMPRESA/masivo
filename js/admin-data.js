@@ -105,6 +105,8 @@
       {
         id: "u-nico",
         name: "Nico Ferreyra",
+        username: "nico",
+        password: "masivo",
         role: "owner",
         email: "nico@masivobarber.com",
         phone: "+54 11 6296-3590",
@@ -117,6 +119,8 @@
       {
         id: "u-sofi",
         name: "Sofi Ríos",
+        username: "sofi",
+        password: "masivo",
         role: "manager",
         email: "sofi@masivobarber.com",
         phone: "+54 11 5555-2010",
@@ -129,7 +133,9 @@
       {
         id: "u-caro",
         name: "Caro Méndez",
-        role: "manager",
+        username: "caro",
+        password: "masivo",
+        role: "academy",
         email: "caro@masivobarber.com",
         phone: "+54 11 5555-8821",
         active: true,
@@ -141,6 +147,8 @@
       {
         id: "u-tomi",
         name: "Tomi Aguirre",
+        username: "tomi",
+        password: "masivo",
         role: "barber",
         email: "tomi@masivobarber.com",
         phone: "+54 11 5555-4412",
@@ -153,6 +161,8 @@
       {
         id: "u-lauta",
         name: "Lautaro Benítez",
+        username: "lauta",
+        password: "masivo",
         role: "barber",
         email: "lauta@masivobarber.com",
         phone: "+54 11 5555-7730",
@@ -165,6 +175,8 @@
       {
         id: "u-mica",
         name: "Mica Duarte",
+        username: "mica",
+        password: "masivo",
         role: "barber",
         email: "mica@masivobarber.com",
         phone: "+54 11 5555-1198",
@@ -177,6 +189,8 @@
       {
         id: "u-fede",
         name: "Fede Salas",
+        username: "fede",
+        password: "masivo",
         role: "barber",
         email: "fede@masivobarber.com",
         phone: "+54 11 5555-6604",
@@ -191,6 +205,7 @@
     const roles = {
       owner: { label: "Dueño", description: "Ve todo. Finanzas, equipo, academia y auditoría." },
       manager: { label: "Encargado", description: "Maneja la operación diaria y el equipo. Sin finanzas." },
+      academy: { label: "Encargado academia", description: "Maneja toda la academia, cobranzas y métricas. Sin caja del salón." },
       barber: { label: "Barbero", description: "Ve solo su ficha, tareas, contenido, puntos y strikes." }
     };
 

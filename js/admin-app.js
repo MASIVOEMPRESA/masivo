@@ -165,7 +165,7 @@
     {
       title: "Academia",
       items: [
-        { route: "academia", label: "Academia", icon: "award", roles: ["owner", "manager"], badge: () => (S.can("*") || S.isOwner() ? S.overduePayments().length : 0) }
+        { route: "academia", label: "Academia", icon: "award", roles: ["owner", "manager", "academy"], badge: () => (S.can("academia.pagos") ? S.overduePayments().length : 0) }
       ]
     },
     {
@@ -190,25 +190,25 @@
 
   /* ---------------- router / init ---------------- */
 
-  const ROUTE_ACCESS = {
-    resumen: ["owner", "manager"],
-    unidades: ["owner"],
-    equipo: ["owner", "manager"],
-    barberos: ["owner", "manager"],
-    barbero: ["owner", "manager"],
-    operacion: ["owner", "manager"],
-    contenido: ["owner", "manager"],
-    capacitaciones: ["owner", "manager"],
-    puntos: ["owner", "manager"],
-    academia: ["owner", "manager"],
-    auditoria: ["owner"],
-    config: ["owner"],
-    "mi-panel": ["barber"],
-    "mi-ficha": ["barber"],
-    "mis-tareas": ["barber"],
-    "mi-contenido": ["barber"],
-    "mis-capacitaciones": ["barber"],
-    "mis-puntos": ["barber"]
+  const ROUTE_PERMISSION = {
+    resumen: "resumen",
+    unidades: "unidades",
+    equipo: "equipo",
+    barberos: "barberos",
+    barbero: "barberos",
+    operacion: "operacion",
+    contenido: "contenido",
+    capacitaciones: "capacitaciones",
+    puntos: "puntos",
+    academia: "academia",
+    auditoria: "auditoria",
+    config: "config",
+    "mi-panel": "self",
+    "mi-ficha": "self",
+    "mis-tareas": "self",
+    "mi-contenido": "self",
+    "mis-capacitaciones": "self",
+    "mis-puntos": "self"
   };
 
   function parseHash() {
@@ -221,13 +221,19 @@
   }
 
   function defaultRoute() {
-    const role = S.currentUser()?.role;
-    return role === "barber" ? "mi-panel" : "resumen";
+    const user = S.currentUser();
+    if (!user) return "resumen";
+    if (user.role === "academy" && canAccess("academia")) return "academia";
+    const flat = NAV.flatMap((group) => group.items);
+    const first = flat.find((item) => canAccess(item.route));
+    return first?.route || (user.role === "barber" ? "mi-panel" : "resumen");
   }
 
   function canAccess(base) {
-    const role = S.currentUser()?.role;
-    return Boolean(role && (ROUTE_ACCESS[base] || []).includes(role));
+    const user = S.currentUser();
+    if (!user) return false;
+    if (/^mis?-/.test(String(base))) return user.role === "barber" && S.can("self");
+    return S.can(ROUTE_PERMISSION[base] || base);
   }
 
   function navigate(route) {
@@ -275,29 +281,38 @@
   /* ---------------- login ---------------- */
 
   function renderLogin() {
-    const profiles = [
-      { user: S.getState().users.find((user) => user.id === "u-nico"), role: "owner", desc: "Acceso total · finanzas, equipo y academia" },
-      { user: S.getState().users.find((user) => user.id === "u-sofi"), role: "manager", desc: "Operación del día a día · sin finanzas" },
-      { user: S.getState().users.find((user) => user.id === "u-tomi"), role: "barber", desc: "Tu ficha, tareas, contenido y puntos" }
-    ].filter((item) => item.user);
+    const form = $("#login-form");
+    if (!form) return;
+    const error = $("#login-error");
+    if (error) {
+      error.hidden = true;
+      error.textContent = "";
+    }
+    const user = $("#login-user");
+    const pass = $("#login-password");
+    const hint = $("#login-demo-hint");
+    if (hint) {
+      const demo = S.getState().users.find((item) => item.username === "nico" && item.active);
+      hint.hidden = !(demo && demo.password === "masivo");
+    }
+    if (pass) pass.value = "";
+    if (user && !form.dataset.touched) {
+      user.value = "";
+    }
+  }
 
-    const root = $("#login-profiles");
-    if (!root) return;
-    root.innerHTML = profiles
-      .map((item, index) => {
-        const role = S.getState().roles[item.role];
-        return `
-          <button class="login-profile" type="button" data-action="login" data-login="${item.user.id}" style="--delay:${index * 80}ms;--tone:${item.role === "owner" ? "#a78bfa" : item.role === "manager" ? "#e879f9" : "#34d399"}">
-            ${avatar(item.user, "", "")}
-            <span class="login-profile-copy">
-              <b>${esc(item.user.name)}</b>
-              <small>${esc(role?.label || item.role)} · ${esc(item.desc)}</small>
-            </span>
-            <span class="login-profile-tag">Entrar</span>
-            <svg><use href="#i-arrow"/></svg>
-          </button>`;
-      })
-      .join("");
+  function showLoginError(message) {
+    const error = $("#login-error");
+    const card = $(".login-card");
+    if (error) {
+      error.textContent = message;
+      error.hidden = false;
+    }
+    if (card) {
+      card.classList.remove("is-shake");
+      void card.offsetWidth;
+      card.classList.add("is-shake");
+    }
   }
 
   /* ---------------- shell ---------------- */
@@ -316,7 +331,7 @@
     const nav = $("#side-nav");
     nav.innerHTML = NAV.map((group) => {
       const items = group.items
-        .filter((item) => item.roles.includes(user.role))
+        .filter((item) => canAccess(item.route))
         .map((item) => {
           const badge = typeof item.badge === "function" ? item.badge() : 0;
           const active = current === item.route || (item.route === "barberos" && current === "barbero");
@@ -369,11 +384,14 @@
       }
     }
     const { base, sub } = parsed;
-    if (base === "academia" && ["pagos", "metricas"].includes(sub) && !S.isOwner()) {
-      ui.academyTab = "resumen";
-      history.replaceState(null, "", "#/academia");
-      renderView();
-      return;
+    if (base === "academia" && ["pagos", "metricas"].includes(sub)) {
+      const need = sub === "pagos" ? "academia.pagos" : "academia.metricas";
+      if (!S.can(need)) {
+        ui.academyTab = "resumen";
+        history.replaceState(null, "", "#/academia");
+        renderView();
+        return;
+      }
     }
     syncTabFromRoute(base, sub);
     const view = $("#view");
@@ -1095,18 +1113,13 @@
 
   function renderUserMenu() {
     const user = S.currentUser();
-    const users = S.team();
     $("#user-menu").innerHTML = `
       <div class="user-menu-head">${avatar(user, "")}<div><b>${esc(user.name)}</b><small>${esc(S.roleLabel(user.role))} · ${esc(user.email || "")}</small></div></div>
       <div class="user-menu-list">
-        <span class="nav-section-title" style="padding:8px 10px 4px">Cambiar de perfil · demo</span>
-        ${users.map((item) => `<button class="user-menu-item" type="button" data-action="switch-user" data-user="${item.id}">
-          ${avatar(item, "avatar--sm")} <span>${esc(item.name)}<br><small style="color:var(--muted-2);font-size:12px">${esc(S.roleLabel(item.role))}</small></span>
-          ${item.id === user.id ? '<svg style="margin-left:auto;color:var(--cyan)"><use href="#i-check"/></svg>' : ""}
-        </button>`).join("")}
+        <button class="user-menu-item" type="button" data-action="open-search"><svg><use href="#i-search"/></svg> Buscar en el panel</button>
+        ${S.can("config") ? `<button class="user-menu-item" type="button" data-action="go" data-route="config"><svg><use href="#i-settings"/></svg> Configuración</button>` : ""}
       </div>
       <div class="user-menu-list" style="border-top:1px solid var(--line)">
-        <button class="user-menu-item" type="button" data-action="open-search"><svg><use href="#i-search"/></svg> Buscar en el panel</button>
         <button class="user-menu-item danger" type="button" data-action="logout"><svg><use href="#i-logout"/></svg> Cerrar sesión</button>
       </div>`;
   }
@@ -1778,29 +1791,20 @@
   function renderTeam() {
     const state = S.getState();
     const owner = S.isOwner();
+    const roles = S.roles();
+    const modules = S.modules();
     const users = state.users.slice().sort((a, b) => {
-      const order = { owner: 0, manager: 1, barber: 2 };
-      return (order[a.role] ?? 3) - (order[b.role] ?? 3) || a.name.localeCompare(b.name);
+      const order = { owner: 0, manager: 1, academy: 2, barber: 3 };
+      return (order[a.role] ?? 4) - (order[b.role] ?? 4) || a.name.localeCompare(b.name);
     });
-    const permissionRows = [
-      ["Ver finanzas y unidades", "owner"],
-      ["Editar equipo y roles", "owner"],
-      ["Ver fichas de barberos", "owner manager"],
-      ["Manejar tareas y checklists", "owner manager"],
-      ["Contenido y capacitaciones", "owner manager"],
-      ["Puntos y strikes", "owner manager"],
-      ["Academia y stock", "owner manager"],
-      ["Ver su propia ficha", "owner manager barber"],
-      ["Responder strikes", "owner manager barber"]
-    ];
 
     return `<section class="page">
       ${pageHead({
         kicker: "Personas · roles y accesos",
         title: "Equipo y permisos",
-        desc: "Tres roles con nombres editables y accesos separados. El barbero nunca ve finanzas; el encargado no toca la caja grande.",
+        desc: "Cuatro jerarquías con nombres editables. El dueño define qué módulos ve cada rol; el barbero nunca ve finanzas.",
         actions: owner ? `${btn("Nueva persona", { action: "new-user", icon: "plus", variant: "primary" })}` : "",
-        meta: `<span><svg><use href="#i-users"/></svg>${state.users.filter((user) => user.active).length} activos</span><span><svg><use href="#i-shield"/></svg>3 jerarquías</span>`,
+        meta: `<span><svg><use href="#i-users"/></svg>${state.users.filter((user) => user.active).length} activos</span><span><svg><use href="#i-shield"/></svg>${roles.length} jerarquías</span>`,
         hero: true
       })}
 
@@ -1809,32 +1813,35 @@
           <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Nombres de los roles</h2><p class="panel-sub">Se usan en todo el panel. Vos decidís cómo se llaman.</p></div></div>
           <div class="panel-body">
             ${owner ? `<form data-inline="roles" class="role-editor">
-              ${["owner", "manager", "barber"].map((role) => `<div class="role-row">
+              ${roles.map((role) => `<div class="role-row">
                 <span>${esc(role)}</span>
                 <input class="input input--sm" name="${role}" maxlength="28" value="${esc(state.roles[role]?.label || role)}" aria-label="Nombre del rol ${role}">
                 <span class="status status--muted">${state.users.filter((user) => user.role === role).length} pers.</span>
               </div>`).join("")}
               <div class="form-actions"><button class="btn btn--soft btn--sm" type="submit"><svg><use href="#i-check"/></svg>Guardar nombres</button></div>
-            </form>` : `<div class="role-editor">${["owner", "manager", "barber"].map((role) => `<div class="role-row"><span>${esc(role)}</span><b style="font-size:12.5px">${esc(state.roles[role]?.label || role)}</b><span class="status status--muted">${state.users.filter((user) => user.role === role).length}</span></div>`).join("")}</div>`}
+            </form>` : `<div class="role-editor">${roles.map((role) => `<div class="role-row"><span>${esc(role)}</span><b style="font-size:12.5px">${esc(state.roles[role]?.label || role)}</b><span class="status status--muted">${state.users.filter((user) => user.role === role).length}</span></div>`).join("")}</div>`}
           </div>
         </article>
 
         <article class="panel" data-reveal>
-          <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Separación de accesos</h2><p class="panel-sub">Qué puede hacer cada jerarquía</p></div></div>
+          <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Separación de accesos</h2><p class="panel-sub">Qué módulos ve cada jerarquía</p></div>${S.can("config.permissions") ? `<a class="link-btn" href="#/config">Editar permisos <svg><use href="#i-arrow"/></svg></a>` : ""}</div>
           <div class="panel-body panel-body--flush"><div class="table-wrap"><table class="data-table permission-table">
-            <thead><tr><th>Acción</th><th>${esc(state.roles.owner?.label || "Dueño")}</th><th>${esc(state.roles.manager?.label || "Encargado")}</th><th>${esc(state.roles.barber?.label || "Barbero")}</th></tr></thead>
-            <tbody>${permissionRows.map(([label, roles]) => `<tr><td>${esc(label)}</td>${["owner", "manager", "barber"].map((role) => `<td class="${roles.includes(role) ? "perm-yes" : "perm-no"}">${roles.includes(role) ? "✓" : "—"}</td>`).join("")}</tr>`).join("")}</tbody>
+            <thead><tr><th>Módulo</th>${roles.map((role) => `<th>${esc(state.roles[role]?.label || role)}</th>`).join("")}</tr></thead>
+            <tbody>${modules.map((module) => `<tr><td><b style="font-size:12px">${esc(module.label)}</b></td>${roles.map((role) => {
+              const allowed = role === "owner" || S.permissionsFor(role).includes(module.key);
+              return `<td class="${allowed ? "perm-yes" : "perm-no"}">${allowed ? "✓" : "—"}</td>`;
+            }).join("")}</tr>`).join("")}</tbody>
           </table></div></div>
         </article>
       </div>
 
       <article class="panel" data-reveal>
-        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Equipo completo</h2><p class="panel-sub">${users.length} personas en el sistema</p></div>${owner ? btn("Sumar persona", { action: "new-user", icon: "plus", size: "sm", variant: "soft" }) : ""}</div>
+        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Equipo completo</h2><p class="panel-sub">${users.length} personas en el sistema · usuario y clave se editan desde Configuración</p></div>${owner ? btn("Sumar persona", { action: "new-user", icon: "plus", size: "sm", variant: "soft" }) : ""}</div>
         <div class="panel-body">
           <div class="team-grid">
             ${users.map((user) => `<div class="team-card">
               ${avatar(user, "")}
-              <div class="team-card-copy"><b>${esc(user.name)}</b><small>${esc(S.roleLabel(user.role))} · ${user.active ? "Activo" : "Inactivo"}</small></div>
+              <div class="team-card-copy"><b>${esc(user.name)}</b><small>${esc(S.roleLabel(user.role))} · @${esc(user.username || "—")} · ${user.active ? "Activo" : "Inactivo"}</small></div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
                 ${status(user.active ? "Activo" : "Inactivo", user.active ? "ok" : "muted")}
                 ${owner ? `<div style="display:flex;gap:2px">
@@ -2448,23 +2455,26 @@
   /* ---------------- academia ---------------- */
 
   function academyTabs() {
-    const owner = S.isOwner();
+    const canPay = S.can("academia.pagos");
+    const canMetrics = S.can("academia.metricas");
     const items = [
       { key: "resumen", label: "Resumen", route: "academia/resumen" },
       { key: "embudo", label: "Embudo", route: "academia/embudo", badge: S.weeklyLeads().length },
       { key: "alumnos", label: "Alumnos", route: "academia/alumnos", badge: S.activeStudents().length },
-      ...(owner ? [{ key: "pagos", label: "Pagos", route: "academia/pagos", badge: S.overduePayments().length }] : []),
+      ...(canPay ? [{ key: "pagos", label: "Pagos", route: "academia/pagos", badge: S.overduePayments().length }] : []),
       { key: "stock", label: "Stock", route: "academia/stock", badge: S.lowStock().length },
-      ...(owner ? [{ key: "metricas", label: "Métricas", route: "academia/metricas" }] : [])
+      ...(canMetrics ? [{ key: "metricas", label: "Métricas", route: "academia/metricas" }] : [])
     ];
     return `<nav class="page-tabs">${items.map((item) => `<button class="tab ${item.key === ui.academyTab ? "active" : ""}" type="button" data-action="go" data-route="${esc(item.route)}">${esc(item.label)}${item.badge ? `<span class="tab-badge">${item.badge}</span>` : ""}</button>`).join("")}</nav>`;
   }
 
   function renderAcademy() {
-    const allowed = S.isOwner() ? ["resumen", "embudo", "alumnos", "pagos", "stock", "metricas"] : ["resumen", "embudo", "alumnos", "stock"];
+    const allowed = ["resumen", "embudo", "alumnos", "stock"]
+      .concat(S.can("academia.pagos") ? ["pagos"] : [])
+      .concat(S.can("academia.metricas") ? ["metricas"] : []);
     if (!allowed.includes(ui.academyTab)) ui.academyTab = "resumen";
     const metrics = S.academyMetrics(ui.month);
-    const owner = S.isOwner();
+    const showMoney = S.can("academia.pagos") || S.can("academia.metricas");
 
     return `<section class="page">
       ${pageHead({
@@ -2478,7 +2488,7 @@
 
       ${academyTabs()}
 
-      ${ui.academyTab === "resumen" ? renderAcademyOverview(metrics, owner) : ""}
+      ${ui.academyTab === "resumen" ? renderAcademyOverview(metrics, showMoney) : ""}
       ${ui.academyTab === "embudo" ? renderAcademyFunnel() : ""}
       ${ui.academyTab === "alumnos" ? renderAcademyStudents() : ""}
       ${ui.academyTab === "pagos" ? renderAcademyPayments() : ""}
@@ -2685,7 +2695,7 @@
     const products = S.getState().academy.products;
     const low = S.lowStock();
     const moves = S.getState().academy.stockMoves.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
-    const owner = S.isOwner();
+    const owner = S.can("academia.metricas");
     const saleValue = products.reduce((sum, product) => sum + product.stock * product.price, 0);
 
     return `${low.length ? `<div class="risk-banner"><svg><use href="#i-alert"/></svg><div style="flex:1"><b>${low.length} producto${low.length === 1 ? "" : "s"} con stock bajo</b><p>${low.map((product) => `${product.name} (${product.stock})`).join(" · ")}</p></div><a class="btn btn--danger btn--sm" href="#/academia/stock">Reponer</a></div>` : ""}
@@ -2829,12 +2839,21 @@
     const info = S.storageInfo();
     const bytes = Math.max(info.bytes, 1);
     const used = Math.min(100, Math.round((bytes / (5 * 1024 * 1024)) * 100));
+    const roles = S.roles();
+    const modules = S.modules();
+    const groups = [...new Set(modules.map((module) => module.group))];
+    const canUsers = S.can("config.users");
+    const canPermissions = S.can("config.permissions");
+    const users = state.users.slice().sort((a, b) => {
+      const order = { owner: 0, manager: 1, academy: 2, barber: 3 };
+      return (order[a.role] ?? 4) - (order[b.role] ?? 4) || a.name.localeCompare(b.name);
+    });
 
     return `<section class="page">
       ${pageHead({
         kicker: "Sistema · configuración",
         title: "Configuración",
-        desc: "Metas, puntos, límites de strikes y respaldo de los datos. Todo lo que define cómo funciona el panel.",
+        desc: "Metas, puntos, límites de strikes, usuarios y permisos por módulo. Todo lo que define cómo funciona el panel.",
         actions: btn("Exportar backup", { action: "export", icon: "download", variant: "primary" }),
         meta: `<span><svg><use href="#i-database"/></svg>${Math.round(info.bytes / 1024)} KB locales</span><span><svg><use href="#i-refresh"/></svg>${relative(state.updatedAt)}</span>`,
         hero: true
@@ -2873,9 +2892,9 @@
           </article>
 
           <article class="panel panel--violet" data-reveal>
-            <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Demo local</h2><p class="panel-sub">Cómo se comporta este panel</p></div></div>
+            <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Cómo funciona el acceso</h2><p class="panel-sub">Login simple y permisos por módulo</p></div></div>
             <div class="panel-body" style="display:flex;flex-direction:column;gap:7px">
-              ${[["Acceso por perfil", "No hay contraseñas: es una demo de producto."], ["Datos semilla", "6 meses de movimientos, 4 barberos y 26 alumnos."], ["Roles", "Dueño, encargado y barbero con accesos separados."], ["Sin backend", "Para producción hace falta API + base de datos."]].map(([title, detail]) => `<div class="row" style="align-items:flex-start;gap:8px"><span class="pulse-dot" style="margin-top:5px"></span><div><b style="font-size:12px">${title}</b><small style="display:block;color:var(--muted-2);font-size:12.5px;line-height:1.5">${detail}</small></div></div>`).join("")}
+              ${[["Usuario y contraseña", "Cada persona entra con su usuario. Las claves se cambian desde esta pantalla."], ["Encargado academia", "Ve y maneja toda la academia: alumnos, cobranzas, métricas y stock."], ["Permisos por módulo", "El dueño decide qué sectores ve cada jerarquía."], ["Sin backend", "Las cuentas viven en este dispositivo. Para producción hace falta API + base de datos."]].map(([title, detail]) => `<div class="row" style="align-items:flex-start;gap:8px"><span class="pulse-dot" style="margin-top:5px"></span><div><b style="font-size:12px">${title}</b><small style="display:block;color:var(--muted-2);font-size:12.5px;line-height:1.5">${detail}</small></div></div>`).join("")}
             </div>
           </article>
 
@@ -2889,10 +2908,48 @@
         </div>
       </div>
 
+      ${canUsers ? `<article class="panel" data-reveal>
+        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Usuarios y contraseñas</h2><p class="panel-sub">${users.filter((user) => user.active).length} cuentas activas · editá usuario, clave, rol y estado</p></div>${btn("Nueva persona", { action: "new-user", icon: "plus", size: "sm", variant: "soft" })}</div>
+        <div class="table-wrap"><table class="data-table user-table">
+          <thead><tr><th>Persona</th><th>Usuario</th><th>Rol</th><th>Clave</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+          <tbody>${users.map((user) => `<tr>
+            <td><div class="user-cell">${avatar(user, "avatar--sm")}<div><b>${esc(user.name)}</b><small>${esc(user.email || "sin email")}</small></div></div></td>
+            <td><span class="mono" style="font-size:12.5px">@${esc(user.username || "—")}</span></td>
+            <td>${tag(S.roleLabel(user.role), user.role === "owner" ? "violet" : user.role === "academy" ? "amber" : user.role === "manager" ? "info" : "muted")}</td>
+            <td><span class="status status--muted" title="Se cambia con el botón editar">••••••</span></td>
+            <td>${status(user.active ? "Activa" : "Inactiva", user.active ? "ok" : "muted")}</td>
+            <td><div class="cell-actions">
+              <button class="row-action" type="button" data-action="edit-user" data-id="${esc(user.id)}" title="Editar usuario y clave"><svg><use href="#i-edit"/></svg></button>
+              ${user.id === S.currentUserId() ? "" : `<button class="row-action ${user.active ? "danger" : ""}" type="button" data-action="toggle-user" data-id="${esc(user.id)}" title="${user.active ? "Desactivar" : "Activar"}"><svg><use href="#i-${user.active ? "x" : "check"}"/></svg></button>`}
+            </div></td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+        <div class="panel-body" style="padding-top:12px"><p class="form-hint">Las contraseñas se guardan en texto plano dentro de este navegador. Es un acceso básico para separar roles, no una bóveda de seguridad.</p></div>
+      </article>` : ""}
+
+      ${canPermissions ? `<article class="panel" data-reveal>
+        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Permisos por módulo</h2><p class="panel-sub">Tildá qué sectores puede abrir cada jerarquía. El dueño siempre ve todo.</p></div>${btn("Restaurar permisos", { action: "reset-permissions", icon: "refresh", size: "sm" })}</div>
+        <form data-inline="permissions">
+          <div class="table-wrap"><table class="data-table permission-matrix">
+            <thead><tr><th>Módulo</th>${roles.map((role) => `<th>${esc(state.roles[role]?.label || role)}</th>`).join("")}</tr></thead>
+            <tbody>
+              ${groups.map((group) => `<tr class="perm-group-row"><td colspan="${roles.length + 1}">${esc(group)}</td></tr>${modules.filter((module) => module.group === group).map((module) => `<tr>
+                <td><b style="font-size:12px">${esc(module.label)}</b><small class="perm-hint">${esc(module.hint)}</small></td>
+                ${roles.map((role) => {
+                  const checked = role === "owner" || S.permissionsFor(role).includes(module.key);
+                  return `<td><label class="perm-check ${role === "owner" ? "is-locked" : ""}" title="${esc(module.label)} · ${esc(state.roles[role]?.label || role)}"><input type="checkbox" name="perm-${role}" value="${esc(module.key)}" data-multi="true" ${checked ? "checked" : ""} ${role === "owner" ? "disabled" : ""}><span><svg><use href="#i-check"/></svg></span></label></td>`;
+                }).join("")}
+              </tr>`).join("")}`).join("")}
+            </tbody>
+          </table></div>
+          <div class="panel-body form-actions" style="justify-content:flex-end"><button class="btn btn--primary btn--sm" type="submit"><svg><use href="#i-check"/></svg>Guardar permisos</button></div>
+        </form>
+      </article>` : ""}
+
       <article class="panel" data-reveal>
         <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Jerarquías</h2><p class="panel-sub">Editá los nombres desde Equipo</p></div><a class="link-btn" href="#/equipo">Abrir equipo <svg><use href="#i-arrow"/></svg></a></div>
         <div class="panel-body"><div class="role-cards">
-          ${["owner", "manager", "barber"].map((role) => `<div class="role-card"><span>${esc(role)}</span><h3>${esc(state.roles[role]?.label || role)}</h3><p>${esc(state.roles[role]?.description || "")}</p><div style="margin-top:8px">${status(`${state.users.filter((user) => user.role === role && user.active).length} activos`, "muted")}</div></div>`).join("")}
+          ${roles.map((role) => `<div class="role-card"><span>${esc(role)}</span><h3>${esc(state.roles[role]?.label || role)}</h3><p>${esc(state.roles[role]?.description || "")}</p><div style="margin-top:8px">${status(`${state.users.filter((user) => user.role === role && user.active).length} activos`, "muted")}</div></div>`).join("")}
         </div></div>
       </article>
     </section>`;
@@ -3200,37 +3257,45 @@
   /* ---------------- modales: equipo ---------------- */
 
   function openUser(id = "", presetRole = "barber") {
-    if (!S.isOwner()) return toast("Solo el dueño puede editar el equipo.", "error");
+    if (!S.can("config.users")) return toast("No tenés permiso para editar usuarios.", "error");
     const state = S.getState();
     const user = id ? S.userById(id) : null;
     const role = user?.role || presetRole;
-    const roleOptions = ["barber", "manager", "owner"]
-      .map((key) => [key, state.roles[key]?.label || key])
-      .sort((a, b) => (a[0] === "owner" ? 1 : b[0] === "owner" ? -1 : 0));
+    const roleOptions = ["barber", "academy", "manager", "owner"].map((key) => [key, state.roles[key]?.label || key]);
     const body = `<div class="form-grid">
       ${textInput("name", "Nombre y apellido", user?.name || "", { required: true, full: true })}
+      ${textInput("username", "Usuario", user?.username || "", { required: true, placeholder: "sin espacios, ej. tomi" })}
+      ${textInput("password", user ? "Nueva contraseña" : "Contraseña", "", { type: "password", required: !user, placeholder: user ? "Dejar en blanco para mantener" : "mínimo simple" })}
       ${selectField("role", "Rol", optionsFrom(roleOptions, role), role)}
       ${textInput("commission", "Comisión (%)", user?.commission ?? (role === "barber" ? 40 : 0), { type: "number", min: 0, max: 100 })}
       ${textInput("email", "Email", user?.email || "", { type: "email" })}
       ${textInput("phone", "Teléfono", user?.phone || "", { type: "tel" })}
       ${user ? "" : textInput("startedAt", "Fecha de ingreso", D.iso(new Date()), { type: "date", full: true })}
+      ${user ? checkField("active", "Cuenta activa", user.active !== false, "Puede iniciar sesión con su usuario y contraseña.") : ""}
     </div>
-    <p class="form-hint" style="margin-top:10px">${esc(state.roles.barber?.description || "")}</p>`;
+    <p class="form-hint" style="margin-top:10px">El usuario se guarda en minúsculas y sin espacios. Las contraseñas son básicas: sirven para separar accesos, no para seguridad bancaria.</p>`;
     openModal({
       kicker: "Equipo y roles",
       title: user ? "EDITAR PERSONA" : presetRole === "barber" ? "NUEVO BARBERO" : "NUEVA PERSONA",
-      sub: user ? `${S.roleLabel(user.role)} · ${user.active ? "activo" : "inactivo"}` : "Se crea activo y puede entrar como perfil demo.",
+      sub: user ? `${S.roleLabel(user.role)} · ${user.active ? "activo" : "inactivo"}` : "Se crea activo y puede entrar con el usuario y la clave que definas.",
       body,
       submitLabel: user ? "Guardar cambios" : "Crear persona",
       onSubmit: (data) => {
         if (!data.name.trim()) throw new Error("Falta el nombre.");
+        if (!String(data.username || "").trim()) throw new Error("Falta el usuario de acceso.");
+        if (!user && !String(data.password || "").trim()) throw new Error("Definí una contraseña inicial.");
+        if (user?.id === S.currentUserId() && data.active === false) throw new Error("No podés desactivar tu propia cuenta.");
+        if (S.usernameTaken(data.username, user?.id)) throw new Error(`El usuario “${data.username}” ya está en uso.`);
         S.upsertUser({
           id: user?.id,
           name: data.name.trim(),
+          username: data.username,
+          password: data.password,
           role: data.role,
           email: data.email,
           phone: data.phone,
           commission: Number(data.commission || 0),
+          active: data.active,
           startedAt: data.startedAt
         });
         renderShell();
@@ -3746,7 +3811,7 @@
   }
 
   function openPayment(studentId = "") {
-    if (!S.isOwner()) return toast("Solo el dueño puede cargar pagos.", "error");
+    if (!S.can("academia.pagos")) return toast("No tenés permiso para cargar pagos.", "error");
     const students = S.getState().academy.students;
     if (!students.length) return toast("Primero cargá un alumno.", "error");
     const student = S.studentById(studentId) || students[0];
@@ -3783,7 +3848,7 @@
   }
 
   function openMarkPaid(id) {
-    if (!S.isOwner()) return toast("Solo el dueño puede acreditar pagos.", "error");
+    if (!S.can("academia.pagos")) return toast("No tenés permiso para acreditar pagos.", "error");
     const payment = S.getState().academy.payments.find((item) => item.id === id);
     if (!payment) return;
     const student = S.studentById(payment.studentId);
@@ -4008,12 +4073,15 @@
     const route = target.dataset.route || "";
     const state = S.getState();
     switch (action) {
-      case "login": {
-        const userId = target.dataset.login;
-        if (!userId) return;
-        S.setSession(userId);
-        closePopovers();
-        afterLogin();
+      case "toggle-password": {
+        const input = $("#login-password");
+        const icon = $("use", target);
+        if (!input) return;
+        const visible = input.type === "text";
+        input.type = visible ? "password" : "text";
+        if (icon) icon.setAttribute("href", visible ? "#i-eye" : "#i-eye-off");
+        target.setAttribute("aria-label", visible ? "Mostrar contraseña" : "Ocultar contraseña");
+        input.focus();
         return;
       }
       case "logout":
@@ -4023,16 +4091,6 @@
         showLogin();
         toast("Sesión cerrada.");
         return;
-      case "switch-user": {
-        const userId = target.dataset.user;
-        if (!userId) return;
-        S.setSession(userId);
-        closePopovers();
-        closeModal();
-        enterApp();
-        toast(`Ahora entraste como ${S.currentUser()?.name || "equipo"}.`);
-        return;
-      }
       case "toggle-notifications": {
         const panel = $("#notif-panel");
         const open = panel.hidden;
@@ -4154,6 +4212,7 @@
         openUser(id);
         return;
       case "toggle-user": {
+        if (!S.can("config.users")) return toast("No tenés permiso para editar usuarios.", "error");
         const user = S.userById(id);
         if (!user) return;
         const wasActive = user.active;
@@ -4316,6 +4375,21 @@
       case "import":
         importBackup();
         return;
+      case "reset-permissions": {
+        confirmDialog({
+          title: "RESTAURAR PERMISOS",
+          text: "Se vuelven los accesos por defecto: el encargado recupera operación y academia sin pagos; el encargado de academia recupera toda la academia.",
+          label: "Restaurar permisos",
+          onConfirm: () => {
+            S.resetPermissions();
+            closeModal();
+            renderShell();
+            renderView();
+            toast("Permisos restaurados.");
+          }
+        });
+        return;
+      }
       case "reset": {
         confirmDialog({
           title: "RESTAURAR DEMO",
@@ -4474,6 +4548,44 @@
       const inline = form.dataset.inline;
       if (!inline) return;
       event.preventDefault();
+      if (inline === "login") {
+        const data = formValues(form);
+        const username = String(data.username || "").trim();
+        const password = String(data.password || "");
+        if (!username || !password) {
+          showLoginError("Completá usuario y contraseña.");
+          return;
+        }
+        const result = S.login(username, password);
+        if (!result) {
+          showLoginError("Usuario o contraseña incorrectos.");
+          toast("Usuario o contraseña incorrectos.", "error");
+          const pass = $("#login-password");
+          if (pass) {
+            pass.value = "";
+            pass.focus();
+          }
+          return;
+        }
+        form.reset();
+        form.dataset.touched = "";
+        afterLogin();
+        return;
+      }
+      if (inline === "permissions") {
+        if (!S.can("config.permissions")) return toast("No tenés permiso para editar los accesos.", "error");
+        const data = formValues(form);
+        const map = {};
+        ["manager", "academy", "barber"].forEach((role) => {
+          map[role] = Array.isArray(data[`perm-${role}`]) ? data[`perm-${role}`] : [];
+        });
+        map.owner = ["*"];
+        S.savePermissions(map);
+        renderShell();
+        renderView();
+        toast("Permisos actualizados.");
+        return;
+      }
       if (inline === "roles") {
         S.updateRoles(formValues(form));
         renderView();

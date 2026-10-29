@@ -12,40 +12,64 @@
   const uid = U.newId;
   const todayISO = () => U.iso(new Date());
 
-  const CAPS = {
+  /* Módulos que se pueden habilitar por jerarquía desde Configuración. */
+  const MODULES = [
+    { key: "resumen", label: "Resumen general", group: "Control", hint: "Tablero, facturación y métricas del negocio." },
+    { key: "unidades", label: "Unidades y finanzas", group: "Control", hint: "Caja, metas y movimientos de cada unidad." },
+    { key: "equipo", label: "Equipo y roles", group: "Personas", hint: "Fichas del equipo y nombres de las jerarquías." },
+    { key: "barberos", label: "Barberos", group: "Personas", hint: "Fichas, puntos, strikes y contenido del equipo." },
+    { key: "operacion", label: "Operación", group: "Operación", hint: "Tareas, checklists y reuniones." },
+    { key: "contenido", label: "Contenido", group: "Operación", hint: "Calendario, piezas y publicaciones." },
+    { key: "capacitaciones", label: "Capacitaciones", group: "Operación", hint: "Cursos, registros y aprobaciones." },
+    { key: "puntos", label: "Puntos y strikes", group: "Operación", hint: "Reconocimientos, sanciones y respuestas." },
+    { key: "academia", label: "Academia", group: "Academia", hint: "Embudo, alumnos, cohortes y stock." },
+    { key: "academia.pagos", label: "Academia · Pagos", group: "Academia", hint: "Cuotas, cobranzas y vencimientos." },
+    { key: "academia.metricas", label: "Academia · Métricas", group: "Academia", hint: "Ingresos, conversión y rendimiento." },
+    { key: "auditoria", label: "Auditoría", group: "Sistema", hint: "Historial de movimientos del panel." },
+    { key: "config", label: "Configuración", group: "Sistema", hint: "Parámetros generales y respaldo de datos." },
+    { key: "config.users", label: "Usuarios y contraseñas", group: "Sistema", hint: "Altas, claves y estado de las cuentas." },
+    { key: "config.permissions", label: "Permisos por módulo", group: "Sistema", hint: "Matriz de accesos por jerarquía." },
+    { key: "self", label: "Mi espacio", group: "Barbero", hint: "Panel personal del barbero." }
+  ];
+
+  const DEFAULT_PERMISSIONS = {
     owner: ["*"],
-    manager: [
-      "dashboard.ops",
-      "team.view",
-      "barbers.view",
-      "ops.manage",
-      "content.manage",
-      "training.manage",
-      "points.manage",
-      "strikes.manage",
-      "academy.view",
-      "academy.leads",
-      "academy.students",
-      "academy.stock",
-      "reports.create"
-    ],
-    barber: [
-      "self.dashboard",
-      "self.profile",
-      "self.tasks",
-      "self.content",
-      "self.training",
-      "self.points",
-      "self.strike.response",
-      "self.report"
-    ]
+    manager: ["resumen", "equipo", "barberos", "operacion", "contenido", "capacitaciones", "puntos", "academia"],
+    academy: ["resumen", "contenido", "capacitaciones", "academia", "academia.pagos", "academia.metricas"],
+    barber: ["self"]
   };
+
+  /* Capacidades internas que se desprenden de cada módulo. */
+  const CAP_ALIASES = {
+    "academy.view": ["academia"],
+    "academy.leads": ["academia"],
+    "academy.students": ["academia"],
+    "academy.stock": ["academia"],
+    "academy.payments": ["academia.pagos"],
+    "academy.metrics": ["academia.metricas"],
+    "content.manage": ["contenido"],
+    "training.manage": ["capacitaciones"],
+    "points.manage": ["puntos"],
+    "strikes.manage": ["puntos"]
+  };
+
+  const ROLES = ["owner", "manager", "academy", "barber"];
 
   let state = null;
   let session = null;
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function normalizeUsername(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .replace(/[^a-z0-9._-]/g, "")
+      .slice(0, 24);
   }
 
   function readRaw() {
@@ -82,6 +106,15 @@
       state.academy = { leads: [], cohorts: [], students: [], payments: [], attendance: [], products: [], stockMoves: [] };
     }
     state.roles = state.roles || {};
+    if (!state.roles.academy) {
+      state.roles.academy = { label: "Encargado academia", description: "Maneja toda la academia, cobranzas y métricas. Sin caja del salón." };
+    }
+    state.permissions = state.permissions || {};
+    ROLES.forEach((role) => {
+      const current = state.permissions[role];
+      state.permissions[role] = Array.isArray(current) ? current.filter((key) => MODULES.some((module) => module.key === key)) : clone(DEFAULT_PERMISSIONS[role] || []);
+    });
+    state.permissions.owner = ["*"];
     state.settings = Object.assign(
       {
         businessName: "Masivo Barber",
@@ -98,6 +131,18 @@
     );
     ["users", "units", "transactions", "checklists", "checklistRuns", "tasks", "meetings", "trainings", "trainingRecords", "contentPieces", "points", "strikes", "reports", "audit"].forEach((key) => {
       if (!Array.isArray(state[key])) state[key] = [];
+    });
+
+    /* credenciales básicas: los usuarios viejos reciben usuario y clave demo */
+    const usedUsernames = new Set();
+    state.users.forEach((user, index) => {
+      let base = normalizeUsername(user.username || user.name || `persona${index + 1}`) || `persona${index + 1}`;
+      let username = base;
+      let suffix = 2;
+      while (usedUsernames.has(username)) username = `${base}${suffix++}`;
+      usedUsernames.add(username);
+      user.username = username;
+      if (!user.password) user.password = "masivo";
     });
 
     /* paleta violeta: recolorea datos guardados con la identidad anterior */
@@ -138,6 +183,26 @@
     return state.users.find((user) => user.id === session.userId) || null;
   }
 
+  function login(username, password) {
+    const clean = normalizeUsername(username);
+    if (!clean || !password) return null;
+    const user = state.users.find((item) => item.active && normalizeUsername(item.username) === clean && String(item.password) === String(password));
+    if (!user) return false;
+    session = { userId: user.id, at: new Date().toISOString() };
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } catch {
+      // sin persistencia de sesión
+    }
+    return user;
+  }
+
+  function usernameTaken(username, exceptId = "") {
+    const clean = normalizeUsername(username);
+    if (!clean) return false;
+    return state.users.some((user) => user.id !== exceptId && normalizeUsername(user.username) === clean);
+  }
+
   function setSession(userId) {
     const user = state.users.find((item) => item.id === userId && item.active);
     if (!user) return false;
@@ -159,11 +224,18 @@
     }
   }
 
+  function permissionsFor(role) {
+    const list = state.permissions?.[role];
+    return Array.isArray(list) ? list : DEFAULT_PERMISSIONS[role] || [];
+  }
+
   function can(capability) {
     const user = currentUser();
     if (!user) return false;
-    const caps = CAPS[user.role] || [];
-    return caps.includes("*") || caps.includes(capability);
+    if (user.role === "owner") return true;
+    const caps = permissionsFor(user.role);
+    if (caps.includes("*") || caps.includes(capability)) return true;
+    return (CAP_ALIASES[capability] || []).some((moduleKey) => caps.includes(moduleKey));
   }
 
   function roleLabel(role) {
@@ -215,7 +287,7 @@
   }
 
   function managers() {
-    return state.users.filter((user) => user.role === "manager" && user.active);
+    return state.users.filter((user) => (user.role === "manager" || user.role === "academy") && user.active);
   }
 
   function team() {
@@ -728,16 +800,22 @@
 
   function upsertUser(data) {
     let user = state.users.find((item) => item.id === data.id);
-    const role = ["owner", "manager", "barber"].includes(data.role) ? data.role : "barber";
+    const role = ROLES.includes(data.role) ? data.role : "barber";
+    const username = normalizeUsername(data.username !== undefined ? data.username : user?.username || data.name);
+    if (!username) throw new Error("El usuario necesita un nombre corto, sin espacios.");
+    if (usernameTaken(username, user?.id)) throw new Error(`El usuario “${username}” ya está en uso.`);
     if (user) {
       Object.assign(user, {
         name: data.name || user.name,
+        username,
         role,
         email: data.email !== undefined ? data.email : user.email,
         phone: data.phone !== undefined ? data.phone : user.phone,
         commission: data.commission !== undefined ? Number(data.commission) : user.commission,
         active: data.active !== undefined ? Boolean(data.active) : user.active
       });
+      if (data.password) user.password = String(data.password);
+      if (!user.password) user.password = "masivo";
       user.initials = user.name
         .split(" ")
         .filter(Boolean)
@@ -750,10 +828,12 @@
       user = {
         id: uid("u"),
         name: data.name,
+        username,
+        password: data.password ? String(data.password) : "masivo",
         role,
         email: data.email || "",
         phone: data.phone || "",
-        active: true,
+        active: data.active !== undefined ? Boolean(data.active) : true,
         startedAt: data.startedAt || todayISO(),
         commission: Number(data.commission || 0),
         initials: String(data.name || "")
@@ -763,7 +843,7 @@
           .map((part) => part[0])
           .join("")
           .toUpperCase(),
-        tone: role === "manager" ? "violet" : role === "owner" ? "cyan" : "green"
+        tone: role === "manager" ? "violet" : role === "academy" ? "amber" : role === "owner" ? "cyan" : "green"
       };
       state.users.push(user);
       commit({ action: "creó", entity: "Persona", entityId: user.id, detail: `${user.name} · ${roleLabel(role)}` });
@@ -781,11 +861,29 @@
   }
 
   function updateRoles(data) {
-    ["owner", "manager", "barber"].forEach((role) => {
+    ROLES.forEach((role) => {
       if (!state.roles[role]) state.roles[role] = { label: role, description: "" };
       if (data[role] && String(data[role]).trim()) state.roles[role].label = String(data[role]).trim().slice(0, 28);
     });
     commit({ action: "editó", entity: "Roles", entityId: "roles", detail: "Nombres de jerarquías" });
+  }
+
+  function savePermissions(map) {
+    ROLES.forEach((role) => {
+      if (role === "owner") {
+        state.permissions.owner = ["*"];
+        return;
+      }
+      const list = Array.isArray(map?.[role]) ? map[role] : [];
+      const clean = [...new Set(list.filter((key) => MODULES.some((module) => module.key === key)))];
+      state.permissions[role] = clean;
+    });
+    commit({ action: "editó", entity: "Permisos", entityId: "permissions", detail: "Matriz de accesos por jerarquía" });
+  }
+
+  function resetPermissions() {
+    state.permissions = clone(DEFAULT_PERMISSIONS);
+    commit({ action: "restauró", entity: "Permisos", entityId: "permissions", detail: "Permisos por defecto" });
   }
 
   /* ---------------- mutaciones: operación ---------------- */
@@ -1449,6 +1547,7 @@
 
   function resetData() {
     state = window.MasivoData.createSeed();
+    normalize();
     persist();
     log("reinició", "Datos", "demo", "Datos de demostración restaurados");
     persist();
@@ -1468,9 +1567,15 @@
     getState: () => state,
     currentUser,
     currentUserId: () => currentUser()?.id || null,
+    login,
+    usernameTaken,
     setSession,
     clearSession,
     can,
+    permissionsFor,
+    modules: () => MODULES.slice(),
+    roles: () => ROLES.slice(),
+    defaultPermissions: () => clone(DEFAULT_PERMISSIONS),
     isOwner,
     isBarber,
     roleLabel,
@@ -1529,6 +1634,8 @@
     upsertUser,
     toggleUser,
     updateRoles,
+    savePermissions,
+    resetPermissions,
     addTask,
     updateTask,
     setTaskStatus,

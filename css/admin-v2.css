@@ -4065,3 +4065,265 @@ body.admin-body {
     text-align: center;
   }
 }
+
+/* ============================================================
+   LOGIN CON USUARIO Y CONTRASEÑA
+   ============================================================ */
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-field > span:first-child {
+  color: #c4b5fd;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.login-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-control > svg {
+  position: absolute;
+  left: 14px;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  color: #8b80a8;
+  pointer-events: none;
+}
+
+.login-control .input {
+  width: 100%;
+  height: 46px;
+  padding-left: 40px;
+  padding-right: 44px;
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  border-radius: 13px;
+  background: rgba(4, 2, 12, 0.55);
+  color: #f4f0ff;
+  font-size: 13.5px;
+}
+
+.login-control .input:focus {
+  border-color: rgba(167, 139, 250, 0.65);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+}
+
+.login-eye {
+  position: absolute;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #8b80a8;
+  cursor: pointer;
+}
+
+.login-eye:hover {
+  background: rgba(167, 139, 250, 0.12);
+  color: #ddd6fe;
+}
+
+.login-eye svg {
+  width: 16px;
+  height: 16px;
+}
+
+.login-submit {
+  justify-content: center;
+  width: 100%;
+  height: 46px;
+  margin-top: 2px;
+  border-radius: 13px;
+  font-size: 13px;
+}
+
+.login-submit svg {
+  width: 15px;
+  height: 15px;
+}
+
+.login-hint {
+  margin-top: 12px;
+  color: #7f749c;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.login-hint b {
+  color: #c4b5fd;
+  font-weight: 600;
+}
+
+.login-error {
+  padding: 9px 11px;
+  border: 1px solid rgba(251, 113, 133, 0.32);
+  border-radius: 10px;
+  background: rgba(251, 113, 133, 0.1);
+  color: #fda4af;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.login-error[hidden] {
+  display: none;
+}
+
+.login-card.is-shake {
+  animation: loginShake 0.34s ease;
+}
+
+@keyframes loginShake {
+  0%, 100% { transform: translateX(0); }
+  22% { transform: translateX(-7px); }
+  44% { transform: translateX(6px); }
+  66% { transform: translateX(-4px); }
+  88% { transform: translateX(2px); }
+}
+
+/* ============================================================
+   USUARIOS Y MATRIZ DE PERMISOS
+   ============================================================ */
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.user-cell b {
+  display: block;
+  font-size: 12px;
+}
+
+.user-cell small {
+  display: block;
+  color: var(--muted-2);
+  font-size: 11.5px;
+}
+
+.perm-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted-2);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.permission-matrix th:not(:first-child),
+.permission-matrix td:not(:first-child) {
+  width: 92px;
+  text-align: center;
+}
+
+.perm-group-row td {
+  padding: 8px 14px;
+  border-top: 1px solid rgba(167, 139, 250, 0.14);
+  background: rgba(139, 92, 246, 0.08);
+  color: #c4b5fd;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.perm-check {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.perm-check input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.perm-check span {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  border-radius: 6px;
+  background: rgba(4, 2, 12, 0.5);
+  color: transparent;
+  transition: background 0.16s, border-color 0.16s, color 0.16s, box-shadow 0.16s;
+}
+
+.perm-check span svg {
+  width: 12px;
+  height: 12px;
+}
+
+.perm-check:hover span {
+  border-color: rgba(167, 139, 250, 0.65);
+}
+
+.perm-check input:focus-visible + span {
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.28);
+}
+
+.perm-check input:checked + span {
+  border-color: rgba(232, 121, 249, 0.7);
+  background: linear-gradient(135deg, #8b5cf6, #c026d3);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+}
+
+.perm-check.is-locked span {
+  opacity: 0.5;
+}
+
+.permission-table td,
+.permission-matrix td {
+  vertical-align: middle;
+}
+
+@media (max-width: 620px) {
+  .perm-hint {
+    display: none;
+  }
+
+  .permission-matrix th:not(:first-child),
+  .permission-matrix td:not(:first-child) {
+    width: 58px;
+  }
+
+  .permission-matrix th,
+  .permission-matrix td {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+@media (max-width: 620px) {
+  .risk-banner {
+    flex-wrap: wrap;
+  }
+
+  .risk-banner > .btn {
+    margin-left: 31px;
+  }
+}
