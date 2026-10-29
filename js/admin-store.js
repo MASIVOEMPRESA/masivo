@@ -356,6 +356,8 @@
       const next = legacyColors[String(unit.color || "").toLowerCase()];
       if (next) unit.color = next;
     });
+
+    ensureTeamMaps();
   }
 
   function loadSession() {
@@ -513,6 +515,179 @@
 
   function team() {
     return state.users.filter((user) => user.active);
+  }
+
+  /* ---------------- mapas de responsabilidades ---------------- */
+
+  function mapMember(user) {
+    return Boolean(user && user.active && (user.role === "manager" || user.role === "academy"));
+  }
+
+  function ensureTeamMaps() {
+    let changed = false;
+    if (!state.teamMaps || typeof state.teamMaps !== "object" || Array.isArray(state.teamMaps)) {
+      state.teamMaps = {};
+      changed = true;
+    }
+
+    /* Migración: los estados viejos no tenían a Diego ni los mapas. */
+    if (!Number(state.settings.teamMapsVersion || 0)) {
+      const hasDiego = state.users.some((user) => user.id === "u-diego" || user.name === "Diego Aquino");
+      if (!hasDiego) {
+        let username = "diego";
+        let suffix = 2;
+        while (state.users.some((user) => normalizeUsername(user.username) === username)) username = `diego${suffix++}`;
+        state.users.push({
+          id: "u-diego",
+          name: "Diego Aquino",
+          username,
+          password: "masivo",
+          role: "manager",
+          email: "diego@masivobarber.com",
+          phone: "+54 11 5555-3300",
+          active: true,
+          startedAt: "2024-06-10",
+          commission: 0,
+          initials: "DA",
+          tone: "violet",
+          photo: "/img/team/diego-aquino.png"
+        });
+      }
+      state.settings.teamMapsVersion = 1;
+      changed = true;
+    }
+
+    state.users.filter(mapMember).forEach((user) => {
+      const map = state.teamMaps[user.id];
+      if (!map || !Array.isArray(map.nodes)) {
+        state.teamMaps[user.id] = window.MasivoData.createTeamMap(user);
+        changed = true;
+        return;
+      }
+      if (!map.daily || typeof map.daily.x !== "number" || typeof map.daily.y !== "number") {
+        map.daily = { x: 79, y: 50 };
+        changed = true;
+      }
+      map.nodes.forEach((node) => {
+        if (typeof node.x !== "number") {
+          node.x = 50;
+          changed = true;
+        }
+        if (typeof node.y !== "number") {
+          node.y = 50;
+          changed = true;
+        }
+        if (!node.metric) {
+          node.metric = "custom";
+          changed = true;
+        }
+        if (typeof node.percent !== "number") {
+          node.percent = node.metric === "custom" ? 100 : 0;
+          changed = true;
+        }
+        if (typeof node.pending !== "number") {
+          node.pending = 0;
+          changed = true;
+        }
+      });
+    });
+
+    if (changed) writeLocal();
+    return changed;
+  }
+
+  function teamMap(userId) {
+    const user = userById(userId);
+    if (!user) return null;
+    if (!state.teamMaps[userId] || !Array.isArray(state.teamMaps[userId].nodes)) {
+      state.teamMaps[userId] = window.MasivoData.createTeamMap(user);
+      writeLocal();
+    }
+    return state.teamMaps[userId];
+  }
+
+  function addTeamNode(userId, data) {
+    const map = teamMap(userId);
+    if (!map) return null;
+    const count = map.nodes.length;
+    const angle = (Math.PI * 2 * (count % 8)) / 8 - Math.PI / 2;
+    const node = {
+      id: uid("tm"),
+      key: `custom-${Date.now().toString(36)}`,
+      label: String(data.label || "Nueva responsabilidad").trim().slice(0, 34),
+      icon: data.icon || "spark",
+      metric: data.metric || "custom",
+      note: String(data.note || "").slice(0, 220),
+      x: data.x ?? Math.max(8, Math.min(70, Math.round(36 + Math.cos(angle) * 29))),
+      y: data.y ?? Math.max(9, Math.min(91, Math.round(48 + Math.sin(angle) * 37))),
+      percent: Number(data.percent ?? 100),
+      pending: Number(data.pending ?? 0)
+    };
+    map.nodes.push(node);
+    commit({ action: "creó", entity: "Responsabilidad", entityId: node.id, detail: `${userById(userId)?.name || "Equipo"} · ${node.label}` });
+    return node;
+  }
+
+  function updateTeamNode(userId, nodeId, data) {
+    const map = teamMap(userId);
+    const node = map?.nodes.find((item) => item.id === nodeId);
+    if (!node) return null;
+    Object.assign(node, {
+      label: String(data.label || node.label).trim().slice(0, 34),
+      icon: data.icon || node.icon,
+      metric: data.metric || node.metric,
+      note: data.note !== undefined ? String(data.note).slice(0, 220) : node.note,
+      percent: data.percent !== undefined ? Math.max(0, Math.min(100, Number(data.percent || 0))) : node.percent,
+      pending: data.pending !== undefined ? Math.max(0, Math.round(Number(data.pending || 0))) : node.pending
+    });
+    commit({ action: "editó", entity: "Responsabilidad", entityId: node.id, detail: `${userById(userId)?.name || "Equipo"} · ${node.label}` });
+    return node;
+  }
+
+  function deleteTeamNode(userId, nodeId) {
+    const map = teamMap(userId);
+    const node = map?.nodes.find((item) => item.id === nodeId);
+    if (!node) return false;
+    map.nodes = map.nodes.filter((item) => item.id !== nodeId);
+    commit({ action: "eliminó", entity: "Responsabilidad", entityId: nodeId, detail: `${userById(userId)?.name || "Equipo"} · ${node.label}` });
+    return true;
+  }
+
+  function moveTeamNode(userId, nodeId, x, y) {
+    const map = teamMap(userId);
+    const node = map?.nodes.find((item) => item.id === nodeId);
+    if (!node) return false;
+    node.x = Math.max(5, Math.min(95, Number(x)));
+    node.y = Math.max(5, Math.min(95, Number(y)));
+    persist();
+    return true;
+  }
+
+  function moveTeamDaily(userId, x, y) {
+    const map = teamMap(userId);
+    if (!map) return false;
+    map.daily = {
+      x: Math.max(12, Math.min(90, Number(x))),
+      y: Math.max(10, Math.min(90, Number(y)))
+    };
+    persist();
+    return true;
+  }
+
+  function resetTeamMap(userId) {
+    const user = userById(userId);
+    if (!user) return false;
+    state.teamMaps[userId] = window.MasivoData.createTeamMap(user);
+    commit({ action: "restauró", entity: "Mapa", entityId: userId, detail: `${user.name} · layout original` });
+    return true;
+  }
+
+  function setUserPhoto(userId, photo) {
+    const user = userById(userId);
+    if (!user) return false;
+    user.photo = String(photo || "");
+    commit({ action: photo ? "actualizó" : "quitó", entity: "Avatar", entityId: userId, detail: user.name });
+    return true;
   }
 
   /* ---------------- finanzas ---------------- */
@@ -1068,6 +1243,10 @@
       };
       state.users.push(user);
       commit({ action: "creó", entity: "Persona", entityId: user.id, detail: `${user.name} · ${roleLabel(role)}` });
+    }
+    if (mapMember(user) && !state.teamMaps[user.id]) {
+      state.teamMaps[user.id] = window.MasivoData.createTeamMap(user);
+      persist();
     }
     return user;
   }
@@ -1865,6 +2044,14 @@
     toggleUnit,
     upsertUser,
     toggleUser,
+    teamMap,
+    addTeamNode,
+    updateTeamNode,
+    deleteTeamNode,
+    moveTeamNode,
+    moveTeamDaily,
+    resetTeamMap,
+    setUserPhoto,
     updateRoles,
     savePermissions,
     resetPermissions,

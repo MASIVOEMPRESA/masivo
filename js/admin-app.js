@@ -74,8 +74,13 @@
     typeof userOrName === "string"
       ? userOrName.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase()
       : userOrName?.initials || initials(userOrName?.name || "");
-  const avatar = (user, size = "", extra = "") =>
-    `<span class="avatar ${size} tone-${esc(user?.tone || "cyan")} ${extra}" aria-hidden="true">${esc(initials(user))}</span>`;
+  const avatar = (user, size = "", extra = "") => {
+    const classes = `avatar ${size} tone-${esc(user?.tone || "cyan")} ${extra}`.trim();
+    if (user?.photo) {
+      return `<span class="${classes} avatar--photo" aria-hidden="true"><img src="${esc(user.photo)}" alt="" loading="lazy"></span>`;
+    }
+    return `<span class="${classes}" aria-hidden="true">${esc(initials(user))}</span>`;
+  };
   const btn = (label, options = {}) => {
     const { action = "", route = "", icon = "", variant = "ghost", size = "", id = "", extra = "", type = "button" } = options;
     const attrs = [
@@ -114,13 +119,14 @@
     taskFilter: "todas",
     studentsQuery: "",
     studentsLevel: "",
-    studentsStatus: ""
+    studentsStatus: "",
+    teamMapUser: ""
   };
 
   const ROUTES = {
     resumen: { label: "Resumen", group: "Control" },
     unidades: { label: "Unidades", group: "Control" },
-    equipo: { label: "Equipo", group: "Personas" },
+    equipo: { label: "Equipo y roles", group: "Personas" },
     barberos: { label: "Barberos", group: "Personas" },
     barbero: { label: "Ficha", group: "Personas" },
     operacion: { label: "Operación", group: "Operación" },
@@ -569,6 +575,7 @@
     $("#quick-menu").hidden = true;
     bindReveals(view);
     bindSpotlight(view);
+    initTeamMap(view);
     initLambo(view);
     animateCounters(view);
     window.scrollTo({ top: 0, behavior: "instant" in document.documentElement.style ? "instant" : "auto" });
@@ -638,6 +645,156 @@
     if (format === "compact") return moneyC(value);
     if (format === "percent") return pct(value);
     return num(value);
+  }
+
+  /* ---------------- mapa: líneas y arrastre ---------------- */
+
+  let teamMapResizeHandler = null;
+  let teamMapObserver = null;
+
+  function initTeamMap(root) {
+    if (teamMapObserver) {
+      teamMapObserver.disconnect();
+      teamMapObserver = null;
+    }
+    if (teamMapResizeHandler) {
+      window.removeEventListener("resize", teamMapResizeHandler);
+      teamMapResizeHandler = null;
+    }
+
+    const stage = $(".tm-stage", root);
+    if (!stage) return;
+    const svg = $("#tm-links", stage);
+    const hub = $(".tm-hub", stage);
+    if (!svg || !hub) return;
+    const userId = stage.dataset.mapUser || "";
+    const nodes = $$(".tm-node", stage);
+    const daily = $(".tm-daily", stage);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+    function positionOf(element) {
+      return {
+        x: Number.parseFloat(element.style.getPropertyValue("--x")) || 50,
+        y: Number.parseFloat(element.style.getPropertyValue("--y")) || 50
+      };
+    }
+
+    function centerOf(element) {
+      const rect = element.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      return { x: rect.left - stageRect.left + rect.width / 2, y: rect.top - stageRect.top + rect.height / 2 };
+    }
+
+    function toneOf(element, prefix) {
+      return ["green", "amber", "red"].find((tone) => element.classList.contains(`${prefix}--${tone}`)) || "amber";
+    }
+
+    function draw() {
+      const stageRect = stage.getBoundingClientRect();
+      if (stageRect.width < 20) return;
+      const origin = centerOf(hub);
+      const targets = nodes.map((node) => ({ element: node, tone: toneOf(node, "tm-node") }));
+      if (daily) targets.push({ element: daily, tone: toneOf(daily, "tm-daily") });
+      svg.setAttribute("viewBox", `0 0 ${stageRect.width} ${stageRect.height}`);
+      svg.setAttribute("width", String(stageRect.width));
+      svg.setAttribute("height", String(stageRect.height));
+      svg.innerHTML = targets.map(({ element, tone }, index) => {
+        const end = centerOf(element);
+        const dx = end.x - origin.x;
+        const dy = end.y - origin.y;
+        const c1 = { x: origin.x + dx * 0.34, y: origin.y + dy * 0.06 };
+        const c2 = { x: origin.x + dx * 0.66, y: origin.y + dy * 0.94 };
+        const path = `M ${origin.x.toFixed(1)} ${origin.y.toFixed(1)} C ${c1.x.toFixed(1)} ${c1.y.toFixed(1)}, ${c2.x.toFixed(1)} ${c2.y.toFixed(1)}, ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
+        const spark = reduce
+          ? ""
+          : `<circle r="2.3" class="tm-link-spark tm-link-spark--${tone}"><animateMotion dur="${(3.4 + index * 0.42).toFixed(2)}s" repeatCount="indefinite" path="${path}"/></circle>`;
+        return `<path class="tm-link-base" d="${path}"/><path class="tm-link tm-link--${tone}" d="${path}"/>${spark}`;
+      }).join("");
+    }
+
+    function makeDraggable(element, handleSelector, save) {
+      const handle = handleSelector ? $(handleSelector, element) : element;
+      if (!handle) return;
+      let drag = null;
+      let suppress = false;
+      let moved = false;
+
+      handle.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        if (handleSelector && event.target.closest("button, input, textarea, select, a")) return;
+        const stageRect = stage.getBoundingClientRect();
+        drag = {
+          originX: event.clientX,
+          originY: event.clientY,
+          stageWidth: stageRect.width,
+          stageHeight: stageRect.height,
+          start: positionOf(element)
+        };
+        moved = false;
+        suppress = false;
+        element.classList.add("is-dragging");
+        try {
+          handle.setPointerCapture(event.pointerId);
+        } catch {
+          // sin captura de puntero: seguimos con los eventos normales
+        }
+        event.preventDefault();
+      });
+
+      handle.addEventListener("pointermove", (event) => {
+        if (!drag) return;
+        const dx = ((event.clientX - drag.originX) / drag.stageWidth) * 100;
+        const dy = ((event.clientY - drag.originY) / drag.stageHeight) * 100;
+        if (Math.abs(dx) + Math.abs(dy) > 0.55) moved = true;
+        const x = clamp(drag.start.x + dx, 6, 94);
+        const y = clamp(drag.start.y + dy, 6, 94);
+        element.style.setProperty("--x", `${x.toFixed(2)}%`);
+        element.style.setProperty("--y", `${y.toFixed(2)}%`);
+        draw();
+      });
+
+      const finish = () => {
+        if (!drag) return;
+        const pos = positionOf(element);
+        drag = null;
+        element.classList.remove("is-dragging");
+        if (moved) {
+          save(pos);
+          suppress = true;
+          setTimeout(() => {
+            suppress = false;
+          }, 90);
+          draw();
+        }
+      };
+
+      handle.addEventListener("pointerup", finish);
+      handle.addEventListener("pointercancel", finish);
+
+      element.addEventListener("click", (event) => {
+        if (!suppress) return;
+        event.preventDefault();
+        event.stopPropagation();
+        suppress = false;
+      }, true);
+    }
+
+    nodes.forEach((node) => {
+      makeDraggable(node, "", (pos) => S.moveTeamNode(userId, node.dataset.id, pos.x, pos.y));
+    });
+    if (daily) {
+      makeDraggable(daily, ".tm-daily-head", (pos) => S.moveTeamDaily(userId, pos.x, pos.y));
+    }
+
+    teamMapResizeHandler = draw;
+    window.addEventListener("resize", teamMapResizeHandler);
+    if ("ResizeObserver" in window) {
+      teamMapObserver = new ResizeObserver(draw);
+      teamMapObserver.observe(stage);
+    }
+    requestAnimationFrame(draw);
+    setTimeout(draw, 260);
   }
 
   /* ---------------- lamborghini 3d ---------------- */
@@ -1889,27 +2046,319 @@
     </section>`;
   }
 
-  /* ---------------- equipo ---------------- */
+  /* ---------------- equipo y mapa de responsabilidades ---------------- */
 
-  function renderTeam() {
+  const TEAM_TONES = { green: "#34d399", amber: "#fbbf24", red: "#fb7185" };
+  const TEAM_METRICS = [
+    ["contenido", "Contenido"],
+    ["meetbarber", "MeetBarber"],
+    ["checklist", "Checklist"],
+    ["stock", "Stock"],
+    ["capacitaciones", "Capacitaciones"],
+    ["reporte", "Reporte de turno"],
+    ["puntos", "Puntos y strikes"],
+    ["custom", "Manual (yo defino % y pendientes)"]
+  ];
+  const TEAM_ICONS = [
+    ["image", "Contenido"],
+    ["message", "MeetBarber"],
+    ["check-square", "Checklist"],
+    ["package", "Stock"],
+    ["graduation", "Capacitaciones"],
+    ["file", "Reporte"],
+    ["zap", "Puntos / strikes"],
+    ["calendar", "Agenda"],
+    ["users", "Equipo"],
+    ["scissors", "Barbería"],
+    ["coins", "Ventas"],
+    ["target", "Objetivo"],
+    ["shield", "Control"],
+    ["chart", "Métrica"],
+    ["star", "Reconocimiento"],
+    ["flame", "Urgente"],
+    ["camera", "Contenido audiovisual"],
+    ["spark", "Otro"]
+  ];
+
+  function teamMapTone(percent, pending) {
+    const value = Number(percent || 0);
+    const count = Number(pending || 0);
+    if (value >= 85 && count === 0) return "green";
+    if (value >= 60 && count <= 2) return "amber";
+    return "red";
+  }
+
+  function teamToneColor(tone) {
+    return TEAM_TONES[tone] || TEAM_TONES.amber;
+  }
+
+  function teamChecklistDue(checklist) {
+    if (checklist.frequency === "diaria") return true;
+    if (checklist.frequency !== "semanal") return false;
+    const time = String(checklist.time || "").toLowerCase();
+    const days = { domingo: 0, lunes: 1, martes: 2, miercoles: 3, "miércoles": 3, jueves: 4, viernes: 5, sabado: 6, "sábado": 6 };
+    const key = Object.keys(days).find((day) => time.includes(day));
+    return key ? new Date().getDay() === days[key] : true;
+  }
+
+  function teamNodeStatus(node) {
     const state = S.getState();
-    const owner = S.isOwner();
-    const roles = S.roles();
-    const modules = S.modules();
-    const users = state.users.slice().sort((a, b) => {
-      const order = { owner: 0, manager: 1, academy: 2, barber: 3 };
-      return (order[a.role] ?? 4) - (order[b.role] ?? 4) || a.name.localeCompare(b.name);
-    });
+    const today = D.iso(new Date());
+    const metric = node.metric || "custom";
 
-    return `<section class="page">
-      ${pageHead({
-        kicker: "Personas · roles y accesos",
-        title: "Equipo y permisos",
-        desc: "Cuatro jerarquías con nombres editables. El dueño define qué módulos ve cada rol; el barbero nunca ve finanzas.",
-        actions: owner ? `${btn("Nueva persona", { action: "new-user", icon: "plus", variant: "primary" })}` : "",
-        meta: `<span><svg><use href="#i-users"/></svg>${state.users.filter((user) => user.active).length} activos</span><span><svg><use href="#i-shield"/></svg>${roles.length} jerarquías</span>`,
-        hero: true
-      })}
+    if (metric === "contenido") {
+      const week = D.weekStart(0);
+      const barbers = S.barbers();
+      const goal = Number(state.settings.contentGoal || 3);
+      const pieces = state.contentPieces.filter((piece) => piece.weekStart === week);
+      const pendingPieces = pieces.filter((piece) => piece.stage !== "publicado");
+      const missing = barbers
+        .map((barber) => ({ barber, count: Math.max(0, goal - pieces.filter((piece) => piece.userId === barber.id).length) }))
+        .filter((item) => item.count > 0);
+      const pending = pendingPieces.length + missing.reduce((sum, item) => sum + item.count, 0);
+      const percent = S.averageContentCompliance(week);
+      const items = [
+        ...pendingPieces.map((piece) => ({
+          label: piece.title,
+          meta: `${S.userById(piece.userId)?.name || "Equipo"} · ${stageLabel(piece.stage)}`,
+          tone: "warn"
+        })),
+        ...missing.map((item) => ({
+          label: `${item.barber.name}: ${plural(item.count, "pieza", "piezas")} sin cargar`,
+          meta: "Meta semanal de contenido",
+          tone: "muted"
+        }))
+      ];
+      return { percent, pending, tone: teamMapTone(percent, pending), items, route: "contenido", summary: `${percent}% de la meta semanal` };
+    }
+
+    if (metric === "meetbarber") {
+      const latest = state.meetings.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+      if (!latest) {
+        return {
+          percent: 0,
+          pending: 1,
+          tone: "red",
+          items: [{ label: "Agendar el próximo MeetBarber", meta: "Todavía no hay actas cargadas", tone: "warn" }],
+          route: "operacion/reuniones",
+          summary: "Sin reunión registrada"
+        };
+      }
+      const actions = latest.actions || [];
+      const pendingActions = actions.filter((action) => action.status !== "hecha");
+      const percent = actions.length ? Math.round(((actions.length - pendingActions.length) / actions.length) * 100) : 100;
+      const pending = pendingActions.length;
+      const items = pendingActions.map((action) => ({
+        label: action.text,
+        meta: `${S.userById(action.ownerId)?.name || "Sin responsable"} · vence ${date(action.due)}`,
+        tone: action.due && action.due < today ? "danger" : "warn"
+      }));
+      return { percent, pending, tone: teamMapTone(percent, pending), items, route: "operacion/reuniones", summary: latest.title };
+    }
+
+    if (metric === "checklist") {
+      const due = state.checklists.filter(teamChecklistDue);
+      let total = 0;
+      let completed = 0;
+      const items = [];
+      due.forEach((checklist) => {
+        const run = state.checklistRuns.find((item) => item.checklistId === checklist.id && item.date === today);
+        const done = new Set(run?.completed || []);
+        checklist.items.forEach((item) => {
+          total += 1;
+          if (done.has(item.id)) completed += 1;
+          else items.push({ label: item.label, meta: checklist.title, tone: "warn" });
+        });
+      });
+      const pending = total - completed;
+      const percent = total ? Math.round((completed / total) * 100) : 100;
+      return { percent, pending, tone: teamMapTone(percent, pending), items, route: "operacion/checklists", summary: `${completed} de ${total} ítems de hoy` };
+    }
+
+    if (metric === "stock") {
+      const products = state.academy.products || [];
+      const low = S.lowStock();
+      const pending = low.length;
+      const percent = products.length ? Math.round(((products.length - pending) / products.length) * 100) : 100;
+      const items = low.map((product) => ({
+        label: product.name,
+        meta: `Stock ${product.stock} · mínimo ${product.min}`,
+        tone: "danger"
+      }));
+      return { percent, pending, tone: teamMapTone(percent, pending), items, route: "academia/stock", summary: `${products.length - pending} de ${products.length} productos en orden` };
+    }
+
+    if (metric === "capacitaciones") {
+      const barbers = S.barbers();
+      const trainings = state.trainings || [];
+      const approved = new Set(state.trainingRecords.filter((record) => record.status === "aprobado").map((record) => `${record.userId}:${record.trainingId}`));
+      const items = [];
+      barbers.forEach((barber) => {
+        trainings.forEach((training) => {
+          if (!approved.has(`${barber.id}:${training.id}`)) {
+            items.push({ label: `${barber.name} · ${training.title}`, meta: "Capacitación pendiente", tone: "warn" });
+          }
+        });
+      });
+      const total = barbers.length * trainings.length;
+      const pending = items.length;
+      const percent = total ? Math.round(((total - pending) / total) * 100) : 100;
+      return { percent, pending, tone: teamMapTone(percent, pending), items, route: "capacitaciones", summary: `${total - pending} de ${total} capacitaciones aprobadas` };
+    }
+
+    if (metric === "reporte") {
+      const barbers = S.barbers();
+      const withReport = new Set(state.reports.filter((report) => report.date === today).map((report) => report.userId));
+      const missing = barbers.filter((barber) => !withReport.has(barber.id));
+      const pending = missing.length;
+      const percent = barbers.length ? Math.round(((barbers.length - pending) / barbers.length) * 100) : 100;
+      const items = missing.map((barber) => ({
+        label: barber.name,
+        meta: "Reporte de turno sin cargar",
+        tone: "warn"
+      }));
+      return { percent, pending, tone: teamMapTone(percent, pending), items, route: "operacion", summary: `${barbers.length - pending} de ${barbers.length} reportes de hoy` };
+    }
+
+    if (metric === "puntos") {
+      const barbers = S.barbers();
+      const limit = Number(state.settings.strikeLimit || 3);
+      const active = barbers.flatMap((barber) => S.activeStrikes(barber.id).map((strike) => ({ barber, strike })));
+      const max = Math.max(1, barbers.length * limit);
+      const percent = Math.max(0, Math.round(100 - (active.length / max) * 100));
+      const pending = active.length;
+      const items = active.map(({ barber, strike }) => ({
+        label: `${barber.name}: ${strike.reason}`,
+        meta: `Strike activo · ${date(strike.date)}`,
+        tone: "danger"
+      }));
+      return { percent, pending, tone: teamMapTone(percent, pending), items, route: "puntos", summary: `${pending} strikes activos en el equipo` };
+    }
+
+    const percent = Math.max(0, Math.min(100, Number(node.percent ?? 100)));
+    const pending = Math.max(0, Math.round(Number(node.pending ?? 0)));
+    return {
+      percent,
+      pending,
+      tone: teamMapTone(percent, pending),
+      items: node.note ? [{ label: node.note, meta: "Nota de la responsabilidad", tone: "muted" }] : [],
+      route: "",
+      summary: `${percent}% definido a mano`
+    };
+  }
+
+  function teamTaskMarkup(task) {
+    const overdue = task.due && task.due < D.iso(new Date());
+    return `<div class="tm-task ${task.status === "en-curso" ? "is-progress" : ""}">
+      <button class="tm-task-check" type="button" data-action="map-task-done" data-id="${esc(task.id)}" aria-label="Completar ${esc(task.title)}"><svg><use href="#i-check"/></svg></button>
+      <span class="tm-task-copy">
+        <b>${esc(task.title)}</b>
+        <small>${esc(S.unitById(task.unitId)?.name || "General")} · <em class="${overdue ? "is-overdue" : ""}">${date(task.due)}</em></small>
+      </span>
+      <span class="tm-task-flag tm-task-flag--${esc(task.priority || "media")}" title="Prioridad ${esc(task.priority || "media")}"></span>
+    </div>`;
+  }
+
+  function teamDailyMarkup(user, tasks, mobile = false) {
+    const state = S.getState();
+    const today = D.iso(new Date());
+    const todayTasks = state.tasks.filter((task) => task.assigneeId === user.id && task.due === today);
+    const doneToday = todayTasks.filter((task) => task.status === "hecha").length;
+    const open = tasks.filter((task) => task.status !== "hecha");
+    const overdue = open.filter((task) => task.due && task.due < today).length;
+    const percent = todayTasks.length ? Math.round((doneToday / todayTasks.length) * 100) : open.length ? 0 : 100;
+    const tone = !open.length ? "green" : overdue ? "red" : "amber";
+    const list = open.slice(0, mobile ? 8 : 5);
+    const map = S.teamMap(user.id);
+    const pos = map?.daily || { x: 79, y: 50 };
+    return `<aside class="tm-daily tm-daily--${tone} ${mobile ? "tm-daily--mobile" : ""}" data-daily-node="${esc(user.id)}" ${mobile ? "" : `style="--x:${Number(pos.x)}%;--y:${Number(pos.y)}%"`}>
+      <div class="tm-daily-head">
+        <span class="tm-daily-icon"><svg><use href="#i-calendar"/></svg></span>
+        <div class="tm-daily-title"><span>Hoy · ${date(today)}</span><h3>Tareas del día</h3></div>
+        <span class="tm-daily-count">${open.length}</span>
+        <span class="tm-daily-grip" aria-hidden="true">⠿</span>
+      </div>
+      <div class="tm-daily-progress">
+        <div class="tm-daily-progress-copy"><span>${doneToday}/${todayTasks.length || 0} de hoy</span><b>${percent}%</b></div>
+        <span class="tm-daily-bar"><i style="width:${percent}%"></i></span>
+      </div>
+      <div class="tm-daily-list">
+        ${list.length ? list.map(teamTaskMarkup).join("") : `<div class="tm-daily-empty"><svg><use href="#i-check-circle"/></svg><b>Todo al día</b><span>Sin pendientes asignados.</span></div>`}
+        ${open.length > list.length ? `<button class="tm-daily-more" type="button" data-action="go" data-route="operacion/tareas">+ ${open.length - list.length} tareas más <svg><use href="#i-arrow"/></svg></button>` : ""}
+      </div>
+      <form class="tm-quick" data-inline="team-quick-task" data-user-id="${esc(user.id)}" autocomplete="off">
+        <svg><use href="#i-plus"/></svg>
+        <input name="title" type="text" maxlength="110" placeholder="Tarea rápida para ${esc(user.name.split(" ")[0])}… (Enter)" aria-label="Agregar tarea rápida">
+        <button type="submit" aria-label="Agregar tarea"><svg><use href="#i-arrow"/></svg></button>
+      </form>
+      <div class="tm-daily-foot">
+        <span><i class="tm-dot tm-dot--${tone}"></i>${overdue ? `${overdue} vencida${overdue === 1 ? "" : "s"}` : "En ritmo"}</span>
+        <button type="button" data-action="map-add-task" data-id="${esc(user.id)}">Tarea completa <svg><use href="#i-arrow"/></svg></button>
+      </div>
+    </aside>`;
+  }
+
+  function teamNodeMarkup(user, node, status, index, mobile = false) {
+    const pendingLabel = !status.pending ? "Al día" : `${status.pending} pendiente${status.pending === 1 ? "" : "s"}`;
+    return `<button class="tm-node tm-node--${status.tone} ${mobile ? "tm-node--mobile" : ""}" type="button" data-action="map-node" data-id="${esc(node.id)}" data-user="${esc(user.id)}" ${mobile ? "" : `style="--x:${Number(node.x)}%;--y:${Number(node.y)}%;--delay:${(index * 0.55).toFixed(2)}s"`} aria-label="${esc(node.label)}: ${status.percent}% de cumplimiento, ${status.pending} pendientes">
+      <span class="tm-node-core">
+        <span class="tm-node-icon"><svg><use href="#i-${esc(node.icon || "spark")}"/></svg></span>
+        <span class="tm-node-copy"><b>${esc(node.label)}</b><small>${pendingLabel}</small></span>
+        <span class="tm-node-pct">${status.percent}%</span>
+      </span>
+      <span class="tm-node-meter" style="--p:${status.percent}%"></span>
+      <span class="tm-node-grip" aria-hidden="true">⠿</span>
+    </button>`;
+  }
+
+  function teamHubMarkup(user, overall, pendingTotal, nodeCount) {
+    const name = esc(user.name);
+    return `<div class="tm-hub" style="--x:36%;--y:48%">
+      <span class="tm-hub-aura" aria-hidden="true"></span>
+      <span class="tm-hub-ring" aria-hidden="true"></span>
+      <span class="tm-hub-ring tm-hub-ring--b" aria-hidden="true"></span>
+      <div class="tm-hub-photo ${user.photo ? "has-photo" : "is-empty"}">
+        ${user.photo ? `<img src="${esc(user.photo)}" alt="Avatar de ${name}" draggable="false">` : `<span class="tm-hub-initials">${esc(initials(user))}</span>`}
+        <span class="tm-hub-scan" aria-hidden="true"></span>
+        <button class="tm-avatar-edit" type="button" data-action="map-avatar" data-id="${esc(user.id)}" aria-label="Cambiar avatar de ${name}" title="Cambiar avatar"><svg><use href="#i-camera"/></svg></button>
+      </div>
+      <div class="tm-hub-info">
+        <span class="tm-hub-kicker">${esc(S.roleLabel(user.role))} · núcleo del mapa</span>
+        <b>${name}</b>
+        <small>${nodeCount} responsabilidades · ${pendingTotal} pendientes</small>
+        <div class="tm-hub-stats">
+          <span class="tm-hub-stat"><strong>${overall}%</strong><small>ritmo</small></span>
+          <span class="tm-hub-stat tm-hub-stat--warn"><strong>${pendingTotal}</strong><small>abiertos</small></span>
+        </div>
+        ${user.photo
+          ? `<button class="tm-avatar-clear" type="button" data-action="map-avatar-clear" data-id="${esc(user.id)}">Cambiar imagen</button>`
+          : `<button class="tm-avatar-add" type="button" data-action="map-avatar" data-id="${esc(user.id)}"><svg><use href="#i-camera"/></svg>Agregar avatar</button>`}
+      </div>
+    </div>`;
+  }
+
+  function teamMobileHead(user, overall, pendingTotal, nodeCount) {
+    return `<div class="tm-mobile-person">
+      <div class="tm-mobile-avatar ${user.photo ? "has-photo" : ""}">
+        ${user.photo ? `<img src="${esc(user.photo)}" alt="Avatar de ${esc(user.name)}" draggable="false">` : `<span>${esc(initials(user))}</span>`}
+        <button type="button" data-action="map-avatar" data-id="${esc(user.id)}" aria-label="Cambiar avatar"><svg><use href="#i-camera"/></svg></button>
+      </div>
+      <div class="tm-mobile-copy">
+        <span>${esc(S.roleLabel(user.role))} · mapa activo</span>
+        <b>${esc(user.name)}</b>
+        <small>${nodeCount} responsabilidades · ${pendingTotal} pendientes</small>
+      </div>
+      <div class="tm-mobile-score"><strong>${overall}%</strong><small>ritmo</small></div>
+    </div>`;
+  }
+
+  function renderTeamSystem(owner, roles, modules, users, state) {
+    return `<section class="tm-system">
+      <div class="tm-system-head">
+        <span class="kicker"><i></i>Sistema de roles</span>
+        <h2>Jerarquías, permisos y equipo</h2>
+        <p>El mapa es la capa visual. Acá se define qué puede hacer cada rol y quién está dentro.</p>
+      </div>
 
       <div class="settings-grid">
         <article class="panel" data-reveal>
@@ -1942,20 +2391,141 @@
         <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Equipo completo</h2><p class="panel-sub">${users.length} personas en el sistema · usuario y clave se editan desde Configuración</p></div>${owner ? btn("Sumar persona", { action: "new-user", icon: "plus", size: "sm", variant: "soft" }) : ""}</div>
         <div class="panel-body">
           <div class="team-grid">
-            ${users.map((user) => `<div class="team-card">
-              ${avatar(user, "")}
-              <div class="team-card-copy"><b>${esc(user.name)}</b><small>${esc(S.roleLabel(user.role))} · @${esc(user.username || "—")} · ${user.active ? "Activo" : "Inactivo"}</small></div>
-              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
-                ${status(user.active ? "Activo" : "Inactivo", user.active ? "ok" : "muted")}
-                ${owner ? `<div style="display:flex;gap:2px">
-                  <button class="row-action" type="button" data-action="edit-user" data-id="${esc(user.id)}" title="Editar"><svg><use href="#i-edit"/></svg></button>
-                  ${user.id === S.currentUserId() ? "" : `<button class="row-action danger" type="button" data-action="toggle-user" data-id="${esc(user.id)}" title="${user.active ? "Desactivar" : "Activar"}"><svg><use href="#i-${user.active ? "x" : "check"}"/></svg></button>`}
-                </div>` : ""}
-              </div>
-            </div>`).join("")}
+            ${users.map((user) => {
+              const hasMap = user.role === "manager" || user.role === "academy";
+              return `<div class="team-card">
+                ${avatar(user, "")}
+                <div class="team-card-copy"><b>${esc(user.name)}</b><small>${esc(S.roleLabel(user.role))} · @${esc(user.username || "—")} · ${user.active ? "Activo" : "Inactivo"}</small></div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+                  ${status(user.active ? "Activo" : "Inactivo", user.active ? "ok" : "muted")}
+                  <div style="display:flex;gap:2px">
+                    ${hasMap ? `<button class="row-action" type="button" data-action="map-focus" data-id="${esc(user.id)}" title="Abrir mapa de ${esc(user.name)}"><svg><use href="#i-grid"/></svg></button>` : ""}
+                    ${owner ? `<button class="row-action" type="button" data-action="edit-user" data-id="${esc(user.id)}" title="Editar"><svg><use href="#i-edit"/></svg></button>
+                    ${user.id === S.currentUserId() ? "" : `<button class="row-action danger" type="button" data-action="toggle-user" data-id="${esc(user.id)}" title="${user.active ? "Desactivar" : "Activar"}"><svg><use href="#i-${user.active ? "x" : "check"}"/></svg></button>`}` : ""}
+                  </div>
+                </div>
+              </div>`;
+            }).join("")}
           </div>
         </div>
       </article>
+    </section>`;
+  }
+
+  function renderTeam() {
+    const state = S.getState();
+    const owner = S.isOwner();
+    const roles = S.roles();
+    const modules = S.modules();
+    const users = state.users.slice().sort((a, b) => {
+      const order = { owner: 0, manager: 1, academy: 2, barber: 3 };
+      return (order[a.role] ?? 4) - (order[b.role] ?? 4) || a.name.localeCompare(b.name);
+    });
+    const managers = S.managers();
+    const managersWithMap = managers.filter((user) => user.active);
+
+    if (!managersWithMap.length) {
+      return `<section class="page">
+        ${pageHead({
+          kicker: "Personas · mapa de responsabilidades",
+          title: "Equipo y roles",
+          desc: "Todavía no hay encargados con mapa. Sumá una persona con rol de encargado para empezar.",
+          actions: owner ? btn("Sumar encargado", { action: "new-manager", icon: "plus", variant: "primary" }) : "",
+          hero: true
+        })}
+        <article class="panel"><div class="panel-body">${emptyState("Sin encargados", "Creá un encargado desde Equipo para ver su mapa.", "users")}</div></article>
+        ${renderTeamSystem(owner, roles, modules, users, state)}
+      </section>`;
+    }
+
+    if (!ui.teamMapUser || !managersWithMap.some((user) => user.id === ui.teamMapUser)) {
+      ui.teamMapUser = (managersWithMap.find((user) => user.id === "u-diego") || managersWithMap[0]).id;
+    }
+    const selected = managersWithMap.find((user) => user.id === ui.teamMapUser) || managersWithMap[0];
+    const map = S.teamMap(selected.id) || window.MasivoData.createTeamMap(selected);
+    const statuses = map.nodes.map((node, index) => ({ node, status: teamNodeStatus(node), index }));
+    const overall = statuses.length ? Math.round(statuses.reduce((sum, item) => sum + item.status.percent, 0) / statuses.length) : 0;
+    const pendingTotal = statuses.reduce((sum, item) => sum + item.status.pending, 0);
+    const teamTasks = S.openTasks(selected.id);
+
+    return `<section class="page teammap-page">
+      <div class="tm-shell">
+        <div class="tm-bg" aria-hidden="true">
+          <span class="tm-bg-grid"></span>
+          <span class="tm-bg-stars"></span>
+          <span class="tm-bg-scan"></span>
+          <span class="tm-orb tm-orb--a"></span>
+          <span class="tm-orb tm-orb--b"></span>
+          <span class="tm-orb tm-orb--c"></span>
+        </div>
+
+        <div class="tm-content">
+          <header class="tm-head">
+            <div class="tm-head-copy">
+              <span class="tm-eyebrow"><i></i>Personas · mapa de responsabilidades</span>
+              <h1 class="tm-title">Equipo <span>y roles</span></h1>
+              <p class="tm-sub">Cada encargado tiene su propio mapa vivo. Los globos se conectan con su núcleo, cambian de color según el cumplimiento y muestran los pendientes. Arrastralos para ordenar el flujo.</p>
+              <div class="tm-head-meta">
+                <span><svg><use href="#i-users"/></svg>${managersWithMap.length} encargados</span>
+                <span><svg><use href="#i-grid"/></svg>${statuses.length} responsabilidades</span>
+                <span><svg><use href="#i-zap"/></svg>${pendingTotal} pendientes</span>
+                <span><svg><use href="#i-shield"/></svg>${roles.length} jerarquías</span>
+              </div>
+            </div>
+            <div class="tm-head-actions">
+              <button class="tm-ctl tm-ctl--primary" type="button" data-action="map-add-task" data-id="${esc(selected.id)}"><svg><use href="#i-plus"/></svg>Sumar tarea</button>
+              <button class="tm-ctl" type="button" data-action="map-add-node" data-id="${esc(selected.id)}"><svg><use href="#i-spark"/></svg>Responsabilidad</button>
+              ${owner ? `<button class="tm-ctl tm-ctl--ghost" type="button" data-action="new-manager"><svg><use href="#i-users"/></svg>Encargado</button>` : ""}
+              <button class="tm-ctl tm-ctl--icon" type="button" data-action="map-reset-layout" data-id="${esc(selected.id)}" title="Restablecer posiciones" aria-label="Restablecer posiciones"><svg><use href="#i-refresh"/></svg></button>
+            </div>
+          </header>
+
+          <div class="tm-toolbar">
+            <div class="tm-people" role="tablist" aria-label="Elegir encargado">
+              ${managersWithMap.map((user) => `<button class="tm-person ${user.id === selected.id ? "active" : ""}" type="button" role="tab" aria-selected="${user.id === selected.id}" data-action="map-select" data-id="${esc(user.id)}">
+                ${avatar(user, "avatar--sm")}
+                <span><b>${esc(user.name.split(" ")[0])}</b><small>${esc(S.roleLabel(user.role))}</small></span>
+                <i class="tm-person-dot" aria-hidden="true"></i>
+              </button>`).join("")}
+              ${owner ? `<button class="tm-person tm-person--add" type="button" data-action="new-manager"><svg><use href="#i-plus"/></svg><span><b>Sumar</b><small>encargado</small></span></button>` : ""}
+            </div>
+            <div class="tm-legend">
+              <span><i class="tm-dot tm-dot--green"></i>En ritmo</span>
+              <span><i class="tm-dot tm-dot--amber"></i>Atención</span>
+              <span><i class="tm-dot tm-dot--red"></i>Crítico</span>
+            </div>
+          </div>
+
+          <div class="tm-stage-wrap">
+            <div class="tm-stage" id="team-map-stage" data-map-user="${esc(selected.id)}">
+              <span class="tm-stage-hud"><i></i>LIVE MAP <em>v1.1</em></span>
+              <span class="tm-stage-coord">${esc(overall)}% RITMO · ${pendingTotal} ABIERTOS</span>
+              <span class="tm-radar" aria-hidden="true"></span>
+              <svg class="tm-links" id="tm-links" aria-hidden="true"></svg>
+              ${teamHubMarkup(selected, overall, pendingTotal, statuses.length)}
+              ${statuses.map(({ node, status, index }) => teamNodeMarkup(selected, node, status, index)).join("")}
+              ${teamDailyMarkup(selected, teamTasks)}
+            </div>
+          </div>
+
+          <div class="tm-hint">
+            <span><svg><use href="#i-grid"/></svg>Arrastrá un globo para moverlo como en un flujograma.</span>
+            <span><svg><use href="#i-target"/></svg>Tocá un globo para abrir el detalle y los pendientes.</span>
+            <span><svg><use href="#i-check-circle"/></svg>Verde ≥85% sin pendientes · Amarillo ≥60% · Rojo debajo.</span>
+          </div>
+
+          <div class="tm-mobile">
+            ${teamMobileHead(selected, overall, pendingTotal, statuses.length)}
+            ${teamDailyMarkup(selected, teamTasks, true)}
+            <div class="tm-mobile-section"><span>Responsabilidades</span><small>${statuses.length} globos conectados</small></div>
+            <div class="tm-mobile-list">
+              ${statuses.map(({ node, status, index }) => teamNodeMarkup(selected, node, status, index, true)).join("")}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${renderTeamSystem(owner, roles, modules, users, state)}
     </section>`;
   }
 
@@ -3428,16 +3998,142 @@
     });
   }
 
+  /* ---------------- modales: mapa de responsabilidades ---------------- */
+
+  function openTeamNode(userId, nodeId) {
+    const user = S.userById(userId);
+    const map = S.teamMap(userId);
+    const node = map?.nodes.find((item) => item.id === nodeId);
+    if (!user || !node) return;
+    const status = teamNodeStatus(node);
+    const color = teamToneColor(status.tone);
+    const shown = status.items.slice(0, 8);
+    const rest = status.items.length - shown.length;
+    const body = `<div class="tm-detail tm-detail--${status.tone}">
+      <div class="tm-detail-hero">
+        <div class="tm-detail-ring">${C.ring(status.percent, { size: 116, thickness: 8, color, label: "cumplimiento" })}</div>
+        <div class="tm-detail-copy">
+          <span class="tm-detail-tone tm-detail-tone--${status.tone}"><i></i>${status.tone === "green" ? "En ritmo" : status.tone === "amber" ? "Atención" : "Crítico"}</span>
+          <b>${esc(status.summary)}</b>
+          <p>${esc(node.note || "Responsabilidad del mapa de " + user.name + ".")}</p>
+          <div class="tm-detail-pills">
+            <span><strong>${status.pending}</strong> pendientes</span>
+            <span><strong>${status.items.length}</strong> señales</span>
+            <span><svg><use href="#i-${esc(node.icon || "spark")}"/></svg>${esc(node.label)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="tm-detail-section">
+        <div class="tm-detail-section-head"><span>Qué está abierto</span><small>${status.items.length ? `${status.items.length} punto${status.items.length === 1 ? "" : "s"} para revisar` : "Todo en orden"}</small></div>
+        <div class="tm-detail-list">
+          ${shown.length ? shown.map((item) => `<div class="tm-detail-item tm-detail-item--${esc(item.tone || "muted")}"><i></i><div><b>${esc(item.label)}</b><small>${esc(item.meta || "")}</small></div></div>`).join("") : `<div class="tm-detail-empty"><svg><use href="#i-check-circle"/></svg><div><b>Sin pendientes</b><small>Esta responsabilidad está al día.</small></div></div>`}
+          ${rest > 0 ? `<p class="tm-detail-more">+ ${rest} más en el módulo completo.</p>` : ""}
+        </div>
+      </div>
+      <div class="tm-detail-actions">
+        ${status.route ? `<button class="btn btn--soft btn--sm" type="button" data-action="go" data-route="${esc(status.route)}">Abrir módulo <svg><use href="#i-arrow"/></svg></button>` : ""}
+        <button class="btn btn--ghost btn--sm" type="button" data-action="map-edit-node" data-id="${esc(node.id)}" data-user="${esc(user.id)}"><svg><use href="#i-edit"/></svg>Editar globo</button>
+      </div>
+    </div>`;
+    openModal({
+      kicker: `${user.name} · ${S.roleLabel(user.role)}`,
+      title: node.label.toUpperCase(),
+      sub: "Detalle de la responsabilidad y sus pendientes.",
+      body,
+      hideSubmit: true,
+      cancelLabel: "Cerrar",
+      size: "lg"
+    });
+  }
+
+  function openTeamNodeEditor(userId, nodeId = "") {
+    const user = S.userById(userId);
+    if (!user) return;
+    const map = S.teamMap(userId);
+    const node = nodeId ? map?.nodes.find((item) => item.id === nodeId) : null;
+    const metric = node?.metric || "custom";
+    const custom = metric === "custom";
+    const body = `<div class="form-grid">
+      ${textInput("label", "Nombre del globo", node?.label || "", { required: true, full: true, placeholder: "Ej. Contenido, Stock, Atención al cliente…" })}
+      ${selectField("icon", "Ícono", optionsFrom(TEAM_ICONS, node?.icon || "spark"), node?.icon || "spark")}
+      ${selectField("metric", "Qué mide", optionsFrom(TEAM_METRICS, metric), metric)}
+      ${textInput("percent", "Cumplimiento manual (%)", node?.percent ?? 100, { type: "number", min: 0, max: 100, hint: "Solo se usa cuando elegís “Manual”." })}
+      ${textInput("pending", "Pendientes manuales", node?.pending ?? 0, { type: "number", min: 0, hint: "Solo se usa cuando elegís “Manual”." })}
+      ${textArea("note", "Nota del globo", node?.note || "", { rows: 2, placeholder: "Qué incluye esta responsabilidad" })}
+    </div>
+    <p class="form-hint" style="margin-top:10px">Los colores se calculan solos con los datos reales del panel. Si elegís <b>Manual</b>, vos definís el porcentaje y los pendientes.</p>
+    ${node ? `<div class="tm-editor-danger"><button class="btn btn--danger btn--sm" type="button" data-action="map-node-delete" data-id="${esc(node.id)}" data-user="${esc(user.id)}"><svg><use href="#i-trash"/></svg>Eliminar globo</button></div>` : ""}`;
+    openModal({
+      kicker: `${user.name} · mapa`,
+      title: node ? "EDITAR RESPONSABILIDAD" : "SUMAR RESPONSABILIDAD",
+      sub: node ? "Cambiá el nombre, el ícono o qué datos alimentan el globo." : "Se agrega al mapa y después lo podés arrastrar.",
+      body,
+      submitLabel: node ? "Guardar cambios" : "Sumar al mapa",
+      onSubmit: (data) => {
+        if (!data.label.trim()) throw new Error("El globo necesita un nombre.");
+        const payload = {
+          label: data.label.trim(),
+          icon: data.icon,
+          metric: data.metric,
+          note: data.note,
+          percent: Number(data.percent || 0),
+          pending: Number(data.pending || 0)
+        };
+        if (node) S.updateTeamNode(user.id, node.id, payload);
+        else S.addTeamNode(user.id, payload);
+        afterChange(node ? "Responsabilidad actualizada." : "Responsabilidad sumada al mapa.");
+      }
+    });
+  }
+
+  function pickTeamAvatar(userId) {
+    if (!S.can("config.users")) return toast("No tenés permiso para cambiar avatares.", "error");
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) return toast("Elegí una imagen.", "error");
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          try {
+            const max = 640;
+            const scale = Math.min(1, max / Math.max(image.width, image.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const context = canvas.getContext("2d");
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL("image/webp", 0.86);
+            S.setUserPhoto(userId, dataUrl);
+            renderView();
+            toast("Avatar actualizado.");
+          } catch {
+            toast("No pudimos procesar la imagen.", "error");
+          }
+        };
+        image.onerror = () => toast("No pudimos leer la imagen.", "error");
+        image.src = String(reader.result || "");
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
   /* ---------------- modales: operación ---------------- */
 
-  function openTask(id = "") {
+  function openTask(id = "", presetAssignee = "") {
     const task = id ? S.getState().tasks.find((item) => item.id === id) : null;
     const state = S.getState();
     const today = D.iso(new Date());
+    const assignee = task?.assigneeId || presetAssignee || S.currentUserId();
     const body = `<div class="form-grid">
       ${textInput("title", "Tarea", task?.title || "", { required: true, full: true, placeholder: "Qué hay que hacer" })}
-      ${selectField("assigneeId", "Responsable", userOptions(task?.assigneeId || S.currentUserId()), task?.assigneeId || S.currentUserId())}
-      ${textInput("due", "Fecha límite", task?.due || D.daysAhead(2), { type: "date", required: true })}
+      ${selectField("assigneeId", "Responsable", userOptions(assignee), assignee)}
+      ${textInput("due", "Fecha límite", task?.due || today, { type: "date", required: true })}
       ${selectField("priority", "Prioridad", optionsFrom([["alta", "Alta"], ["media", "Media"], ["baja", "Baja"]], task?.priority || "media"), task?.priority || "media")}
       ${selectField("unitId", "Unidad", unitOptions(task?.unitId || "barberia", true), task?.unitId || "barberia")}
       ${selectField("status", "Estado", optionsFrom([["pendiente", "Pendiente"], ["en-curso", "En curso"], ["hecha", "Hecha"]], task?.status || "pendiente"), task?.status || "pendiente")}
@@ -3446,7 +4142,7 @@
     openModal({
       kicker: "Operación",
       title: task ? "EDITAR TAREA" : "NUEVA TAREA",
-      sub: "Con responsable y fecha. Nada queda en el aire.",
+      sub: presetAssignee && !task ? `Se asigna a ${S.userById(presetAssignee)?.name || "la persona elegida"}.` : "Con responsable y fecha. Nada queda en el aire.",
       body,
       submitLabel: task ? "Guardar cambios" : "Crear tarea",
       onSubmit: (data) => {
@@ -4332,9 +5028,97 @@
       case "new-barber":
         openUser("", "barber");
         return;
+      case "new-manager":
+        openUser("", "manager");
+        return;
       case "edit-user":
         openUser(id);
         return;
+      case "map-select":
+        ui.teamMapUser = id;
+        renderView();
+        return;
+      case "map-focus":
+        ui.teamMapUser = id;
+        if (parseHash().base === "equipo") {
+          renderView();
+        } else {
+          navigate("equipo");
+        }
+        setTimeout(() => {
+          const stage = $("#team-map-stage");
+          if (stage) stage.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 160);
+        return;
+      case "map-node":
+        openTeamNode(target.dataset.user, id);
+        return;
+      case "map-add-node":
+        if (!S.can("equipo")) return toast("No tenés permiso para editar el mapa.", "error");
+        openTeamNodeEditor(id);
+        return;
+      case "map-edit-node":
+        if (!S.can("equipo")) return toast("No tenés permiso para editar el mapa.", "error");
+        openTeamNodeEditor(target.dataset.user, id);
+        return;
+      case "map-node-delete": {
+        if (!S.can("equipo")) return toast("No tenés permiso para editar el mapa.", "error");
+        const nodeUserId = target.dataset.user;
+        const node = S.teamMap(nodeUserId)?.nodes.find((item) => item.id === id);
+        if (!node) return;
+        closeModal();
+        confirmDialog({
+          title: "ELIMINAR GLOBO",
+          text: `“${node.label}” sale del mapa de ${S.userById(nodeUserId)?.name || "este encargado"}. La responsabilidad no borra datos de los módulos.`,
+          onConfirm: () => {
+            S.deleteTeamNode(nodeUserId, id);
+            afterChange("Responsabilidad eliminada.");
+          }
+        });
+        return;
+      }
+      case "map-add-task":
+        openTask("", id);
+        return;
+      case "map-task-done": {
+        const task = state.tasks.find((item) => item.id === id);
+        if (!task) return;
+        S.setTaskStatus(id, "hecha");
+        renderView();
+        toast(`Tarea completada: ${task.title}.`);
+        return;
+      }
+      case "map-avatar":
+        pickTeamAvatar(id);
+        return;
+      case "map-avatar-clear": {
+        const user = S.userById(id);
+        if (!user) return;
+        confirmDialog({
+          title: "QUITAR AVATAR",
+          text: `Se quita la foto de ${user.name}. Podés volver a subir otra cuando quieras.`,
+          label: "Quitar avatar",
+          onConfirm: () => {
+            S.setUserPhoto(id, "");
+            afterChange("Avatar quitado.");
+          }
+        });
+        return;
+      }
+      case "map-reset-layout": {
+        const user = S.userById(id);
+        if (!user) return;
+        confirmDialog({
+          title: "RESTABLECER MAPA",
+          text: `Los globos y las tareas del día de ${user.name} vuelven a su posición original. Las responsabilidades y tareas no se borran.`,
+          label: "Restablecer posiciones",
+          onConfirm: () => {
+            S.resetTeamMap(id);
+            afterChange("Mapa restablecido.");
+          }
+        });
+        return;
+      }
       case "toggle-user": {
         if (!S.can("config.users")) return toast("No tenés permiso para editar usuarios.", "error");
         const user = S.userById(id);
@@ -4803,6 +5587,32 @@
         S.updateRoles(formValues(form));
         renderView();
         toast("Nombres de roles actualizados.");
+        return;
+      }
+      if (inline === "team-quick-task") {
+        const title = String(formValues(form).title || "").trim();
+        const userId = form.dataset.userId || ui.teamMapUser || S.currentUserId();
+        if (!title) {
+          const empty = $('input[name="title"]', form);
+          if (empty) empty.focus();
+          return;
+        }
+        const task = S.addTask({
+          title: title.slice(0, 110),
+          assigneeId: userId,
+          due: D.iso(new Date()),
+          status: "pendiente",
+          priority: "media",
+          unitId: "barberia",
+          notes: "Creada desde el mapa de responsabilidades."
+        });
+        renderView();
+        toast(`Tarea asignada a ${S.userById(userId)?.name || "la persona"}: ${task.title}.`);
+        setTimeout(() => {
+          const inputs = $$('.tm-quick input[name="title"]');
+          const visible = inputs.find((input) => input.offsetParent !== null) || inputs[0];
+          if (visible) visible.focus();
+        }, 80);
         return;
       }
       if (inline === "settings") {

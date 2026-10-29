@@ -93,6 +93,37 @@
     return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   }
 
+  /* ---------------- mapa de responsabilidades ---------------- */
+
+  const TEAM_MAP_PRESETS = [
+    { key: "contenido", label: "Contenido", icon: "image", metric: "contenido", x: 13, y: 18, note: "Calendario, piezas y publicaciones de la semana." },
+    { key: "meetbarber", label: "MeetBarber", icon: "message", metric: "meetbarber", x: 38, y: 8, note: "Reunión semanal, decisiones y acciones abiertas." },
+    { key: "checklist", label: "Checklist", icon: "check-square", metric: "checklist", x: 62, y: 17, note: "Apertura, cierre y controles del día." },
+    { key: "stock", label: "Stock", icon: "package", metric: "stock", x: 63, y: 45, note: "Productos bajo mínimo y reposición." },
+    { key: "capacitaciones", label: "Capacitaciones", icon: "graduation", metric: "capacitaciones", x: 56, y: 78, note: "Cursos pendientes y aprobaciones del equipo." },
+    { key: "reporte", label: "Reporte de turno", icon: "file", metric: "reporte", x: 35, y: 91, note: "Cierre de turno y reportes del equipo." },
+    { key: "puntos", label: "Puntos / Strikes", icon: "zap", metric: "puntos", x: 9, y: 66, note: "Reconocimientos, sanciones y seguimiento." }
+  ];
+
+  function createTeamMap(user) {
+    return {
+      userId: user?.id || "",
+      daily: { x: 87, y: 50 },
+      nodes: TEAM_MAP_PRESETS.map((preset) => ({
+        id: `tm-${user?.id || "base"}-${preset.key}`,
+        key: preset.key,
+        label: preset.label,
+        icon: preset.icon,
+        metric: preset.metric,
+        note: preset.note,
+        x: preset.x,
+        y: preset.y,
+        percent: preset.metric === "custom" ? 100 : 0,
+        pending: preset.metric === "custom" ? 0 : 0
+      }))
+    };
+  }
+
   function createSeed() {
     const today = newDate();
     const currentWeek = weekStart(0);
@@ -129,6 +160,21 @@
         commission: 0,
         initials: "SR",
         tone: "violet"
+      },
+      {
+        id: "u-diego",
+        name: "Diego Aquino",
+        username: "diego",
+        password: "masivo",
+        role: "manager",
+        email: "diego@masivobarber.com",
+        phone: "+54 11 5555-3300",
+        active: true,
+        startedAt: "2024-06-10",
+        commission: 0,
+        initials: "DA",
+        tone: "violet",
+        photo: "/img/team/diego-aquino.png"
       },
       {
         id: "u-caro",
@@ -632,6 +678,54 @@
         notes: "",
         createdBy: "u-caro",
         createdAt: daysAgo(2)
+      },
+      {
+        id: "t-11",
+        title: "Revisar apertura y asignar estaciones",
+        assigneeId: "u-diego",
+        due: daysAhead(0),
+        status: "en-curso",
+        priority: "alta",
+        unitId: "barberia",
+        notes: "Confirmar que las máquinas estén cargadas antes del primer turno.",
+        createdBy: "u-nico",
+        createdAt: daysAgo(1)
+      },
+      {
+        id: "t-12",
+        title: "Aprobar calendario de contenido semanal",
+        assigneeId: "u-diego",
+        due: daysAhead(0),
+        status: "pendiente",
+        priority: "alta",
+        unitId: "barberia",
+        notes: "Faltan dos piezas del equipo. Cerrar antes del MeetBarber.",
+        createdBy: "u-sofi",
+        createdAt: daysAgo(1)
+      },
+      {
+        id: "t-13",
+        title: "Confirmar stock de pomadas y navajas",
+        assigneeId: "u-diego",
+        due: daysAhead(1),
+        status: "pendiente",
+        priority: "media",
+        unitId: "productos",
+        notes: "",
+        createdBy: "u-diego",
+        createdAt: daysAgo(2)
+      },
+      {
+        id: "t-14",
+        title: "Cerrar reporte de turno del equipo",
+        assigneeId: "u-diego",
+        due: daysAhead(0),
+        status: "pendiente",
+        priority: "media",
+        unitId: "barberia",
+        notes: "Pedir el cierre a los que todavía no lo cargaron.",
+        createdBy: "u-nico",
+        createdAt: daysAgo(1)
       }
     ];
 
@@ -1372,6 +1466,15 @@
       { id: "au-8", at: hoursAgo(50), userId: "u-sofi", action: "completó", entity: "Checklist", entityId: "cl-limpieza", detail: "Limpieza profunda" }
     ];
 
+    /* ---------------- mapas de responsabilidades ---------------- */
+
+    const teamMaps = {};
+    users
+      .filter((user) => user.role === "manager" || user.role === "academy")
+      .forEach((user) => {
+        teamMaps[user.id] = createTeamMap(user);
+      });
+
     return {
       version: 1,
       createdAt: new Date().toISOString(),
@@ -1400,12 +1503,15 @@
         products,
         stockMoves
       },
-      audit
+      audit,
+      teamMaps
     };
   }
 
   window.MasivoData = {
     createSeed,
+    createTeamMap,
+    teamMapPresets: TEAM_MAP_PRESETS,
     util: {
       DAY,
       pad,
