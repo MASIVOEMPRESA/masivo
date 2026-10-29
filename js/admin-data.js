@@ -215,7 +215,7 @@
         name: "Barbería",
         kind: "barberia",
         description: "Cortes, barba, color y servicios en el local.",
-        color: "#00e5ff",
+        color: "#a78bfa",
         icon: "scissors",
         goal: 17000000,
         active: true
@@ -225,7 +225,7 @@
         name: "Academia",
         kind: "academia",
         description: "Cursos, cohortes y formación de barberos.",
-        color: "#8b6cff",
+        color: "#e879f9",
         icon: "graduation",
         goal: 2500000,
         active: true
@@ -235,7 +235,7 @@
         name: "Productos",
         kind: "productos",
         description: "Venta de herramientas e insumos en el local.",
-        color: "#3dffa8",
+        color: "#34d399",
         icon: "package",
         goal: 1200000,
         active: true
@@ -245,7 +245,7 @@
         name: "Ecommerce",
         kind: "ecommerce",
         description: "Tienda online, envíos y venta digital.",
-        color: "#ffb020",
+        color: "#fbbf24",
         icon: "globe",
         goal: 2000000,
         active: true

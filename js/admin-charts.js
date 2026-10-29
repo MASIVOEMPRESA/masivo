@@ -17,7 +17,7 @@
   };
 
   function spark(values, options = {}) {
-    const { color = "#00e5ff", width = 150, height = 40 } = options;
+    const { color = "#a78bfa", width = 150, height = 40 } = options;
     if (!values || values.length < 2) return "";
     const max = Math.max(...values);
     const min = Math.min(...values);
@@ -49,7 +49,7 @@
   function areaChart(labels, series, options = {}) {
     const {
       height = 300,
-      colors = ["#00e5ff", "#8b6cff", "#3dffa8"],
+      colors = ["#a78bfa", "#e879f9", "#34d399"],
       format = compact,
       suffix = ""
     } = options;
@@ -151,7 +151,7 @@
   }
 
   function barChart(items, options = {}) {
-    const { height = 240, color = "#00e5ff", format = compact, suffix = "", horizontal = true } = options;
+    const { height = 240, color = "#a78bfa", format = compact, suffix = "", horizontal = true } = options;
     if (horizontal) {
       const width = 800;
       const pad = { top: 12, right: 56, bottom: 12, left: 150 };
@@ -219,7 +219,7 @@
   }
 
   function ring(pct, options = {}) {
-    const { size = 88, thickness = 6, color = "#00e5ff", label = "" } = options;
+    const { size = 88, thickness = 6, color = "#a78bfa", label = "" } = options;
     const radius = (size - thickness) / 2;
     const circumference = 2 * Math.PI * radius;
     const value = Math.max(0, Math.min(100, Number(pct || 0)));
@@ -236,7 +236,7 @@
   }
 
   function miniBars(values, options = {}) {
-    const { color = "#00e5ff", width = 116, height = 34 } = options;
+    const { color = "#a78bfa", width = 116, height = 34 } = options;
     const max = Math.max(...values, 1);
     const gap = 3;
     const barW = (width - gap * (values.length - 1)) / values.length;

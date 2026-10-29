@@ -287,7 +287,7 @@
       .map((item, index) => {
         const role = S.getState().roles[item.role];
         return `
-          <button class="login-profile" type="button" data-action="login" data-login="${item.user.id}" style="--delay:${index * 80}ms;--tone:${item.role === "owner" ? "#00e5ff" : item.role === "manager" ? "#8b6cff" : "#3dffa8"}">
+          <button class="login-profile" type="button" data-action="login" data-login="${item.user.id}" style="--delay:${index * 80}ms;--tone:${item.role === "owner" ? "#a78bfa" : item.role === "manager" ? "#e879f9" : "#34d399"}">
             ${avatar(item.user, "", "")}
             <span class="login-profile-copy">
               <b>${esc(item.user.name)}</b>
@@ -645,7 +645,7 @@
       <div class="user-menu-list">
         <span class="nav-section-title" style="padding:8px 10px 4px">Cambiar de perfil · demo</span>
         ${users.map((item) => `<button class="user-menu-item" type="button" data-action="switch-user" data-user="${item.id}">
-          ${avatar(item, "avatar--sm")} <span>${esc(item.name)}<br><small style="color:var(--muted-2);font-size:7.5px">${esc(S.roleLabel(item.role))}</small></span>
+          ${avatar(item, "avatar--sm")} <span>${esc(item.name)}<br><small style="color:var(--muted-2);font-size:12px">${esc(S.roleLabel(item.role))}</small></span>
           ${item.id === user.id ? '<svg style="margin-left:auto;color:var(--cyan)"><use href="#i-check"/></svg>' : ""}
         </button>`).join("")}
       </div>
@@ -700,16 +700,50 @@
     const unitList = activeUnits.length > 2
       ? `${activeUnits.slice(0, -1).join(", ")} y ${activeUnits[activeUnits.length - 1]}`
       : activeUnits.join(" y ");
+    const monthlyGoal = Number(S.getState().settings.monthlyGoal || 0);
+    const goalPct = monthlyGoal > 0 ? Math.min(100, Math.round((summary.revenue / monthlyGoal) * 100)) : 0;
+    const goalMissing = Math.max(monthlyGoal - summary.revenue, 0);
+    const isCurrentMonth = ui.month === D.monthKey(0);
+    const today = new Date();
+    const daysLeft = isCurrentMonth ? Math.max(0, new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate()) : 0;
+    const goalHint = isCurrentMonth
+      ? `${goalMissing > 0 ? `Faltan ${moneyC(goalMissing)}` : "Meta cumplida"} · quedan ${daysLeft} ${daysLeft === 1 ? "día" : "días"}`
+      : "Mes cerrado";
 
     return `<section class="page">
       ${pageHead({
-        kicker: weeklyKicker(),
-        title: 'LA SEMANA DE <span class="outline">MASIVO.</span>',
-        desc: `Seis números para saber dónde estás parado. <strong>${D.monthLabel(ui.month)}</strong> incluye ${unitList || "todas las unidades"}.`,
+        kicker: `Resumen · ${D.monthLabel(ui.month)}`,
+        title: "Cómo vas este mes",
+        desc: `Facturación, margen y pulso del equipo. <strong>${D.monthLabel(ui.month)}</strong> incluye ${unitList || "todas las unidades"}.`,
         actions: `${monthSwitcher()}${btn("Cargar facturación", { action: "billing", icon: "wallet", variant: "primary" })}`,
         meta: `<span><svg><use href="#i-pin"/></svg>${esc(S.getState().settings.businessName || "Masivo")} · Canning</span><span><svg><use href="#i-refresh"/></svg>Actualizado ${relative(S.getState().updatedAt)}</span>`,
         hero: true
       })}
+
+      <article class="owner-hero" data-reveal>
+        <div class="owner-hero-main">
+          <span class="owner-hero-label"><i></i>Facturación de ${D.monthLabel(ui.month).toLowerCase()}</span>
+          <div class="owner-hero-value">${moneyC(summary.revenue)}<small>ARS</small></div>
+          <div class="owner-hero-deltas">
+            <span class="delta ${summary.revenueDelta >= 0 ? "up" : "down"}">${summary.revenueDelta >= 0 ? "↑" : "↓"} ${Math.abs(summary.revenueDelta).toFixed(1).replace(".", ",")}%</span>
+            <span>vs. mes anterior</span>
+            <span class="status ${summary.marginPct >= 30 ? "status--ok" : "status--warn"}">${pct(summary.marginPct)} de margen</span>
+          </div>
+          <div class="owner-hero-goal">
+            <div class="owner-hero-goal-head"><span>Meta del mes <b>${moneyC(monthlyGoal)}</b></span><b>${goalPct}%</b></div>
+            <div class="owner-hero-track"><span style="--value:${goalPct}%"></span></div>
+            <p class="owner-hero-hint">${goalHint}</p>
+          </div>
+        </div>
+        <div class="owner-hero-side">
+          <div class="owner-hero-minis">
+            <div class="owner-mini"><span>Margen estimado</span><b>${moneyC(summary.margin)}</b><small>${pct(summary.marginPct)} de la facturación</small></div>
+            <div class="owner-mini"><span>Alumnos activos</span><b>${num(summary.activeStudents)}</b><small>+${num(summary.newStudents)} este mes</small></div>
+            <div class="owner-mini"><span>Contenido</span><b>${summary.contentCompliance}%</b><small>meta semanal del equipo</small></div>
+            <div class="owner-mini"><span>Strikes activos</span><b>${num(summary.activeStrikes)}</b><small>límite ${S.getState().settings.strikeLimit} por persona</small></div>
+          </div>
+        </div>
+      </article>
 
       <div class="week-strip" data-reveal>
         <div class="week-item"><span>Ingresos de la semana</span><b>${moneyC(week.income)}</b><small>${D.weekLabel(week.start)}</small></div>
@@ -720,27 +754,18 @@
         <div class="week-item"><span>Strikes activos</span><b>${week.strikes}</b><small>límite ${S.getState().settings.strikeLimit} por persona</small></div>
       </div>
 
-      <div class="metric-grid">
-        ${metricCard({ label: "Facturación del mes", counterValue: summary.revenue, format: "compact", icon: "wallet", foot: "vs. mes anterior", delta: summary.revenueDelta, spark: C.spark(series.map((item) => item.income), { color: "#00e5ff" }) })}
-        ${metricCard({ label: "Margen estimado", counterValue: summary.margin, format: "compact", icon: "trending", tone: "green", foot: `${pct(summary.marginPct)} de margen`, delta: summary.marginDelta, spark: C.spark(series.map((item) => item.margin), { color: "#3dffa8" }) })}
-        ${metricCard({ label: "Alumnos activos", counterValue: summary.activeStudents, format: "number", icon: "graduation", tone: "violet", foot: `+${summary.newStudents} este mes`, spark: C.spark([12, 15, 17, 18, 20, summary.activeStudents], { color: "#8b6cff" }) })}
-        ${metricCard({ label: "Cumplimiento contenido", counterValue: summary.contentCompliance, format: "number", suffix: "%", icon: "image", foot: "meta semanal del equipo", spark: C.spark([54, 61, 58, 72, 78, summary.contentCompliance], { color: "#00e5ff" }) })}
-        ${metricCard({ label: "Strikes activos", counterValue: summary.activeStrikes, format: "number", icon: "shield", tone: summary.activeStrikes ? "red" : "green", foot: `límite: ${S.getState().settings.strikeLimit} por persona`, spark: C.spark([1, 2, 2, 1, 3, summary.activeStrikes], { color: "#ff4d6d" }) })}
-        ${metricCard({ label: "Tareas vencidas", counterValue: summary.overdueTasks, format: "number", icon: "clock", tone: summary.overdueTasks ? "amber" : "green", foot: "para revisar hoy", spark: C.spark([1, 0, 2, 1, 2, summary.overdueTasks], { color: "#ffb020" }) })}
-      </div>
-
       <div class="grid grid--2-1">
         <article class="panel" data-reveal>
           <div class="panel-head panel-head--bordered">
             <div><h2 class="panel-title">Ingresos vs. costos</h2><p class="panel-sub">Últimos 6 meses · todas las unidades</p></div>
             <div class="chart-legend">
-              <span class="legend-item"><i class="legend-dot" style="--color:#00e5ff"></i>Ingresos</span>
-              <span class="legend-item"><i class="legend-dot" style="--color:#ff4d6d"></i>Costos</span>
+              <span class="legend-item"><i class="legend-dot" style="--color:#a78bfa"></i>Ingresos</span>
+              <span class="legend-item"><i class="legend-dot" style="--color:#fb7185"></i>Costos</span>
             </div>
           </div>
           <div class="panel-body chart-holder">${C.areaChart(labels, [
-            { name: "Ingresos", values: series.map((item) => item.income), color: "#00e5ff" },
-            { name: "Costos", values: series.map((item) => item.cost), color: "#ff4d6d" }
+            { name: "Ingresos", values: series.map((item) => item.income), color: "#a78bfa" },
+            { name: "Costos", values: series.map((item) => item.cost), color: "#fb7185" }
           ], { height: 275 })}</div>
           <div class="panel-foot"><span>Margen acumulado ${moneyC(series.reduce((sum, item) => sum + item.margin, 0))}</span><span>Moneda: ARS</span></div>
         </article>
@@ -817,7 +842,7 @@
           <a class="link-btn" href="#/operacion/reuniones">Ver reuniones <svg><use href="#i-arrow"/></svg></a>
         </div>
         <div class="panel-body" style="display:flex;gap:24px;flex-wrap:wrap">
-          <p style="flex:1;min-width:240px;color:var(--muted);font-size:10px;line-height:1.65">${esc(meeting.notes)}</p>
+          <p style="flex:1;min-width:240px;color:var(--muted);font-size:12px;line-height:1.65">${esc(meeting.notes)}</p>
           <div style="min-width:220px"><h3 class="field-label" style="margin-bottom:5px">Decisiones</h3><ul class="decision-list">${meeting.decisions.map((decision) => `<li>${esc(decision)}</li>`).join("")}</ul></div>
         </div>
       </article>` : ""}
@@ -838,22 +863,22 @@
     const meeting = S.getState().meetings[0];
     const pendingTraining = S.barbers().reduce((sum, barber) => sum + S.trainingStats(barber.id).pending, 0);
     const totalStrikes = S.barbers().reduce((sum, barber) => sum + S.activeStrikes(barber.id).length, 0);
-    const contentBars = content.map((item) => ({ label: item.barber.name.split(" ")[0], value: item.compliance, color: item.compliance >= 100 ? "#3dffa8" : "#00e5ff", display: `${item.compliance}%` }));
+    const contentBars = content.map((item) => ({ label: item.barber.name.split(" ")[0], value: item.compliance, color: item.compliance >= 100 ? "#34d399" : "#a78bfa", display: `${item.compliance}%` }));
 
     return `<section class="page">
       ${pageHead({
         kicker: `${S.roleLabel(user.role)} · ${weeklyKicker()}`,
-        title: 'LA SEMANA EN <span class="outline">ORDEN.</span>',
-        desc: "Tu tablero de operación: tareas, checklists, contenido y el pulso del equipo. <strong>Sin finanzas, todo lo del día.</strong>",
+        title: "Tu semana en orden",
+        desc: "Tareas, checklists, contenido y el pulso del equipo. <strong>Sin finanzas: todo lo del día.</strong>",
         actions: `${btn("Nueva tarea", { action: "task", icon: "plus", variant: "primary" })}${btn("Checklist", { action: "go", route: "operacion/checklists", icon: "check-square" })}`,
         meta: `<span><svg><use href="#i-clock"/></svg>${relative(S.getState().updatedAt)}</span><span><svg><use href="#i-users"/></svg>${S.barbers().length} barberos activos</span>`,
         hero: true
       })}
 
       <div class="metric-grid">
-        ${metricCard({ label: "Tareas abiertas", counterValue: open.length, format: "number", icon: "check-square", foot: `${overdue.length} vencidas`, spark: C.spark([9, 8, 11, 9, 12, open.length], { color: "#00e5ff" }) })}
+        ${metricCard({ label: "Tareas abiertas", counterValue: open.length, format: "number", icon: "check-square", foot: `${overdue.length} vencidas`, spark: C.spark([9, 8, 11, 9, 12, open.length], { color: "#a78bfa" }) })}
         ${metricCard({ label: "Checklists de hoy", value: `${doneChecklists}<small>/${checklistsToday.length}</small>`, icon: "list", tone: "green", foot: "apertura, cierre y limpieza" })}
-        ${metricCard({ label: "Cumplimiento contenido", counterValue: S.averageContentCompliance(), format: "number", suffix: "%", icon: "image", foot: "meta semanal del equipo", spark: C.spark([55, 60, 58, 70, 76, S.averageContentCompliance()], { color: "#00e5ff" }) })}
+        ${metricCard({ label: "Cumplimiento contenido", counterValue: S.averageContentCompliance(), format: "number", suffix: "%", icon: "image", foot: "meta semanal del equipo", spark: C.spark([55, 60, 58, 70, 76, S.averageContentCompliance()], { color: "#a78bfa" }) })}
         ${metricCard({ label: "Capacitaciones pendientes", counterValue: pendingTraining, format: "number", icon: "graduation", tone: "violet", foot: "en todo el equipo" })}
         ${metricCard({ label: "Strikes activos", counterValue: totalStrikes, format: "number", icon: "shield", tone: totalStrikes ? "red" : "green", foot: "seguimiento del encargado" })}
         ${metricCard({ label: "Alertas operativas", counterValue: alerts.length, format: "number", icon: "alert", tone: alerts.length ? "amber" : "green", foot: "para resolver hoy" })}
@@ -877,7 +902,7 @@
             ${open.slice().sort((a, b) => a.due.localeCompare(b.due)).slice(0, 6).map((task) => {
               const assignee = S.userById(task.assigneeId);
               const late = task.due < D.iso(new Date());
-              return `<tr><td><b style="font-size:10px">${esc(task.title)}</b><small style="display:block;color:var(--muted-2);font-size:8px">${esc(S.unitById(task.unitId)?.name || "")}</small></td><td>${userInline(assignee)}</td><td><span class="${late ? "text-red" : ""}" style="font-family:var(--font-mono);font-size:8px">${date(task.due)}</span></td><td><span class="priority ${task.priority}">${esc(task.priority)}</span></td></tr>`;
+              return `<tr><td><b style="font-size:12px">${esc(task.title)}</b><small style="display:block;color:var(--muted-2);font-size:12.5px">${esc(S.unitById(task.unitId)?.name || "")}</small></td><td>${userInline(assignee)}</td><td><span class="${late ? "text-red" : ""}" style="font-family:var(--font-mono);font-size:12.5px">${date(task.due)}</span></td><td><span class="priority ${task.priority}">${esc(task.priority)}</span></td></tr>`;
             }).join("") || `<tr><td colspan="4">${emptyState("Sin tareas abiertas", "Todo al día.", "check-circle")}</td></tr>`}
           </tbody></table></div>
         </article>
@@ -888,12 +913,12 @@
             <div class="panel-body" style="display:flex;flex-direction:column;gap:10px">
               ${checklistsToday.map(({ checklist, done }) => `
                 <button type="button" data-action="run-checklist" data-id="${checklist.id}" style="text-align:left;display:flex;flex-direction:column;gap:4px">
-                  <span style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:9.5px;font-weight:600">${esc(checklist.title)}</b><small style="font-family:var(--font-mono);font-size:7px;color:var(--muted-2)">${done}/${checklist.items.length}</small></span>
+                  <span style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:12px;font-weight:600">${esc(checklist.title)}</b><small style="font-family:var(--font-mono);font-size:12px;color:var(--muted-2)">${done}/${checklist.items.length}</small></span>
                   ${progressBar((done / checklist.items.length) * 100, done >= checklist.items.length ? "green" : "violet")}
                 </button>`).join("")}
             </div>
           </article>
-          ${meeting ? `<article class="panel panel--violet" data-reveal><div class="panel-head"><div><h2 class="panel-title">${esc(meeting.title)}</h2><p class="panel-sub">${dateFull(meeting.date)} · ${meeting.attendees.length} personas</p></div></div><div class="panel-body"><p style="color:var(--muted);font-size:9px;line-height:1.6">${esc(meeting.notes)}</p><a class="link-btn" href="#/operacion/reuniones" style="margin-top:9px">Ver acta <svg><use href="#i-arrow"/></svg></a></div></article>` : ""}
+          ${meeting ? `<article class="panel panel--violet" data-reveal><div class="panel-head"><div><h2 class="panel-title">${esc(meeting.title)}</h2><p class="panel-sub">${dateFull(meeting.date)} · ${meeting.attendees.length} personas</p></div></div><div class="panel-body"><p style="color:var(--muted);font-size:11.5px;line-height:1.6">${esc(meeting.notes)}</p><a class="link-btn" href="#/operacion/reuniones" style="margin-top:9px">Ver acta <svg><use href="#i-arrow"/></svg></a></div></article>` : ""}
         </div>
       </div>
     </section>`;
@@ -914,7 +939,7 @@
       <header class="page-head page-head--hero">
         <div class="page-head-copy">
           <span class="kicker"><i></i>Tu semana · ${D.weekLabel(D.weekStart(0))}</span>
-          <h1 class="page-title">BUENAS, <span class="outline">${esc(user.name.split(" ")[0].toUpperCase())}.</span></h1>
+          <h1 class="page-title">Buenas, ${esc(user.name.split(" ")[0])}</h1>
           <p class="page-desc">Esto es lo tuyo: <strong>puntos, contenido, tareas y capacitaciones.</strong> Sin vueltas.</p>
           <div class="page-meta"><span><svg><use href="#i-scissors"/></svg>${esc(S.roleLabel(user.role))} · ${stats.user.commission}% comisión</span><span><svg><use href="#i-calendar"/></svg>Desde ${dateFull(user.startedAt)}</span></div>
         </div>
@@ -924,7 +949,7 @@
       ${strikes.length ? `<div class="risk-banner"><svg><use href="#i-alert"/></svg><div><b>Tenés ${strikes.length} strike${strikes.length > 1 ? "s" : ""} activo${strikes.length > 1 ? "s" : ""}</b><p>A los ${S.getState().settings.strikeLimit} strikes la marca puede discontinuar la relación. Podés dejar tu descargo en Mis puntos.</p></div><a class="btn btn--danger btn--sm" href="#/mis-puntos">Ver detalle</a></div>` : ""}
 
       <div class="metric-grid metric-grid--4">
-        ${metricCard({ label: "Mis puntos", counterValue: stats.points, format: "number", icon: "zap", foot: "acumulados este año", spark: C.spark([30, 55, 70, 90, stats.points], { color: "#00e5ff" }) })}
+        ${metricCard({ label: "Mis puntos", counterValue: stats.points, format: "number", icon: "zap", foot: "acumulados este año", spark: C.spark([30, 55, 70, 90, stats.points], { color: "#a78bfa" }) })}
         ${metricCard({ label: "Contenido semanal", value: `${content.compliance}<small>%</small>`, icon: "image", tone: content.compliance >= 100 ? "green" : "amber", foot: `${content.published}/${content.goal} publicadas` })}
         ${metricCard({ label: "Strikes activos", value: `${stats.strikes}<small>/${S.getState().settings.strikeLimit}</small>`, icon: "shield", tone: stats.strikes ? "red" : "green", foot: stats.strikes ? "revisá el descargo" : "todo limpio" })}
         ${metricCard({ label: "Capacitaciones", value: `${stats.training.approved}<small>/${stats.training.total}</small>`, icon: "graduation", tone: "violet", foot: pendingTraining ? `${pendingTraining} pendientes` : "todas aprobadas" })}
@@ -934,7 +959,7 @@
         <article class="panel" data-reveal>
           <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Tu contenido de la semana</h2><p class="panel-sub">Grabado → Drive → publicado</p></div><span class="status ${content.compliance >= 100 ? "status--ok" : "status--warn"}">${content.compliance >= 100 ? "Meta cumplida" : "En progreso"}</span></div>
           <div class="panel-body" style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
-            ${C.ring(content.compliance, { size: 116, thickness: 8, color: content.compliance >= 100 ? "#3dffa8" : "#00e5ff", label: "cumplido" })}
+            ${C.ring(content.compliance, { size: 116, thickness: 8, color: content.compliance >= 100 ? "#34d399" : "#a78bfa", label: "cumplido" })}
             <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:7px">
               <div class="pipeline">
                 <span class="pipeline-step ${content.pieces.length ? "done" : ""}"><b>${content.recorded}</b> grabado</span>
@@ -957,20 +982,20 @@
         <article class="panel" data-reveal>
           <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Tus tareas</h2><p class="panel-sub">Lo que tenés pendiente</p></div><a class="link-btn" href="#/mis-tareas">Ver todas <svg><use href="#i-arrow"/></svg></a></div>
           <div class="table-wrap"><table class="data-table"><thead><tr><th>Tarea</th><th>Vence</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody>
-            ${tasks.length ? tasks.slice(0, 5).map((task) => `<tr><td><b style="font-size:10px">${esc(task.title)}</b><small style="display:block;color:var(--muted-2);font-size:8px">${esc(S.unitById(task.unitId)?.name || "")}</small></td><td><span style="font-family:var(--font-mono);font-size:8px" class="${task.due < D.iso(new Date()) ? "text-red" : ""}">${date(task.due)}</span></td><td>${status(task.status === "en-curso" ? "En curso" : "Pendiente", task.status === "en-curso" ? "info" : "warn")}</td><td><button class="row-action" type="button" data-action="complete-task" data-id="${task.id}" title="Marcar hecha"><svg><use href="#i-check"/></svg></button></td></tr>`).join("") : `<tr><td colspan="4">${emptyState("Sin tareas pendientes", "Buenísimo.", "check-circle")}</td></tr>`}
+            ${tasks.length ? tasks.slice(0, 5).map((task) => `<tr><td><b style="font-size:12px">${esc(task.title)}</b><small style="display:block;color:var(--muted-2);font-size:12.5px">${esc(S.unitById(task.unitId)?.name || "")}</small></td><td><span style="font-family:var(--font-mono);font-size:12.5px" class="${task.due < D.iso(new Date()) ? "text-red" : ""}">${date(task.due)}</span></td><td>${status(task.status === "en-curso" ? "En curso" : "Pendiente", task.status === "en-curso" ? "info" : "warn")}</td><td><button class="row-action" type="button" data-action="complete-task" data-id="${task.id}" title="Marcar hecha"><svg><use href="#i-check"/></svg></button></td></tr>`).join("") : `<tr><td colspan="4">${emptyState("Sin tareas pendientes", "Buenísimo.", "check-circle")}</td></tr>`}
           </tbody></table></div>
         </article>
 
         <div class="stack">
           <article class="panel ${pendingTraining ? "panel--accent" : ""}" data-reveal>
             <div class="panel-head panel-head--bordered"><div><span class="kicker"><i></i>Capacitación</span><h2 class="panel-title" style="margin-top:6px">${pendingTraining ? "Te queda una para cerrar" : "Todo aprobado"}</h2></div></div>
-            <div class="panel-body"><p style="color:var(--muted);font-size:9.5px;line-height:1.6">${pendingTraining ? `Tenés ${pendingTraining} capacitaciones pendientes. Aprobarlas suma ${S.getState().settings.pointsTraining} puntos cada una.` : "Ya completaste todas las capacitaciones disponibles. Ahora a la práctica."}</p><a class="btn btn--primary btn--sm" href="#/mis-capacitaciones" style="margin-top:11px">${pendingTraining ? "Rendir ahora" : "Ver mis capacitaciones"} <svg><use href="#i-arrow"/></svg></a></div>
+            <div class="panel-body"><p style="color:var(--muted);font-size:12px;line-height:1.6">${pendingTraining ? `Tenés ${pendingTraining} capacitaciones pendientes. Aprobarlas suma ${S.getState().settings.pointsTraining} puntos cada una.` : "Ya completaste todas las capacitaciones disponibles. Ahora a la práctica."}</p><a class="btn btn--primary btn--sm" href="#/mis-capacitaciones" style="margin-top:11px">${pendingTraining ? "Rendir ahora" : "Ver mis capacitaciones"} <svg><use href="#i-arrow"/></svg></a></div>
           </article>
-          ${latestReport ? `<article class="panel" data-reveal><div class="panel-head"><div><h2 class="panel-title">Último reporte</h2><p class="panel-sub">${dateFull(latestReport.date)} · ${esc(latestReport.type)}</p></div></div><div class="panel-body"><p style="color:var(--muted);font-size:9px;line-height:1.6">${esc(latestReport.summary)}</p><div class="report-metrics" style="margin-top:9px"><span><b>${latestReport.metrics.cortes}</b> cortes</span><span><b>${latestReport.metrics.ventas}</b> ventas</span><span><b>${latestReport.metrics.resenas}</b> reseñas</span></div></div></article>` : ""}
+          ${latestReport ? `<article class="panel" data-reveal><div class="panel-head"><div><h2 class="panel-title">Último reporte</h2><p class="panel-sub">${dateFull(latestReport.date)} · ${esc(latestReport.type)}</p></div></div><div class="panel-body"><p style="color:var(--muted);font-size:11.5px;line-height:1.6">${esc(latestReport.summary)}</p><div class="report-metrics" style="margin-top:9px"><span><b>${latestReport.metrics.cortes}</b> cortes</span><span><b>${latestReport.metrics.ventas}</b> ventas</span><span><b>${latestReport.metrics.resenas}</b> reseñas</span></div></div></article>` : ""}
         </div>
       </div>
 
-      ${meet ? `<div class="panel" data-reveal><div class="panel-head panel-head--bordered"><div><span class="kicker"><i></i>MeetBarber</span><h2 class="panel-title" style="margin-top:6px">${esc(meet.title)}</h2><p class="panel-sub">${dateFull(meet.date)}</p></div></div><div class="panel-body"><p style="color:var(--muted);font-size:9.5px;line-height:1.65">${esc(meet.notes)}</p></div></div>` : ""}
+      ${meet ? `<div class="panel" data-reveal><div class="panel-head panel-head--bordered"><div><span class="kicker"><i></i>MeetBarber</span><h2 class="panel-title" style="margin-top:6px">${esc(meet.title)}</h2><p class="panel-sub">${dateFull(meet.date)}</p></div></div><div class="panel-body"><p style="color:var(--muted);font-size:12px;line-height:1.65">${esc(meet.notes)}</p></div></div>` : ""}
     </section>`;
   }
 
@@ -987,10 +1012,10 @@
   const LEVEL_LABEL = { inicial: "Inicial", intermedio: "Intermedio", avanzado: "Avanzado", dueno: "Dueño" };
   const POINT_LABEL = { contenido: "Contenido", capacitacion: "Capacitación", ventas: "Ventas", equipo: "Equipo", manual: "Manual" };
   const LEAD_STAGE = {
-    consulta: { label: "Consulta", color: "#ffb020", tone: "amber" },
-    entrevista: { label: "Entrevista", color: "#8b6cff", tone: "violet" },
-    inscripto: { label: "Inscripto", color: "#3dffa8", tone: "green" },
-    perdido: { label: "Perdido", color: "#66747e", tone: "muted" }
+    consulta: { label: "Consulta", color: "#fbbf24", tone: "amber" },
+    entrevista: { label: "Entrevista", color: "#e879f9", tone: "violet" },
+    inscripto: { label: "Inscripto", color: "#34d399", tone: "green" },
+    perdido: { label: "Perdido", color: "#7b7196", tone: "muted" }
   };
 
   function stageLabel(stage) {
@@ -1148,7 +1173,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: `Control de negocio · ${D.monthLabel(ui.month)}`,
-        title: 'CUATRO NEGOCIOS, <span class="outline">UN NÚMERO.</span>',
+        title: "Unidades y finanzas",
         desc: "Cada ingreso y cada costo tiene una unidad. La facturación de barbería se carga a mano y se suma al resto.",
         actions: `${monthSwitcher()}${btn("Nueva unidad", { action: "new-unit", icon: "plus", variant: "ghost" })}${btn("Cargar movimiento", { action: "transaction", icon: "wallet", variant: "primary" })}`,
         meta: `<span><svg><use href="#i-target"/></svg>Meta ${moneyC(goal)}</span><span><svg><use href="#i-refresh"/></svg>${txs.length} movimientos</span>`,
@@ -1184,7 +1209,7 @@
             <button class="link-btn" type="button" data-action="filter-unit" data-id="${esc(item.unit.id)}">Ver movimientos <svg><use href="#i-arrow"/></svg></button>
           </div>
         </article>`).join("")}
-        <button class="unit-card" type="button" data-action="new-unit" style="--unit-color:#8d9ca7;align-items:center;justify-content:center;min-height:226px;border-style:dashed;text-align:center" data-reveal>
+        <button class="unit-card" type="button" data-action="new-unit" style="--unit-color:#a89ec4;align-items:center;justify-content:center;min-height:226px;border-style:dashed;text-align:center" data-reveal>
           <span class="unit-icon" style="width:46px;height:46px"><svg><use href="#i-plus"/></svg></span>
           <span><b class="unit-name" style="font-size:17px">Sumar unidad</b><br><small class="unit-kind" style="display:inline-block;margin-top:4px">Ecommerce, servicios, lo que venga</small></span>
         </button>
@@ -1235,7 +1260,7 @@
           <tbody>${txs.length ? txs.map((tx) => {
             const unit = S.unitById(tx.unitId);
             return `<tr>
-              <td><span class="mono" style="font-size:8.5px">${date(tx.date)}</span></td>
+              <td><span class="mono" style="font-size:12.5px">${date(tx.date)}</span></td>
               <td><div class="cell-main"><div><b>${esc(tx.description || tx.category)}</b><small>${esc(tx.category)}${tx.linkedType ? " · vinculado" : ""}</small></div></div></td>
               <td>${unitTag(unit)}</td>
               <td>${status(tx.type === "income" ? "Ingreso" : "Costo", tx.type === "income" ? "ok" : "danger")}</td>
@@ -1275,7 +1300,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: "Personas · roles y accesos",
-        title: 'QUIÉN PUEDE <span class="outline">QUÉ.</span>',
+        title: "Equipo y permisos",
         desc: "Tres roles con nombres editables y accesos separados. El barbero nunca ve finanzas; el encargado no toca la caja grande.",
         actions: owner ? `${btn("Nueva persona", { action: "new-user", icon: "plus", variant: "primary" })}` : "",
         meta: `<span><svg><use href="#i-users"/></svg>${state.users.filter((user) => user.active).length} activos</span><span><svg><use href="#i-shield"/></svg>3 jerarquías</span>`,
@@ -1293,7 +1318,7 @@
                 <span class="status status--muted">${state.users.filter((user) => user.role === role).length} pers.</span>
               </div>`).join("")}
               <div class="form-actions"><button class="btn btn--soft btn--sm" type="submit"><svg><use href="#i-check"/></svg>Guardar nombres</button></div>
-            </form>` : `<div class="role-editor">${["owner", "manager", "barber"].map((role) => `<div class="role-row"><span>${esc(role)}</span><b style="font-size:11px">${esc(state.roles[role]?.label || role)}</b><span class="status status--muted">${state.users.filter((user) => user.role === role).length}</span></div>`).join("")}</div>`}
+            </form>` : `<div class="role-editor">${["owner", "manager", "barber"].map((role) => `<div class="role-row"><span>${esc(role)}</span><b style="font-size:12.5px">${esc(state.roles[role]?.label || role)}</b><span class="status status--muted">${state.users.filter((user) => user.role === role).length}</span></div>`).join("")}</div>`}
           </div>
         </article>
 
@@ -1339,8 +1364,8 @@
     return `<section class="page">
       ${pageHead({
         kicker: "Personas · barberos",
-        title: 'EL EQUIPO DEL <span class="outline">SILLÓN.</span>',
-        desc: "Cada barbero con su ficha, sus puntos, sus strikes y su contenido. Todo el historial en un lugar.",
+        title: "Barberos",
+        desc: "La ficha de cada barbero con puntos, strikes, contenido y capacitación. Todo el historial en un lugar.",
         actions: S.isOwner() ? btn("Nuevo barbero", { action: "new-barber", icon: "plus", variant: "primary" }) : btn("Ver equipo", { action: "go", route: "equipo", icon: "users" }),
         meta: `<span><svg><use href="#i-scissors"/></svg>${plural(barbers.length, "barbero", "barberos")}</span><span><svg><use href="#i-zap"/></svg>${num(totalPoints)} puntos</span><span><svg><use href="#i-shield"/></svg>${plural(totalStrikes, "strike activo", "strikes activos")}</span>`,
         hero: true
@@ -1371,7 +1396,7 @@
               <div class="barber-stat"><span>Tareas</span><b>${open}</b></div>
             </div>
             <div class="barber-content">
-              <span style="color:var(--muted-2);font-size:7px;font-family:var(--font-mono)">CONTENIDO</span>
+              <span style="color:var(--muted-2);font-size:11px;font-weight:500">Contenido</span>
               <div class="progress ${content.compliance >= 100 ? "progress--green" : ""}"><span style="--value:${content.compliance}%"></span></div>
               <span>${content.compliance}%</span>
             </div>
@@ -1405,7 +1430,7 @@
 
   function renderBarberProfilePage(id, self = false) {
     const user = S.userById(id);
-    if (!user) return `<section class="page">${pageHead({ kicker: "Ficha", title: "NO ENCONTRAMOS A ESA PERSONA." })}${emptyState("Ficha inexistente", "Volvé al listado de barberos.", "user")}</section>`;
+    if (!user) return `<section class="page">${pageHead({ kicker: "Ficha", title: "No encontramos a esa persona" })}${emptyState("Ficha inexistente", "Volvé al listado de barberos.", "user")}</section>`;
     if (S.isBarber() && user.id !== S.currentUserId()) {
       return `<section class="page">${emptyState("Ficha privada", "Solo podés ver tu propia ficha.", "lock")}</section>`;
     }
@@ -1476,7 +1501,7 @@
           <article class="panel" data-reveal>
             <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Contenido</h2><p class="panel-sub">Semana actual · ${content.published}/${content.goal} publicadas</p></div><a class="link-btn" href="#/contenido">Tablero <svg><use href="#i-arrow"/></svg></a></div>
             <div class="panel-body" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-              ${C.ring(content.compliance, { size: 94, thickness: 7, color: content.compliance >= 100 ? "#3dffa8" : "#00e5ff", label: "cumplido" })}
+              ${C.ring(content.compliance, { size: 94, thickness: 7, color: content.compliance >= 100 ? "#34d399" : "#a78bfa", label: "cumplido" })}
               <div style="flex:1;min-width:180px"><div class="pipeline" style="margin-bottom:8px"><span class="pipeline-step ${content.recorded ? "done" : ""}"><b>${content.recorded}</b> grabado</span><span class="pipeline-step ${content.inDrive ? "done" : ""}"><b>${content.inDrive}</b> Drive</span><span class="pipeline-step ${content.published ? "done" : ""}"><b>${content.published}</b> publicadas</span></div>
                 ${content.pieces.length ? `<div class="piece-list">${content.pieces.map((piece) => `<div class="piece"><span class="piece-copy"><b>${esc(piece.title)}</b><small>${esc(piece.type)} · ${stageLabel(piece.stage)}</small></span>${stageChip(piece.stage)}</div>`).join("")}</div>` : `<div class="content-empty">Sin piezas esta semana.</div>`}
               </div>
@@ -1486,7 +1511,7 @@
           <article class="panel" data-reveal>
             <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Reportes de trabajo</h2><p class="panel-sub">${reports.length} registros</p></div>${canManage || self ? btn("Nuevo reporte", { action: "new-report", id: user.id, icon: "plus", size: "sm", variant: "soft" }) : ""}</div>
             <div class="panel-body" style="display:flex;flex-direction:column;gap:8px">
-              ${reports.length ? reports.slice(0, 6).map((report) => `<div class="report-card"><div class="report-card-head"><b style="font-size:10.5px">${esc(report.type)}</b><span class="status status--muted">${date(report.date)}</span></div><p>${esc(report.summary)}</p><div class="report-metrics"><span><b>${report.metrics.cortes}</b> cortes</span><span><b>${report.metrics.ventas}</b> ventas</span><span><b>${report.metrics.resenas}</b> reseñas</span></div></div>`).join("") : emptyState("Sin reportes", "Todavía no cargó ninguno.", "file")}
+              ${reports.length ? reports.slice(0, 6).map((report) => `<div class="report-card"><div class="report-card-head"><b style="font-size:12.5px">${esc(report.type)}</b><span class="status status--muted">${date(report.date)}</span></div><p>${esc(report.summary)}</p><div class="report-metrics"><span><b>${report.metrics.cortes}</b> cortes</span><span><b>${report.metrics.ventas}</b> ventas</span><span><b>${report.metrics.resenas}</b> reseñas</span></div></div>`).join("") : emptyState("Sin reportes", "Todavía no cargó ninguno.", "file")}
             </div>
           </article>
         </div>
@@ -1495,7 +1520,7 @@
           <article class="panel" data-reveal>
             <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Strikes</h2><p class="panel-sub">${active.length} activos de ${strikeLimit()}</p></div><div class="strike-count">${Array.from({ length: strikeLimit() }, (_, index) => `<span class="${index < active.length ? "on" : ""}">${index < active.length ? "!" : "·"}</span>`).join("")}</div></div>
             <div class="panel-body" style="display:flex;flex-direction:column;gap:7px">
-              ${strikes.length ? strikes.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6).map((strike) => `<div class="strike-mini"><div class="strike-mini-head"><b>${esc(strike.reason)}</b>${status(S.strikeState(strike) === "activo" ? "Activo" : S.strikeState(strike) === "archivado" ? "Archivado" : "Vencido", S.strikeState(strike) === "activo" ? "danger" : "muted")}</div><p>${esc(strike.detail)}</p><p style="margin-top:4px;color:var(--muted-2);font-size:7px">Vence ${dateFull(strike.expiresAt)} · ${esc(S.userById(strike.createdBy)?.name || "Sistema")}</p>${strike.response ? `<div class="response"><b>Descargo:</b> ${esc(strike.response)}</div>` : ""}</div>`).join("") : emptyState("Sin strikes", "Historial limpio.", "shield")}
+              ${strikes.length ? strikes.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6).map((strike) => `<div class="strike-mini"><div class="strike-mini-head"><b>${esc(strike.reason)}</b>${status(S.strikeState(strike) === "activo" ? "Activo" : S.strikeState(strike) === "archivado" ? "Archivado" : "Vencido", S.strikeState(strike) === "activo" ? "danger" : "muted")}</div><p>${esc(strike.detail)}</p><p style="margin-top:4px;color:var(--muted-2);font-size:12px">Vence ${dateFull(strike.expiresAt)} · ${esc(S.userById(strike.createdBy)?.name || "Sistema")}</p>${strike.response ? `<div class="response"><b>Descargo:</b> ${esc(strike.response)}</div>` : ""}</div>`).join("") : emptyState("Sin strikes", "Historial limpio.", "shield")}
             </div>
           </article>
 
@@ -1534,9 +1559,9 @@
       return (a.due || "").localeCompare(b.due || "");
     });
     const columns = [
-      { key: "pendiente", label: "Pendiente", color: "#ffb020" },
-      { key: "en-curso", label: "En curso", color: "#00e5ff" },
-      { key: "hecha", label: "Hecha", color: "#3dffa8" }
+      { key: "pendiente", label: "Pendiente", color: "#fbbf24" },
+      { key: "en-curso", label: "En curso", color: "#a78bfa" },
+      { key: "hecha", label: "Hecha", color: "#34d399" }
     ];
     const checklists = state.checklists;
     const meetings = state.meetings.slice().sort((a, b) => b.date.localeCompare(a.date));
@@ -1544,7 +1569,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: "Operación · el día a día",
-        title: 'LA SEMANA EN <span class="outline">MOVIMIENTO.</span>',
+        title: "Operación",
         desc: "Tareas con responsable y fecha, checklists que se repiten y las actas de MeetBarber. Nada queda en el aire.",
         actions: `${btn("Nueva tarea", { action: "task", icon: "plus", variant: "primary" })}${btn("Nueva reunión", { action: "meeting", icon: "message" })}`,
         meta: `<span><svg><use href="#i-check-square"/></svg>${S.openTasks().length} tareas abiertas</span><span><svg><use href="#i-alert"/></svg>${S.overdueTasks().length} vencidas</span>`,
@@ -1591,7 +1616,7 @@
                   <span class="${late ? "late" : ""}"><svg><use href="#i-calendar"/></svg>${date(task.due)}</span>
                   <span><svg><use href="#i-layers"/></svg>${esc(S.unitById(task.unitId)?.name || "")}</span>
                 </div>
-                ${task.notes ? `<p style="color:var(--muted-2);font-size:8px;line-height:1.5">${esc(task.notes)}</p>` : ""}
+                ${task.notes ? `<p style="color:var(--muted-2);font-size:12.5px;line-height:1.5">${esc(task.notes)}</p>` : ""}
                 <div class="task-card-actions">
                   ${next ? `<button class="btn btn--soft btn--sm" type="button" data-action="advance-task" data-id="${esc(task.id)}" data-status="${next}">${task.status === "pendiente" ? "Arrancar" : "Completar"} <svg><use href="#i-arrow"/></svg></button>` : `<span class="status status--ok">Cerrada</span>`}
                   <div style="display:flex;gap:2px">
@@ -1628,7 +1653,7 @@
               </button>`;
             }).join("")}
           </div>
-          <div class="panel-foot" style="padding:7px 0 0;border-top:1px solid var(--line)"><span>${run ? `Actualizado por ${esc(S.userById(run.userId)?.name || "—")}` : "Lo puede hacer cualquier encargado"}</span>${run?.completedAt ? `<span class="mono" style="font-size:7px">${relative(run.completedAt)}</span>` : ""}</div>
+          <div class="panel-foot" style="padding:7px 0 0;border-top:1px solid var(--line)"><span>${run ? `Actualizado por ${esc(S.userById(run.userId)?.name || "—")}` : "Lo puede hacer cualquier encargado"}</span>${run?.completedAt ? `<span class="mono" style="font-size:12px">${relative(run.completedAt)}</span>` : ""}</div>
         </article>`;
       }).join("")}
     </div>`;
@@ -1672,7 +1697,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: `Contenido · semana ${D.isoWeek(week)} · ${D.weekLabel(week)}`,
-        title: self ? 'TU CONTENIDO, <span class="outline">TU VIDRIERA.</span>' : 'CONTENIDO QUE <span class="outline">TRABAJA.</span>',
+        title: self ? "Tu contenido" : "Contenido",
         desc: self ? "Grabado, subido a Drive y publicado. Cada pieza publicada suma puntos y llena la agenda." : "El pipeline semanal de cada barbero. Meta clara, cumplimiento medible y puntos cuando se publica.",
         actions: `${monthSwitcherFor(D.weekLabel(week), "week-prev", "week-next")}${weekIsCurrent ? "" : btn("Semana actual", { action: "week-now", icon: "refresh", size: "sm" })}${btn("Nueva pieza", { action: "content", icon: "plus", variant: "primary" })}`,
         meta: `<span><svg><use href="#i-image"/></svg>${totalPublished}/${totalGoal} publicadas</span><span><svg><use href="#i-target"/></svg>${avg}% cumplimiento promedio</span>`,
@@ -1683,7 +1708,7 @@
         <article class="panel" data-reveal>
           <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">${self ? "Tu semana" : "Ritmo de publicación"}</h2><p class="panel-sub">${D.weekLabel(week)} · meta ${S.getState().settings.contentGoal} piezas por barbero</p></div><span class="status ${avg >= 100 ? "status--ok" : "status--warn"}">${avg >= 100 ? "Meta cumplida" : "En progreso"}</span></div>
           <div class="panel-body" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
-            ${C.ring(avg, { size: 128, thickness: 9, color: avg >= 100 ? "#3dffa8" : "#00e5ff", label: "del equipo" })}
+            ${C.ring(avg, { size: 128, thickness: 9, color: avg >= 100 ? "#34d399" : "#a78bfa", label: "del equipo" })}
             <div style="flex:1;min-width:220px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
               <div class="profile-metric"><span>Publicadas</span><b>${totalPublished}</b></div>
               <div class="profile-metric"><span>En Drive</span><b>${stats.reduce((sum, item) => sum + item.stats.inDrive, 0)}</b></div>
@@ -1695,7 +1720,7 @@
         <article class="panel" data-reveal>
           <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Cómo se mide</h2><p class="panel-sub">Cada etapa vale distinto</p></div></div>
           <div class="panel-body" style="display:flex;flex-direction:column;gap:9px">
-            ${[["Grabado", "34%", "warn"], ["En Drive", "67%", "violet"], ["Publicado", "100%", "ok"]].map(([label, value, tone]) => `<div class="row row--between"><span style="font-size:9.5px">${status(label, tone)}</span><b class="mono" style="font-size:10px">${value}</b></div>`).join("")}
+            ${[["Grabado", "34%", "warn"], ["En Drive", "67%", "violet"], ["Publicado", "100%", "ok"]].map(([label, value, tone]) => `<div class="row row--between"><span style="font-size:12px">${status(label, tone)}</span><b class="mono" style="font-size:12px">${value}</b></div>`).join("")}
             <p class="form-hint" style="margin-top:2px">El objetivo es publicar. Lo grabado suma, pero no completa la meta.</p>
           </div>
         </article>
@@ -1707,7 +1732,7 @@
           return `<article class="content-card ${complete ? "is-complete" : ""}" data-reveal>
             <div class="content-card-head">
               ${avatar(barber, "")}
-              <div class="barber-id"><a class="barber-name" href="#/barbero/${esc(barber.id)}" style="font-size:18px">${esc(barber.name)}</a><span class="barber-role">${item.published}/${item.goal} publicadas</span></div>
+              <div class="barber-id"><a class="barber-name" href="#/barbero/${esc(barber.id)}">${esc(barber.name)}</a><span class="barber-role">${item.published}/${item.goal} publicadas</span></div>
               <span class="content-pct ${complete ? "text-green" : ""}">${item.compliance}%</span>
             </div>
             <div class="content-progress"><div class="content-progress-head"><span>Cumplimiento semanal</span><span>${item.pieces.length} piezas cargadas</span></div>${progressBar(item.compliance, complete ? "green" : item.compliance < 50 ? "amber" : "")}</div>
@@ -1744,7 +1769,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: self ? "Mi espacio · capacitaciones" : "Operación · formación",
-        title: self ? 'APRENDER PARA <span class="outline">SUBIR.</span>' : 'CAPACITAR ES <span class="outline">PRODUCIR.</span>',
+        title: self ? "Tus capacitaciones" : "Capacitaciones",
         desc: self ? "Cada capacitación tiene un mini quiz. Si aprobás, sumás puntos y queda en tu ficha." : "Contenido corto, quiz y registro por persona. Se ve quién aprobó, quién quedó debajo y qué falta.",
         actions: canManage ? btn("Nueva capacitación", { action: "new-training", icon: "plus", variant: "primary" }) : "",
         meta: `<span><svg><use href="#i-graduation"/></svg>${trainings.length} módulos</span><span><svg><use href="#i-users"/></svg>${barbers.length} ${barbers.length === 1 ? "persona" : "personas"}</span>${myStats ? `<span><svg><use href="#i-check-circle"/></svg>${myStats.approved}/${myStats.total} aprobadas</span>` : ""}`,
@@ -1782,7 +1807,7 @@
       </div>
 
       ${!self ? `<article class="panel" data-reveal>
-        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Matriz de avance</h2><p class="panel-sub">Quién aprobó qué · click en una celda para cargar o corregir</p></div><div class="chart-legend"><span class="legend-item"><i class="legend-dot" style="--color:#3dffa8"></i>Aprobado</span><span class="legend-item"><i class="legend-dot" style="--color:#ff4d6d"></i>Desaprobado</span><span class="legend-item"><i class="legend-dot" style="--color:#66747e"></i>Pendiente</span></div></div>
+        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Matriz de avance</h2><p class="panel-sub">Quién aprobó qué · click en una celda para cargar o corregir</p></div><div class="chart-legend"><span class="legend-item"><i class="legend-dot" style="--color:#34d399"></i>Aprobado</span><span class="legend-item"><i class="legend-dot" style="--color:#fb7185"></i>Desaprobado</span><span class="legend-item"><i class="legend-dot" style="--color:#7b7196"></i>Pendiente</span></div></div>
         <div class="panel-body panel-body--flush"><div class="matrix-wrap"><table class="matrix">
           <thead><tr><th>Persona</th>${trainings.map((training) => `<th title="${esc(training.title)}">${esc(training.title.length > 18 ? `${training.title.slice(0, 17)}…` : training.title)}</th>`).join("")}</tr></thead>
           <tbody>${barbers.map((barber) => `<tr>
@@ -1832,7 +1857,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: self ? "Mi espacio · puntos y strikes" : "Operación · reconocimiento y conducta",
-        title: self ? 'LO TUYO, <span class="outline">CLARO.</span>' : 'PUNTOS Y <span class="outline">STRIKES.</span>',
+        title: self ? "Tus puntos" : "Puntos y strikes",
         desc: self ? "Los puntos se ganan con contenido, ventas y capacitaciones. Los strikes son sanciones con motivo, evidencia y descargo." : "Dos sistemas separados: puntos para premiar lo objetivo, strikes para cuidar la conducta. Tres strikes activos pueden discontinuar la relación.",
         actions: canManage ? `${btn("Sumar puntos", { action: "new-points", icon: "zap", variant: "soft" })}${btn("Registrar strike", { action: "new-strike", icon: "shield", variant: "danger" })}` : "",
         meta: `<span><svg><use href="#i-zap"/></svg>${num(totalPoints)} puntos</span><span><svg><use href="#i-shield"/></svg>${plural(activeCount, "strike activo", "strikes activos")}</span><span><svg><use href="#i-scale"/></svg>límite ${strikeLimit()}</span>`,
@@ -1872,10 +1897,10 @@
               <thead><tr>${self ? "" : "<th>Persona</th>"}<th>Motivo</th><th>Categoría</th><th>Puntos</th><th>Fecha</th></tr></thead>
               <tbody>${points.length ? points.map((entry) => `<tr>
                 ${self ? "" : `<td>${userInline(S.userById(entry.userId))}</td>`}
-                <td><b style="font-size:10px">${esc(entry.reason)}</b><small style="display:block;color:var(--muted-2);font-size:8px">${esc(S.userById(entry.createdBy)?.name || "Sistema")}</small></td>
+                <td><b style="font-size:12px">${esc(entry.reason)}</b><small style="display:block;color:var(--muted-2);font-size:12.5px">${esc(S.userById(entry.createdBy)?.name || "Sistema")}</small></td>
                 <td><span class="category-pill ${esc(entry.category)}">${esc(categoryLabel(entry.category))}</span></td>
                 <td><span class="cell-amount text-cyan">+${entry.points}</span></td>
-                <td><span class="mono" style="font-size:8px">${date(entry.date)}</span></td>
+                <td><span class="mono" style="font-size:12.5px">${date(entry.date)}</span></td>
               </tr>`).join("") : `<tr><td colspan="${self ? 4 : 5}">${emptyState("Sin puntos", "Todavía no hay movimientos.", "zap")}</td></tr>`}</tbody>
             </table></div>
           </article>
@@ -1947,7 +1972,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: `Academia · ${D.monthLabel(ui.month)}`,
-        title: 'DE LA CONSULTA <span class="outline">AL SILLÓN.</span>',
+        title: "Academia",
         desc: "Embudo, alumnas y alumnos, cobranzas, asistencia y stock de herramientas. Todo el recorrido de la academia.",
         actions: `${monthSwitcher()}${btn("Nuevo lead", { action: "lead", icon: "target", variant: "primary" })}`,
         meta: `<span><svg><use href="#i-target"/></svg>${metrics.leadsTotal} leads totales</span><span><svg><use href="#i-graduation"/></svg>${metrics.activeStudents} alumnos activos</span><span><svg><use href="#i-calendar"/></svg>${metrics.attendance}% asistencia</span>`,
@@ -1971,7 +1996,7 @@
     const recent = S.getState().academy.leads.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6);
 
     return `<div class="metric-grid">
-      ${metricCard({ label: "Leads del mes", counterValue: metrics.leads, format: "number", icon: "target", foot: `${metrics.leadsTotal} en total`, spark: C.spark([3, 5, 4, 7, 6, Math.max(metrics.leads, 1)], { color: "#ffb020" }) })}
+      ${metricCard({ label: "Leads del mes", counterValue: metrics.leads, format: "number", icon: "target", foot: `${metrics.leadsTotal} en total`, spark: C.spark([3, 5, 4, 7, 6, Math.max(metrics.leads, 1)], { color: "#fbbf24" }) })}
       ${metricCard({ label: "Conversión a inscripto", counterValue: metrics.conversion, format: "number", suffix: "%", icon: "trending", tone: "green", foot: `${metrics.enrolledLeads} inscriptos` })}
       ${metricCard({ label: "Alumnos activos", counterValue: metrics.activeStudents, format: "number", icon: "graduation", tone: "violet", foot: `${metrics.newStudents} nuevos este mes` })}
       ${metricCard({ label: "Ocupación", counterValue: metrics.occupancy, format: "number", suffix: "%", icon: "grid", foot: `${metrics.activeStudents}/${metrics.capacity} lugares` })}
@@ -2016,7 +2041,7 @@
             <div class="cohort-head"><div><b class="cohort-name">${esc(cohort.name)}</b><span class="cohort-meta">${dateFull(cohort.startDate)} → ${dateFull(cohort.endDate)}</span></div>${status(LEVEL_LABEL[cohort.level] || cohort.level, "violet")}</div>
             <div class="cohort-stats"><div><span>Alumnos</span><b>${cohort.count}</b></div><div><span>Capacidad</span><b>${cohort.capacity}</b></div><div><span>Ocupación</span><b>${cohort.occupancy}%</b></div></div>
             ${progressBar(cohort.occupancy, cohort.occupancy >= 80 ? "green" : "violet")}
-            <div class="row row--between"><small style="font-size:7.5px;color:var(--muted-2)">${esc(cohort.schedule)}</small><button class="link-btn" type="button" data-action="attendance" data-id="${esc(cohort.id)}">Asistencia <svg><use href="#i-arrow"/></svg></button></div>
+            <div class="row row--between"><small style="font-size:12px;color:var(--muted-2)">${esc(cohort.schedule)}</small><button class="link-btn" type="button" data-action="attendance" data-id="${esc(cohort.id)}">Asistencia <svg><use href="#i-arrow"/></svg></button></div>
           </div>`).join("")}
         </div></div>
       </article>
@@ -2032,7 +2057,7 @@
     <article class="panel" data-reveal>
       <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Últimos leads</h2><p class="panel-sub">Lo que entró esta semana</p></div><a class="link-btn" href="#/academia/embudo">Ver embudo <svg><use href="#i-arrow"/></svg></a></div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Nombre</th><th>Origen</th><th>Nivel</th><th>Etapa</th><th>Vendedor</th><th>Entró</th></tr></thead><tbody>
-        ${recent.map((lead) => `<tr><td><b style="font-size:10px">${esc(lead.name)}</b><small style="display:block;color:var(--muted-2);font-size:8px">${esc(lead.phone)}</small></td><td>${esc(lead.source)}</td><td>${tag(LEVEL_LABEL[lead.level] || lead.level, "violet")}</td><td><span class="status status--${LEAD_STAGE[lead.stage]?.tone || "muted"}">${esc(LEAD_STAGE[lead.stage]?.label || lead.stage)}</span></td><td>${esc(S.userById(lead.sellerId)?.name || "—")}</td><td><span class="mono" style="font-size:8px">${ageLabel(lead.createdAt)}</span></td></tr>`).join("") || `<tr><td colspan="6">${emptyState("Sin leads", "Cargá el primero.", "target")}</td></tr>`}
+        ${recent.map((lead) => `<tr><td><b style="font-size:12px">${esc(lead.name)}</b><small style="display:block;color:var(--muted-2);font-size:12.5px">${esc(lead.phone)}</small></td><td>${esc(lead.source)}</td><td>${tag(LEVEL_LABEL[lead.level] || lead.level, "violet")}</td><td><span class="status status--${LEAD_STAGE[lead.stage]?.tone || "muted"}">${esc(LEAD_STAGE[lead.stage]?.label || lead.stage)}</span></td><td>${esc(S.userById(lead.sellerId)?.name || "—")}</td><td><span class="mono" style="font-size:12.5px">${ageLabel(lead.createdAt)}</span></td></tr>`).join("") || `<tr><td colspan="6">${emptyState("Sin leads", "Cargá el primero.", "target")}</td></tr>`}
       </tbody></table></div>
     </article>`;
   }
@@ -2056,7 +2081,7 @@
               return `<article class="lead-card">
                 <div class="lead-top"><span class="lead-name">${esc(lead.name)}</span><small>${ageLabel(lead.createdAt)}</small></div>
                 <div class="lead-meta"><span class="tag">${esc(lead.source)}</span><span class="tag tag--violet">${esc(LEVEL_LABEL[lead.level] || lead.level)}</span><span class="tag">${esc(S.userById(lead.sellerId)?.name.split(" ")[0] || "—")}</span></div>
-                ${lead.notes ? `<p style="color:var(--muted-2);font-size:8px;line-height:1.5">${esc(lead.notes)}</p>` : ""}
+                ${lead.notes ? `<p style="color:var(--muted-2);font-size:12.5px;line-height:1.5">${esc(lead.notes)}</p>` : ""}
                 <div class="lead-actions">
                   ${next && stage !== "perdido" ? `<button class="btn btn--soft btn--sm" type="button" data-action="${next === "inscripto" ? "enroll-lead" : "move-lead"}" data-id="${esc(lead.id)}" ${next === "inscripto" ? "" : `data-stage="${next}"`}>${next === "entrevista" ? "Entrevista" : "Inscribir"} <svg><use href="#i-arrow"/></svg></button>` : ""}
                   ${stage !== "inscripto" ? `<button class="btn btn--ghost btn--sm" type="button" data-action="enroll-lead" data-id="${esc(lead.id)}">A cohorte</button>` : ""}
@@ -2108,9 +2133,9 @@
           return `<tr>
             <td>${userInline({ name: student.name, initials: initials(student.name), tone: "violet" }, student.email)}</td>
             <td>${tag(LEVEL_LABEL[student.level] || student.level, "violet")}</td>
-            <td><b style="font-size:9.5px">${esc(cohort?.name || "—")}</b><small style="display:block;color:var(--muted-2);font-size:7.5px">${esc(cohort?.schedule || "")}</small></td>
+            <td><b style="font-size:12px">${esc(cohort?.name || "—")}</b><small style="display:block;color:var(--muted-2);font-size:12px">${esc(cohort?.schedule || "")}</small></td>
             <td>${status(student.status === "cursando" ? "Cursando" : student.status === "desertor" ? "Desertor" : "Egresado", student.status === "cursando" ? "ok" : student.status === "desertor" ? "danger" : "info")}</td>
-            <td><span class="cell-amount">${attendance.pct}%</span><small style="display:block;color:var(--muted-2);font-size:7.5px">${attendance.present}/${attendance.total} clases</small></td>
+            <td><span class="cell-amount">${attendance.pct}%</span><small style="display:block;color:var(--muted-2);font-size:12px">${attendance.present}/${attendance.total} clases</small></td>
             <td>${pending ? status(`${pending} pendientes`, "warn") : status("Al día", "ok")}</td>
             <td><div class="cell-actions">
               <button class="row-action" type="button" data-action="payment" data-id="${esc(student.id)}" title="Cargar pago"><svg><use href="#i-coins"/></svg></button>
@@ -2145,11 +2170,11 @@
           const state = S.paymentState(payment);
           return `<tr>
             <td>${userInline({ name: student?.name || "Alumno", initials: initials(student?.name || "A"), tone: "violet" }, student?.phone || "")}</td>
-            <td><b style="font-size:10px">${esc(payment.concept)}</b><small style="display:block;color:var(--muted-2);font-size:7.5px">${esc(S.cohortById(payment.cohortId)?.name || "")}</small></td>
-            <td><span class="mono" style="font-size:8px">${date(payment.dueDate)}</span></td>
+            <td><b style="font-size:12px">${esc(payment.concept)}</b><small style="display:block;color:var(--muted-2);font-size:12px">${esc(S.cohortById(payment.cohortId)?.name || "")}</small></td>
+            <td><span class="mono" style="font-size:12.5px">${date(payment.dueDate)}</span></td>
             <td>${status(state === "pagado" ? "Pagado" : state === "vencido" ? "Vencido" : "Pendiente", state === "pagado" ? "ok" : state === "vencido" ? "danger" : "warn")}</td>
             <td><span class="cell-amount">${money(payment.amount)}</span></td>
-            <td><span style="font-size:9px;color:var(--muted-2)">${esc(payment.method || "—")}</span></td>
+            <td><span style="font-size:11.5px;color:var(--muted-2)">${esc(payment.method || "—")}</span></td>
             <td><div class="cell-actions">
               ${state === "pagado" ? `<button class="row-action danger" type="button" data-action="mark-pending" data-id="${esc(payment.id)}" title="Volver a pendiente"><svg><use href="#i-refresh"/></svg></button>` : `<button class="row-action" type="button" data-action="mark-paid" data-id="${esc(payment.id)}" title="Marcar pagado"><svg><use href="#i-check"/></svg></button>`}
             </div></td>
@@ -2180,8 +2205,8 @@
       <div class="table-wrap"><table class="data-table">
         <thead><tr><th>Producto</th><th>SKU</th><th>Categoría</th><th>Stock</th>${owner ? "<th>Costo</th>" : ""}<th>Precio</th><th><span class="sr-only">Acciones</span></th></tr></thead>
         <tbody>${products.map((product) => `<tr>
-          <td><b style="font-size:10px">${esc(product.name)}</b><small style="display:block;color:var(--muted-2);font-size:7.5px">mínimo ${product.min}</small></td>
-          <td><span class="mono" style="font-size:8px">${esc(product.sku)}</span></td>
+          <td><b style="font-size:12px">${esc(product.name)}</b><small style="display:block;color:var(--muted-2);font-size:12px">mínimo ${product.min}</small></td>
+          <td><span class="mono" style="font-size:12.5px">${esc(product.sku)}</span></td>
           <td><span class="tag">${esc(product.category)}</span></td>
           <td>${product.stock <= product.min ? status(`${product.stock} · bajo`, "danger") : status(String(product.stock), "ok")}</td>
           ${owner ? `<td><span class="cell-amount">${money(product.cost)}</span></td>` : ""}
@@ -2199,7 +2224,7 @@
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Nota</th><th>Responsable</th></tr></thead><tbody>
         ${moves.length ? moves.map((move) => {
           const product = S.productById(move.productId);
-          return `<tr><td><span class="mono" style="font-size:8px">${date(move.date)}</span></td><td><b style="font-size:9.5px">${esc(product?.name || "—")}</b></td><td>${status(move.type === "venta" ? "Venta" : move.type === "entrada" ? "Entrada" : move.type === "salida" ? "Salida" : "Ajuste", move.type === "venta" ? "ok" : move.type === "entrada" ? "info" : move.type === "salida" ? "warn" : "muted")}</td><td><span class="cell-amount">${move.type === "salida" || move.type === "venta" ? "−" : "+"}${move.qty}</span></td><td><span style="font-size:8.5px;color:var(--muted-2)">${esc(move.note)}</span></td><td><span style="font-size:8.5px">${esc(S.userById(move.userId)?.name || "—")}</span></td></tr>`;
+          return `<tr><td><span class="mono" style="font-size:12.5px">${date(move.date)}</span></td><td><b style="font-size:12px">${esc(product?.name || "—")}</b></td><td>${status(move.type === "venta" ? "Venta" : move.type === "entrada" ? "Entrada" : move.type === "salida" ? "Salida" : "Ajuste", move.type === "venta" ? "ok" : move.type === "entrada" ? "info" : move.type === "salida" ? "warn" : "muted")}</td><td><span class="cell-amount">${move.type === "salida" || move.type === "venta" ? "−" : "+"}${move.qty}</span></td><td><span style="font-size:12.5px;color:var(--muted-2)">${esc(move.note)}</span></td><td><span style="font-size:12.5px">${esc(S.userById(move.userId)?.name || "—")}</span></td></tr>`;
         }).join("") : `<tr><td colspan="6">${emptyState("Sin movimientos", "Todavía no se movió stock.", "package")}</td></tr>`}
       </tbody></table></div>
     </article>`;
@@ -2210,8 +2235,8 @@
     const sources = metrics.sources.map((source) => ({
       label: source.source,
       value: source.leads,
-      color: "#8b6cff",
-      display: `${source.leads} leads · ${source.enrolled} inscr.`
+      color: "#e879f9",
+      display: `${source.leads} → ${source.enrolled}`
     }));
 
     return `<div class="metric-grid metric-grid--4">
@@ -2244,7 +2269,7 @@
       <article class="panel" data-reveal>
         <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Salud académica</h2><p class="panel-sub">Los números que importan</p></div></div>
         <div class="panel-body" style="display:flex;flex-direction:column;gap:11px">
-          ${[["Asistencia general", metrics.attendance, "%"], ["Conversión del embudo", metrics.conversion, "%"], ["Ocupación de aulas", metrics.occupancy, "%"], ["Deserción acumulada", metrics.desertion, "%"]].map(([label, value, suffix]) => `<div><div class="row row--between" style="margin-bottom:4px"><span style="font-size:9px">${label}</span><b class="mono" style="font-size:9px">${value}${suffix}</b></div>${progressBar(value, value >= 75 ? "green" : value >= 50 ? "amber" : "red")}</div>`).join("")}
+          ${[["Asistencia general", metrics.attendance, "%"], ["Conversión del embudo", metrics.conversion, "%"], ["Ocupación de aulas", metrics.occupancy, "%"], ["Deserción acumulada", metrics.desertion, "%"]].map(([label, value, suffix]) => `<div><div class="row row--between" style="margin-bottom:4px"><span style="font-size:11.5px">${label}</span><b class="mono" style="font-size:11.5px">${value}${suffix}</b></div>${progressBar(value, value >= 75 ? "green" : value >= 50 ? "amber" : "red")}</div>`).join("")}
         </div>
       </article>
     </div>`;
@@ -2269,7 +2294,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: "Sistema · trazabilidad",
-        title: 'QUIÉN HIZO <span class="outline">QUÉ.</span>',
+        title: "Auditoría",
         desc: "Cada creación, edición y cobro queda registrado. Sirve para ordenar el equipo y para resolver dudas con datos.",
         actions: btn("Exportar datos", { action: "export", icon: "download" }),
         meta: `<span><svg><use href="#i-shield"/></svg>${state.audit.length} eventos</span><span><svg><use href="#i-clock"/></svg>últimos 500</span>`,
@@ -2311,7 +2336,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: "Sistema · configuración",
-        title: 'LAS REGLAS DEL <span class="outline">JUEGO.</span>',
+        title: "Configuración",
         desc: "Metas, puntos, límites de strikes y respaldo de los datos. Todo lo que define cómo funciona el panel.",
         actions: btn("Exportar backup", { action: "export", icon: "download", variant: "primary" }),
         meta: `<span><svg><use href="#i-database"/></svg>${Math.round(info.bytes / 1024)} KB locales</span><span><svg><use href="#i-refresh"/></svg>${relative(state.updatedAt)}</span>`,
@@ -2353,7 +2378,7 @@
           <article class="panel panel--violet" data-reveal>
             <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Demo local</h2><p class="panel-sub">Cómo se comporta este panel</p></div></div>
             <div class="panel-body" style="display:flex;flex-direction:column;gap:7px">
-              ${[["Acceso por perfil", "No hay contraseñas: es una demo de producto."], ["Datos semilla", "6 meses de movimientos, 4 barberos y 26 alumnos."], ["Roles", "Dueño, encargado y barbero con accesos separados."], ["Sin backend", "Para producción hace falta API + base de datos."]].map(([title, detail]) => `<div class="row" style="align-items:flex-start;gap:8px"><span class="pulse-dot" style="margin-top:5px"></span><div><b style="font-size:10px">${title}</b><small style="display:block;color:var(--muted-2);font-size:8.5px;line-height:1.5">${detail}</small></div></div>`).join("")}
+              ${[["Acceso por perfil", "No hay contraseñas: es una demo de producto."], ["Datos semilla", "6 meses de movimientos, 4 barberos y 26 alumnos."], ["Roles", "Dueño, encargado y barbero con accesos separados."], ["Sin backend", "Para producción hace falta API + base de datos."]].map(([title, detail]) => `<div class="row" style="align-items:flex-start;gap:8px"><span class="pulse-dot" style="margin-top:5px"></span><div><b style="font-size:12px">${title}</b><small style="display:block;color:var(--muted-2);font-size:12.5px;line-height:1.5">${detail}</small></div></div>`).join("")}
             </div>
           </article>
 
@@ -2388,7 +2413,7 @@
     return `<section class="page">
       ${pageHead({
         kicker: `Mi espacio · ${D.weekLabel(D.weekStart(0))}`,
-        title: 'LO QUE TENÉS <span class="outline">PENDIENTE.</span>',
+        title: "Lo que tenés pendiente",
         desc: "Tus tareas, tus reportes y lo que viene. Marcá lo que ya está y dejá registro de la semana.",
         actions: `${btn("Nuevo reporte", { action: "new-report", icon: "plus", variant: "primary" })}${btn("Mi contenido", { action: "go", route: "mi-contenido", icon: "image" })}`,
         meta: `<span><svg><use href="#i-check-square"/></svg>${open.length} abiertas</span><span><svg><use href="#i-clock"/></svg>${open.filter((task) => task.due < today).length} vencidas</span>`,
@@ -2407,9 +2432,9 @@
           <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Tareas abiertas</h2><p class="panel-sub">Ordenadas por vencimiento</p></div></div>
           <div class="table-wrap"><table class="data-table"><thead><tr><th>Tarea</th><th>Unidad</th><th>Vence</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody>
             ${open.length ? open.map((task) => `<tr>
-              <td><b style="font-size:10px">${esc(task.title)}</b>${task.notes ? `<small style="display:block;color:var(--muted-2);font-size:8px">${esc(task.notes)}</small>` : ""}</td>
+              <td><b style="font-size:12px">${esc(task.title)}</b>${task.notes ? `<small style="display:block;color:var(--muted-2);font-size:12.5px">${esc(task.notes)}</small>` : ""}</td>
               <td>${unitTag(S.unitById(task.unitId))}</td>
-              <td><span class="mono ${task.due < today ? "text-red" : ""}" style="font-size:8px">${date(task.due)}</span></td>
+              <td><span class="mono ${task.due < today ? "text-red" : ""}" style="font-size:12.5px">${date(task.due)}</span></td>
               <td>${status(TASK_STATUS[task.status]?.label || task.status, TASK_STATUS[task.status]?.tone || "muted")}</td>
               <td><div class="cell-actions">${task.status === "pendiente" ? `<button class="row-action" type="button" data-action="advance-task" data-id="${esc(task.id)}" data-status="en-curso" title="Arrancar"><svg><use href="#i-play"/></svg></button>` : ""}<button class="row-action" type="button" data-action="complete-task" data-id="${esc(task.id)}" title="Marcar hecha"><svg><use href="#i-check"/></svg></button></div></td>
             </tr>`).join("") : `<tr><td colspan="5">${emptyState("Sin tareas pendientes", "Buenísimo. Aprovechá para adelantar contenido.", "check-circle")}</td></tr>`}
@@ -2419,13 +2444,13 @@
         <div class="stack">
           <article class="panel panel--accent" data-reveal>
             <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Cerrar la semana</h2><p class="panel-sub">Dejá tu reporte</p></div></div>
-            <div class="panel-body"><p style="color:var(--muted);font-size:9.5px;line-height:1.6">Contá cuántos cortes hiciste, si vendiste productos y cómo te fue con los clientes. Sirve para la reunión y para tu ficha.</p><button class="btn btn--primary btn--sm" type="button" data-action="new-report" style="margin-top:11px"><svg><use href="#i-plus"/></svg>Registrar reporte</button></div>
+            <div class="panel-body"><p style="color:var(--muted);font-size:12px;line-height:1.6">Contá cuántos cortes hiciste, si vendiste productos y cómo te fue con los clientes. Sirve para la reunión y para tu ficha.</p><button class="btn btn--primary btn--sm" type="button" data-action="new-report" style="margin-top:11px"><svg><use href="#i-plus"/></svg>Registrar reporte</button></div>
           </article>
 
           <article class="panel" data-reveal>
             <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Historial</h2><p class="panel-sub">${reports.length} reportes</p></div></div>
             <div class="panel-body" style="display:flex;flex-direction:column;gap:7px">
-              ${reports.length ? reports.slice(0, 5).map((report) => `<div class="report-card"><div class="report-card-head"><b style="font-size:10px">${esc(report.type)}</b><span class="status status--muted">${date(report.date)}</span></div><p>${esc(report.summary)}</p><div class="report-metrics"><span><b>${report.metrics.cortes}</b> cortes</span><span><b>${report.metrics.ventas}</b> ventas</span><span><b>${report.metrics.resenas}</b> reseñas</span></div></div>`).join("") : emptyState("Sin reportes", "El primero se carga en un minuto.", "file")}
+              ${reports.length ? reports.slice(0, 5).map((report) => `<div class="report-card"><div class="report-card-head"><b style="font-size:12px">${esc(report.type)}</b><span class="status status--muted">${date(report.date)}</span></div><p>${esc(report.summary)}</p><div class="report-metrics"><span><b>${report.metrics.cortes}</b> cortes</span><span><b>${report.metrics.ventas}</b> ventas</span><span><b>${report.metrics.resenas}</b> reseñas</span></div></div>`).join("") : emptyState("Sin reportes", "El primero se carga en un minuto.", "file")}
             </div>
           </article>
         </div>
@@ -2545,7 +2570,7 @@
       kicker: "Confirmar",
       title,
       size: "sm",
-      body: `<p style="color:var(--muted);font-size:10.5px;line-height:1.65">${esc(text)}</p>`,
+      body: `<p style="color:var(--muted);font-size:12.5px;line-height:1.65">${esc(text)}</p>`,
       submitLabel: label,
       onSubmit: () => {
         try {
@@ -2648,7 +2673,7 @@
       ${textInput("goal", "Meta mensual (ARS)", unit?.goal ?? "", { type: "number", min: 0 })}
       <div class="field">
         <label for="f-color">Color</label>
-        <input class="input" id="f-color" name="color" type="color" value="${esc(unit?.color || "#00e5ff")}" style="height:38px;padding:4px">
+        <input class="input" id="f-color" name="color" type="color" value="${esc(unit?.color || "#a78bfa")}" style="height:38px;padding:4px">
       </div>
       ${selectField("icon", "Ícono", optionsFrom([["layers", "Capas"], ["scissors", "Tijeras"], ["graduation", "Academia"], ["package", "Productos"], ["globe", "Ecommerce"], ["wallet", "Servicios"], ["zap", "Energía"], ["target", "Objetivos"]], unit?.icon || "layers"), unit?.icon || "layers")}
     </div>`;
@@ -2665,7 +2690,7 @@
           name: data.name.trim(),
           kind: data.kind || "custom",
           description: data.description,
-          color: data.color || "#00e5ff",
+          color: data.color || "#a78bfa",
           icon: data.icon || "layers",
           goal: Number(data.goal || 0),
           active: true
@@ -3014,7 +3039,7 @@
     if (strike.userId !== S.currentUserId() && !S.isOwner()) return toast("Solo la persona involucrada puede responder.", "error");
     const body = `<div class="modal-section">
       <h3>${esc(strike.reason)}</h3>
-      <p style="color:var(--muted);font-size:9.5px;line-height:1.6">${esc(strike.detail || "")}</p>
+      <p style="color:var(--muted);font-size:12px;line-height:1.6">${esc(strike.detail || "")}</p>
     </div>
     ${textArea("response", "Tu descargo", strike.response || "", { rows: 4, placeholder: "Contá tu versión de los hechos" })}`;
     openModal({

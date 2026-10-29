@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MASIVO CONTROL — Panel interno</title>
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#05070a">
+  <meta name="theme-color" content="#07040f">
   <meta name="description" content="Panel interno de Masivo Barber: equipo, academia, operación, contenido y negocio.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,700;1,800&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/admin.css?v=20261028h">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css?v=20261028j">
+  <link rel="stylesheet" href="/css/admin-v2.css?v=20261028j">
 </head>
 <body class="admin-body">
   <a class="skip-link" href="#view">Saltar al contenido</a>
@@ -84,42 +85,31 @@
 
   <!-- ================= LOGIN ================= -->
   <main class="login-screen" id="login-screen" aria-labelledby="login-title">
-    <div class="login-visual">
+    <div class="login-aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+    <div class="login-shell">
       <div class="login-brand">
         <span class="brand-mark">M</span>
         <span class="brand-word">MASIVO<span class="brand-sub">CONTROL</span></span>
       </div>
-      <div class="login-copy">
-        <span class="kicker"><i></i>Panel interno · v1.0</span>
-        <h1 id="login-title">EL BACKSTAGE<br><span class="outline">DE MASIVO.</span></h1>
-        <p>Equipo, academia, contenido y números.<br><strong>Todo lo que pasa detrás del sillón.</strong></p>
-      </div>
-      <div class="login-stats" aria-hidden="true">
-        <div><b>04</b><span>unidades</span></div>
-        <div><b>07</b><span>personas</span></div>
-        <div><b>26</b><span>alumnos</span></div>
-        <div><b>01</b><span>lugar</span></div>
-      </div>
-      <div class="login-marquee" aria-hidden="true">
-        <div>BARBERÍA · ACADEMIA · PRODUCTOS · ECOMMERCE · EQUIPO · CONTENIDO · </div>
-      </div>
-      <span class="login-coord">34° 52' S / 58° 31' O</span>
-    </div>
 
-    <div class="login-panel">
-      <div class="login-panel-head">
-        <span class="kicker"><i></i>Acceso al panel</span>
-        <h2>¿Quién entra?</h2>
-        <p>Elegí tu perfil para ver el panel que te corresponde.</p>
+      <div class="login-card">
+        <span class="login-badge"><i></i>Panel interno · v1.0</span>
+        <h1 id="login-title">¿Quién entra?</h1>
+        <p class="login-intro">Elegí tu perfil para entrar al panel. Cada rol ve solo lo que le corresponde.</p>
+        <div class="login-profiles" id="login-profiles"></div>
+        <p class="login-note">
+          <svg><use href="#i-lock"/></svg>
+          Demo local: los datos se guardan en este dispositivo. Podés cambiarte de perfil desde el panel.
+        </p>
+        <div class="login-foot">
+          <a href="/" class="login-back"><svg><use href="#i-arrow-left"/></svg> Volver a la landing</a>
+          <span class="mono">MASIVO © <span id="login-year">2026</span></span>
+        </div>
       </div>
-      <div class="login-profiles" id="login-profiles"></div>
-      <p class="login-note">
-        <svg><use href="#i-lock"/></svg>
-        Demo local: los datos se guardan en este dispositivo. Podés cambiarte de perfil desde el panel.
-      </p>
-      <div class="login-foot">
-        <a href="/" class="login-back"><svg><use href="#i-arrow-left"/></svg> Volver a la landing</a>
-        <span class="mono">MASIVO © <span id="login-year">2026</span></span>
+
+      <div class="login-meta" aria-hidden="true">
+        <span>Barbería</span><span>Academia</span><span>Productos</span><span>Ecommerce</span>
       </div>
     </div>
   </main>
@@ -203,9 +193,9 @@
   <div class="modal-root" id="modal-root"></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/js/admin-data.js?v=20261028h" defer></script>
-  <script src="/js/admin-store.js?v=20261028h" defer></script>
-  <script src="/js/admin-charts.js?v=20261028h" defer></script>
-  <script src="/js/admin-app.js?v=20261028h" defer></script>
+  <script src="/js/admin-data.js?v=20261028j" defer></script>
+  <script src="/js/admin-store.js?v=20261028j" defer></script>
+  <script src="/js/admin-charts.js?v=20261028j" defer></script>
+  <script src="/js/admin-app.js?v=20261028j" defer></script>
 </body>
 </html>

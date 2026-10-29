@@ -99,6 +99,18 @@
     ["users", "units", "transactions", "checklists", "checklistRuns", "tasks", "meetings", "trainings", "trainingRecords", "contentPieces", "points", "strikes", "reports", "audit"].forEach((key) => {
       if (!Array.isArray(state[key])) state[key] = [];
     });
+
+    /* paleta violeta: recolorea datos guardados con la identidad anterior */
+    const legacyColors = {
+      "#00e5ff": "#a78bfa",
+      "#8b6cff": "#e879f9",
+      "#3dffa8": "#34d399",
+      "#ffb020": "#fbbf24"
+    };
+    state.units.forEach((unit) => {
+      const next = legacyColors[String(unit.color || "").toLowerCase()];
+      if (next) unit.color = next;
+    });
   }
 
   function loadSession() {
