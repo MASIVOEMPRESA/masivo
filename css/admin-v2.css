@@ -842,6 +842,17 @@ body.admin-body {
 
 /* ---------------- hero del dashboard ---------------- */
 
+.owner-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(310px, 26vw, 390px);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.owner-top > .owner-hero {
+  min-width: 0;
+}
+
 .owner-hero {
   position: relative;
   display: grid;
@@ -1024,6 +1035,486 @@ body.admin-body {
   margin-top: 2px;
   color: #8f82b3;
   font-size: 10px;
+}
+
+/* ---------------- lamborghini 3d ---------------- */
+
+.lambo-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(192, 132, 252, 0.24);
+  border-radius: 26px;
+  background:
+    radial-gradient(320px 230px at 50% 4%, rgba(139, 92, 246, 0.34), transparent 70%),
+    radial-gradient(260px 200px at 96% 104%, rgba(232, 121, 249, 0.2), transparent 72%),
+    linear-gradient(165deg, #150d29 0%, #0b0618 58%, #080411 100%);
+  box-shadow: 0 30px 80px rgba(2, 0, 10, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  isolation: isolate;
+}
+
+.lambo-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 38%, #000, transparent 72%);
+  mask-image: radial-gradient(ellipse at 50% 38%, #000, transparent 72%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.lambo-head {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 15px 16px 0;
+}
+
+.lambo-copy {
+  min-width: 0;
+}
+
+.lambo-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #c9b8f2;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lambo-kicker i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f0abfc;
+  box-shadow: 0 0 10px rgba(240, 171, 252, 0.95);
+}
+
+.lambo-name {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.lambo-sub {
+  display: block;
+  margin-top: 3px;
+  color: #9f90c6;
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.lambo-sound {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  background: rgba(10, 6, 20, 0.55);
+  color: #e9dcff;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease), box-shadow 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.lambo-sound svg {
+  width: 15px;
+  height: 15px;
+}
+
+.lambo-sound:hover {
+  border-color: rgba(232, 121, 249, 0.6);
+  background: rgba(139, 92, 246, 0.18);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(192, 132, 252, 0.35);
+}
+
+.lambo-sound:focus-visible {
+  outline: 2px solid #e879f9;
+  outline-offset: 2px;
+}
+
+.lambo-sound.is-muted {
+  color: #8f82b3;
+}
+
+.lambo-stage {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 196px;
+  margin-top: -6px;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.lambo-stage:active {
+  cursor: grabbing;
+}
+
+.lambo-halo,
+.lambo-floor {
+  position: absolute;
+  pointer-events: none;
+}
+
+.lambo-halo {
+  left: 50%;
+  top: 50%;
+  width: 84%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.28), rgba(192, 132, 252, 0.08) 46%, transparent 68%);
+  filter: blur(7px);
+  transition: transform 0.6s var(--ease), opacity 0.6s var(--ease);
+}
+
+.lambo-floor {
+  left: 50%;
+  bottom: 9%;
+  width: 72%;
+  height: 15%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(232, 121, 249, 0.3), rgba(139, 92, 246, 0.12) 52%, transparent 74%);
+  filter: blur(9px);
+}
+
+.lambo-streaks {
+  position: absolute;
+  inset: 16% 0 26%;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s var(--ease);
+}
+
+.lambo-streaks i {
+  position: absolute;
+  right: -4%;
+  height: 1px;
+  width: 42%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, transparent, rgba(232, 121, 249, 0.75), transparent);
+  filter: drop-shadow(0 0 6px rgba(232, 121, 249, 0.6));
+  opacity: 0;
+}
+
+.lambo-streaks i:nth-child(1) { top: 22%; }
+.lambo-streaks i:nth-child(2) { top: 50%; width: 54%; }
+.lambo-streaks i:nth-child(3) { top: 74%; width: 34%; }
+
+.lambo-card.is-revving .lambo-streaks {
+  opacity: 1;
+}
+
+.lambo-card.is-revving .lambo-streaks i {
+  animation: lambo-streak 0.6s ease-out both;
+}
+
+.lambo-card.is-revving .lambo-streaks i:nth-child(2) {
+  animation-delay: 0.07s;
+}
+
+.lambo-card.is-revving .lambo-streaks i:nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+.lambo-card.is-revving .lambo-halo {
+  transform: translate(-50%, -50%) scale(1.12);
+  opacity: 0.9;
+}
+
+@keyframes lambo-streak {
+  0% { opacity: 0; transform: translateX(38%) scaleX(0.35); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-165%) scaleX(1.25); }
+}
+
+.lambo-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease);
+}
+
+.lambo-loader em {
+  color: #a294c9;
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lambo-loader-bar {
+  width: 96px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.lambo-loader-bar i {
+  display: block;
+  width: 8%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a78bfa, #e879f9);
+  box-shadow: 0 0 12px rgba(232, 121, 249, 0.8);
+  transition: width 0.3s var(--ease);
+}
+
+.lambo-card.is-ready .lambo-loader {
+  opacity: 0;
+}
+
+.lambo-card.is-error .lambo-loader-bar {
+  display: none;
+}
+
+.lambo-model {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  outline: none;
+  --poster-color: transparent;
+  --progress-bar-color: transparent;
+  --progress-mask: transparent;
+  --progress-bar-height: 0px;
+}
+
+.lambo-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  z-index: 4;
+  transform: translateX(-50%);
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+}
+
+.lambo-hint button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
+  background: rgba(8, 4, 16, 0.6);
+  backdrop-filter: blur(8px);
+  color: #cdbcf1;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.lambo-hint button:hover {
+  color: #fff;
+  border-color: rgba(232, 121, 249, 0.45);
+}
+
+.lambo-hint button:focus-visible {
+  outline: 2px solid #e879f9;
+  outline-offset: 2px;
+}
+
+.lambo-hint svg {
+  width: 12px;
+  height: 12px;
+  color: #f0abfc;
+}
+
+.lambo-hint-touch {
+  display: none;
+}
+
+.lambo-hint.is-hidden,
+.lambo-card.is-hover .lambo-hint {
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px);
+  pointer-events: none;
+}
+
+.lambo-foot {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 4px 16px 13px;
+}
+
+.lambo-size {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.lambo-size > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #9f90c6;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lambo-size b {
+  color: #e9dcff;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.lambo-size input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.lambo-size input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #a78bfa var(--fill, 40%), rgba(255, 255, 255, 0.14) var(--fill, 40%));
+}
+
+.lambo-size input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -4.5px;
+  border: 0;
+  border-radius: 50%;
+  background: #f5f3ff;
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.26), 0 0 14px rgba(192, 132, 252, 0.8);
+}
+
+.lambo-size input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.lambo-size input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: 99px;
+  background: #a78bfa;
+}
+
+.lambo-size input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: 0;
+  border-radius: 50%;
+  background: #f5f3ff;
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.26), 0 0 14px rgba(192, 132, 252, 0.8);
+}
+
+.lambo-size input[type="range"]:focus-visible {
+  outline: 2px solid #e879f9;
+  outline-offset: 2px;
+  border-radius: 99px;
+}
+
+.lambo-credit {
+  flex: none;
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #8f82b3;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.lambo-credit:hover,
+.lambo-credit:focus-visible {
+  color: #d8ccf5;
+  border-color: rgba(232, 121, 249, 0.45);
+}
+
+@media (hover: none) {
+  .lambo-hint-mouse { display: none; }
+  .lambo-hint-touch { display: inline; }
+
+  .lambo-sound {
+    width: 36px;
+    height: 36px;
+  }
+
+  .lambo-hint button {
+    padding: 8px 13px;
+  }
+
+  .lambo-size input[type="range"] {
+    height: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lambo-streaks {
+    display: none;
+  }
+
+  .lambo-halo,
+  .lambo-hint,
+  .lambo-sound {
+    transition: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .owner-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lambo-stage {
+    min-height: clamp(240px, 34vw, 360px);
+  }
 }
 
 /* ---------------- métricas ---------------- */
@@ -3513,6 +4004,26 @@ body.admin-body {
 
   .owner-mini {
     padding: 10px 12px;
+  }
+
+  .lambo-card {
+    border-radius: 22px;
+  }
+
+  .lambo-stage {
+    min-height: 240px;
+  }
+
+  .lambo-head {
+    padding: 14px 14px 0;
+  }
+
+  .lambo-foot {
+    padding: 4px 14px 12px;
+  }
+
+  .lambo-hint button {
+    font-size: 9.5px;
   }
 
   .week-strip {

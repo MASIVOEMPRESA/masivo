@@ -448,6 +448,7 @@
     $("#quick-menu").hidden = true;
     bindReveals(view);
     bindSpotlight(view);
+    initLambo(view);
     animateCounters(view);
     window.scrollTo({ top: 0, behavior: "instant" in document.documentElement.style ? "instant" : "auto" });
   }
@@ -516,6 +517,461 @@
     if (format === "compact") return moneyC(value);
     if (format === "percent") return pct(value);
     return num(value);
+  }
+
+  /* ---------------- lamborghini 3d ---------------- */
+
+  const LAMBO = {
+    key: "masivo.lambo.v1",
+    model: "/admin/assets/lamborghini-aventador-sv.glb",
+    sound: "/admin/assets/lamborghini-rev.m4a",
+    cdn: "https://cdn.jsdelivr.net/npm/@google/model-viewer@4.4.0/dist/model-viewer.min.js",
+    base: { theta: 122, phi: 70 },
+    diagonal: 0,
+    lib: false,
+    audio: null,
+    active: null
+  };
+
+  const clampNumber = (value, min, max) => Math.min(max, Math.max(min, value));
+
+  function lamboPrefs() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAMBO.key) || "{}");
+      return saved && typeof saved === "object" ? saved : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveLamboPrefs(patch) {
+    try {
+      localStorage.setItem(LAMBO.key, JSON.stringify({ ...lamboPrefs(), ...patch }));
+    } catch {
+      /* almacenamiento no disponible */
+    }
+  }
+
+  function lamboRadius(size) {
+    const diagonal = LAMBO.diagonal || 600;
+    const t = (clampNumber(size, 80, 130) - 80) / 50;
+    return diagonal * (1.56 - 0.50 * t);
+  }
+
+  function lamboAudio() {
+    if (!LAMBO.audio) {
+      const audio = new Audio(LAMBO.sound);
+      audio.preload = "none";
+      audio.volume = 0.55;
+      LAMBO.audio = audio;
+    }
+    return LAMBO.audio;
+  }
+
+  function cleanupLambo() {
+    if (!LAMBO.active) return;
+    LAMBO.active.destroy();
+    LAMBO.active = null;
+  }
+
+  function initLambo(root) {
+    cleanupLambo();
+    const card = $("[data-lambo]", root);
+    if (!card) return;
+
+    const stage = $("[data-lambo-stage]", card);
+    const loader = $("[data-lambo-loader]", card);
+    const progress = $("[data-lambo-progress]", card);
+    const hint = $("[data-lambo-hint]", card);
+    const soundBtn = $("[data-lambo-sound]", card);
+    const slider = $("[data-lambo-size]", card);
+    const sizeLabel = $("[data-lambo-size-label]", card);
+    if (!stage) return;
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const prefs = lamboPrefs();
+    let size = clampNumber(Number(prefs.size) || 100, 80, 130);
+    let muted = prefs.muted === true;
+    let model = null;
+    let loaded = false;
+    let visible = true;
+    let hovering = false;
+    let drag = null;
+    let hoverOrigin = LAMBO.base.theta;
+    let raf = 0;
+    let lastRender = 0;
+    let revStart = 0;
+    let revTimer = 0;
+    let loadQueued = false;
+    let destroyed = false;
+    let unlockToken = 0;
+    const soundGate = { last: 0 };
+    const state = { ...LAMBO.base, radius: lamboRadius(size) };
+    const target = { ...state };
+
+    function orbitString(theta, phi, radius) {
+      return `${theta.toFixed(2)}deg ${phi.toFixed(2)}deg ${radius.toFixed(2)}m`;
+    }
+
+    function paint() {
+      if (!model) return;
+      const energy = revEnergy(performance.now());
+      const theta = state.theta + Math.sin(performance.now() / 85) * 1.6 * energy;
+      const phi = clampNumber(state.phi - 5.5 * energy, 48, 92);
+      const radius = state.radius * (1 - 0.16 * energy);
+      model.cameraOrbit = orbitString(theta, phi, radius);
+    }
+
+    function revEnergy(now) {
+      if (!revStart) return 0;
+      const t = (now - revStart) / 1050;
+      if (t >= 1) {
+        revStart = 0;
+        return 0;
+      }
+      return t < 0.16 ? t / 0.16 : Math.pow(1 - (t - 0.16) / 0.84, 1.6);
+    }
+
+    function start() {
+      if (raf || !loaded || reduce || destroyed) return;
+      lastRender = performance.now();
+      raf = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    }
+
+    function frame(now) {
+      raf = 0;
+      if (destroyed || !loaded || !visible || document.hidden) return;
+      if (now - lastRender < 32) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+      const dt = Math.min((now - lastRender) / 1000, 0.1);
+      lastRender = now;
+      const baseRadius = lamboRadius(size);
+      if (hovering || drag) {
+        const ease = 1 - Math.exp(-dt * 9);
+        state.theta += (target.theta - state.theta) * ease;
+        state.phi += (target.phi - state.phi) * ease;
+        state.radius += (target.radius - state.radius) * ease;
+      } else {
+        state.theta = (state.theta + 13 * dt) % 360;
+        state.phi += (LAMBO.base.phi - state.phi) * Math.min(1, dt * 5);
+        state.radius += (baseRadius - state.radius) * Math.min(1, dt * 6);
+      }
+      paint();
+      raf = requestAnimationFrame(frame);
+    }
+
+    function paintSound() {
+      if (!soundBtn) return;
+      soundBtn.setAttribute("aria-pressed", muted ? "false" : "true");
+      soundBtn.classList.toggle("is-muted", muted);
+      soundBtn.title = muted ? "Activar sonido del motor" : "Silenciar sonido del motor";
+      const use = soundBtn.querySelector("use");
+      if (use) use.setAttribute("href", muted ? "#i-volume-off" : "#i-volume");
+    }
+
+    function playSound() {
+      if (muted) return;
+      const now = performance.now();
+      if (now - soundGate.last < 1800) return;
+      soundGate.last = now;
+      unlockToken += 1;
+      try {
+        const audio = lamboAudio();
+        audio.muted = false;
+        audio.currentTime = 0;
+        const promise = audio.play();
+        if (promise && promise.catch) promise.catch(() => {});
+      } catch {
+        /* el navegador bloqueó el audio */
+      }
+    }
+
+    function rev() {
+      if (reduce) return;
+      const now = performance.now();
+      if (now - revStart < 650) return;
+      revStart = now;
+      card.classList.add("is-revving");
+      clearTimeout(revTimer);
+      revTimer = setTimeout(() => card.classList.remove("is-revving"), 1250);
+      start();
+    }
+
+    function paintSize() {
+      const min = Number(slider?.min || 80);
+      const max = Number(slider?.max || 130);
+      slider?.style.setProperty("--fill", `${((size - min) / (max - min)) * 100}%`);
+      if (sizeLabel) sizeLabel.textContent = `${size}%`;
+    }
+
+    function onPointerEnter(event) {
+      if (event.pointerType && event.pointerType !== "mouse") return;
+      hoverOrigin = state.theta;
+      hovering = true;
+      card.classList.add("is-hover");
+      rev();
+      playSound();
+      if (!reduce) start();
+    }
+
+    function onPointerMove(event) {
+      if (event.pointerType === "touch") {
+        if (!drag) return;
+        target.theta = drag.theta - (event.clientX - drag.x) * 0.55;
+        target.phi = LAMBO.base.phi;
+        target.radius = lamboRadius(size);
+        if (!reduce) start();
+        return;
+      }
+      if (!hovering) {
+        hoverOrigin = state.theta;
+        hovering = true;
+        card.classList.add("is-hover");
+      }
+      const rect = stage.getBoundingClientRect();
+      const nx = clampNumber((event.clientX - rect.left) / rect.width, 0, 1) * 2 - 1;
+      const ny = clampNumber((event.clientY - rect.top) / rect.height, 0, 1) * 2 - 1;
+      target.theta = hoverOrigin + nx * 40;
+      target.phi = clampNumber(LAMBO.base.phi - ny * 9, 54, 88);
+      target.radius = lamboRadius(size);
+      hint?.classList.add("is-hidden");
+      if (!reduce) start();
+    }
+
+    function onPointerLeave() {
+      if (drag) return;
+      hovering = false;
+      card.classList.remove("is-hover");
+      target.phi = LAMBO.base.phi;
+      target.radius = lamboRadius(size);
+    }
+
+    function onPointerDown(event) {
+      rev();
+      playSound();
+      hint?.classList.add("is-hidden");
+      if (event.pointerType === "touch") {
+        drag = { x: event.clientX, theta: state.theta };
+        hovering = true;
+        hoverOrigin = state.theta;
+      }
+    }
+
+    function endDrag() {
+      if (!drag) return;
+      drag = null;
+      hovering = false;
+      card.classList.remove("is-hover");
+      target.theta = state.theta;
+      target.phi = LAMBO.base.phi;
+      target.radius = lamboRadius(size);
+    }
+
+    function onSoundToggle() {
+      muted = !muted;
+      saveLamboPrefs({ muted });
+      paintSound();
+      if (muted) {
+        if (LAMBO.audio) {
+          LAMBO.audio.pause();
+          LAMBO.audio.currentTime = 0;
+        }
+        return;
+      }
+      soundGate.last = 0;
+      const audio = lamboAudio();
+      audio.muted = false;
+      playSound();
+    }
+
+    function unlockAudio() {
+      if (muted) return;
+      const audio = lamboAudio();
+      const wasMuted = audio.muted;
+      const token = ++unlockToken;
+      try {
+        audio.muted = true;
+        const promise = audio.play();
+        if (promise && promise.then) {
+          promise.then(() => {
+            if (token !== unlockToken) return;
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = wasMuted;
+          }).catch(() => { audio.muted = wasMuted; });
+        } else {
+          audio.muted = wasMuted;
+        }
+      } catch {
+        audio.muted = wasMuted;
+      }
+      document.removeEventListener("pointerdown", unlockAudio, true);
+    }
+
+    function onVisibility() {
+      if (document.hidden) stop();
+      else if (visible && loaded) start();
+    }
+
+    function fail() {
+      if (destroyed) return;
+      card.dataset.lamboState = "error";
+      card.classList.add("is-error");
+      const text = loader?.querySelector("em");
+      if (text) text.textContent = "No se pudo cargar el 3D";
+      if (progress) progress.style.width = "100%";
+    }
+
+    function buildModel() {
+      if (destroyed || !card.isConnected || model) return;
+      const view = document.createElement("model-viewer");
+      view.className = "lambo-model";
+      view.setAttribute("alt", "Lamborghini Aventador SV girando en 3D");
+      view.setAttribute("loading", "eager");
+      view.setAttribute("reveal", "auto");
+      view.setAttribute("disable-zoom", "");
+      view.setAttribute("interaction-prompt", "none");
+      view.setAttribute("touch-action", "pan-y");
+      view.setAttribute("shadow-intensity", "0.65");
+      view.setAttribute("shadow-softness", "0.85");
+      view.setAttribute("exposure", "1.15");
+      view.setAttribute("environment-image", "neutral");
+      view.setAttribute("camera-orbit", `${LAMBO.base.theta}deg ${LAMBO.base.phi}deg auto`);
+      view.addEventListener("progress", (event) => {
+        const ratio = Number(event.detail?.totalProgress || 0);
+        if (progress) progress.style.width = `${Math.max(8, Math.round(ratio * 100))}%`;
+      });
+      view.addEventListener("load", () => {
+        loaded = true;
+        try {
+          const dims = view.getDimensions();
+          const diagonal = Math.hypot(dims.x, dims.y, dims.z);
+          if (Number.isFinite(diagonal) && diagonal > 0) LAMBO.diagonal = diagonal;
+        } catch {
+          /* sin medida del modelo usamos el fallback */
+        }
+        state.radius = target.radius = lamboRadius(size);
+        state.phi = target.phi = LAMBO.base.phi;
+        state.theta = target.theta = LAMBO.base.theta;
+        card.dataset.lamboState = "ready";
+        card.classList.add("is-ready");
+        if (progress) progress.style.width = "100%";
+        setTimeout(() => loader?.remove(), 500);
+        if (reduce) paint();
+        else start();
+      });
+      view.addEventListener("error", fail);
+      view.src = LAMBO.model;
+      model = view;
+      stage.prepend(view);
+      if (reduce) view.cameraOrbit = orbitString(state.theta, state.phi, state.radius);
+    }
+
+    function loadModel() {
+      if (destroyed || card.dataset.lamboState) return;
+      card.dataset.lamboState = "loading";
+      if (LAMBO.lib) {
+        buildModel();
+        return;
+      }
+      const script = document.createElement("script");
+      script.type = "module";
+      script.src = LAMBO.cdn;
+      script.crossOrigin = "anonymous";
+      script.addEventListener("load", () => {
+        if (!window.customElements) return fail();
+        window.customElements.whenDefined("model-viewer")
+          .then(() => {
+            LAMBO.lib = true;
+            buildModel();
+          })
+          .catch(() => fail());
+      });
+      script.addEventListener("error", fail);
+      document.head.append(script);
+    }
+
+    function scheduleLoad() {
+      if (loadQueued || card.dataset.lamboState) return;
+      loadQueued = true;
+      const run = () => {
+        loadQueued = false;
+        loadModel();
+      };
+      if ("requestIdleCallback" in window) window.requestIdleCallback(run, { timeout: 1400 });
+      else setTimeout(run, 300);
+    }
+
+    // Preferencias guardadas.
+    if (slider) slider.value = String(size);
+    paintSize();
+    paintSound();
+    if (muted && LAMBO.audio) LAMBO.audio.pause();
+
+    // Interacción.
+    stage.addEventListener("pointerenter", onPointerEnter);
+    stage.addEventListener("pointermove", onPointerMove);
+    stage.addEventListener("pointerleave", onPointerLeave);
+    stage.addEventListener("pointerdown", onPointerDown);
+    stage.addEventListener("pointerup", endDrag);
+    stage.addEventListener("pointercancel", endDrag);
+    soundBtn?.addEventListener("click", onSoundToggle);
+    $("[data-lambo-rev]", card)?.addEventListener("click", () => {
+      rev();
+      playSound();
+    });
+    slider?.addEventListener("input", () => {
+      size = clampNumber(Number(slider.value) || 100, 80, 130);
+      paintSize();
+      saveLamboPrefs({ size });
+      target.radius = lamboRadius(size);
+      if (reduce) {
+        state.radius = target.radius;
+        paint();
+      } else {
+        start();
+      }
+    });
+    document.addEventListener("visibilitychange", onVisibility);
+    if (!muted) document.addEventListener("pointerdown", unlockAudio, true);
+
+    // Carga diferida: primero el visor y el GLB cuando la tarjeta se acerca al viewport.
+    let io = null;
+    if ("IntersectionObserver" in window) {
+      io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          visible = entry.isIntersecting;
+          if (visible) {
+            if (loaded) start();
+            else scheduleLoad();
+          } else {
+            stop();
+          }
+        });
+      }, { rootMargin: "320px 0px" });
+      io.observe(card);
+    } else {
+      scheduleLoad();
+    }
+
+    LAMBO.active = {
+      destroy() {
+        destroyed = true;
+        stop();
+        clearTimeout(revTimer);
+        io?.disconnect();
+        document.removeEventListener("visibilitychange", onVisibility);
+        document.removeEventListener("pointerdown", unlockAudio, true);
+        if (LAMBO.audio) LAMBO.audio.pause();
+      }
+    };
   }
 
   /* ---------------- shared UI ---------------- */
@@ -674,6 +1130,44 @@
     return `Resumen semanal · S${String(D.isoWeek(D.weekStart(0))).padStart(2, "0")} · ${D.weekLabel(D.weekStart(0))}`;
   }
 
+  function lamboCard(goalPct) {
+    return `<article class="lambo-card" data-lambo data-reveal aria-label="Lamborghini Aventador SV en 3D">
+        <header class="lambo-head">
+          <div class="lambo-copy">
+            <span class="lambo-kicker"><i></i>Meta en pista</span>
+            <b class="lambo-name">Aventador SV</b>
+            <small class="lambo-sub">${goalPct >= 100 ? "Objetivo cumplido" : `${goalPct}% de la meta del mes`}</small>
+          </div>
+          <button class="lambo-sound" type="button" data-lambo-sound aria-pressed="true" aria-label="Sonido del motor" title="Silenciar sonido del motor">
+            <svg><use href="#i-volume"/></svg>
+          </button>
+        </header>
+        <div class="lambo-stage" data-lambo-stage>
+          <span class="lambo-halo" aria-hidden="true"></span>
+          <span class="lambo-floor" aria-hidden="true"></span>
+          <span class="lambo-streaks" aria-hidden="true"><i></i><i></i><i></i></span>
+          <div class="lambo-loader" data-lambo-loader>
+            <span class="lambo-loader-bar"><i data-lambo-progress></i></span>
+            <em>Cargando el Aventador</em>
+          </div>
+          <div class="lambo-hint" data-lambo-hint>
+            <button type="button" data-lambo-rev aria-label="Acelerar el Lamborghini">
+              <svg><use href="#i-zap"/></svg>
+              <span class="lambo-hint-mouse">Pasá el mouse para girarlo</span>
+              <span class="lambo-hint-touch">Tocá para acelerar</span>
+            </button>
+          </div>
+        </div>
+        <footer class="lambo-foot">
+          <label class="lambo-size">
+            <span>Tamaño <b data-lambo-size-label>100%</b></span>
+            <input type="range" min="80" max="130" step="1" value="100" data-lambo-size aria-label="Tamaño del Lamborghini">
+          </label>
+          <a class="lambo-credit" href="https://sketchfab.com/3d-models/lamborghini-aventador-lp750-4-sv-fec3fec276d240f6b8a660e2a7874435" target="_blank" rel="noopener" title="Modelo 3D: Lamborghini Aventador LP750-4 SV por Hari en Sketchfab · Licencia CC BY 4.0">3D: Hari · CC BY 4.0</a>
+        </footer>
+      </article>`;
+  }
+
   function renderOwnerDashboard() {
     const summary = S.ownerSummary(ui.month);
     const series = S.monthlySeries(6);
@@ -720,6 +1214,7 @@
         hero: true
       })}
 
+      <div class="owner-top">
       <article class="owner-hero" data-reveal>
         <div class="owner-hero-main">
           <span class="owner-hero-label"><i></i>Facturación de ${D.monthLabel(ui.month).toLowerCase()}</span>
@@ -744,6 +1239,8 @@
           </div>
         </div>
       </article>
+      ${lamboCard(goalPct)}
+      </div>
 
       <div class="week-strip" data-reveal>
         <div class="week-item"><span>Ingresos de la semana</span><b>${moneyC(week.income)}</b><small>${D.weekLabel(week.start)}</small></div>
