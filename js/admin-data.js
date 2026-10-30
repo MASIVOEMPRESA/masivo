@@ -258,7 +258,7 @@
     const settings = {
       businessName: "Masivo Barber",
       currency: "ARS",
-      contentGoal: 3,
+      contentGoal: 2,
       pointsContent: 10,
       pointsTraining: 20,
       pointsSale: 15,
@@ -938,6 +938,8 @@
     const contentPieces = [];
     const contentTypes = ["Reel", "Foto", "Video", "Story"];
 
+    const contentFormats = { Reel: "A cámara", Foto: "Antes y después", Video: "Testimonios", Story: "Resultados" };
+
     function addPiece(barberId, week, index, type, stage, title, publishOffset = 0) {
       const created = daysAgo(week === 0 ? 1 + index : 8 + index);
       contentPieces.push({
@@ -946,8 +948,13 @@
         weekStart: week === 0 ? currentWeek : week === -1 ? previousWeek : twoWeeksAgo,
         title,
         type: contentTypes[index % contentTypes.length],
+        format: contentFormats[type] || "",
         stage,
         link: stage === "publicado" ? "https://www.instagram.com/masivobarber" : "",
+        idea: "",
+        script: "",
+        hook: "",
+        auto: false,
         createdAt: created,
         publishedAt: stage === "publicado" ? daysAgo(Math.max(0, week === 0 ? publishOffset : 8 + publishOffset)) : null,
         pointsAwarded: stage === "publicado"
@@ -968,8 +975,18 @@
     addPiece("u-tomi", -1, 1, "Foto", "publicado", "Antes y después del sillón", 2);
     addPiece("u-tomi", -1, 2, "Story", "publicado", "Turnos disponibles del sábado", 0);
 
-    addPiece("u-lauta", 0, 0, "Video", "grabado", "Cómo mantener el filo de la navaja", 0);
+    addPiece("u-lauta", 0, 0, "Video", "idea", "Video 1 · Idea de la semana", 0);
+    addPiece("u-lauta", 0, 9, "Video", "idea", "Video 2 · Idea de la semana", 0);
     addPiece("u-lauta", 0, 1, "Reel", "drive", "Corte clásico para pelo lacio", 0);
+
+    contentPieces
+      .filter((piece) => piece.userId === "u-lauta" && piece.weekStart === currentWeek && piece.stage === "idea")
+      .forEach((piece, index) => {
+        piece.format = index === 0 ? "POV" : "A cámara";
+        piece.idea = index === 0 ? "Mostrar cómo se afila una navaja desde el punto de vista del barbero." : "Contar por qué el corte clásico sigue funcionando.";
+        piece.hook = index === 0 ? "Nadie te muestra esto del filo de la navaja." : "El corte que nunca pasa de moda.";
+        piece.script = index === 0 ? "1. Primer plano del filo. 2. Tres pasadas por el asentador. 3. Prueba en papel. 4. Cierre con consejo." : "";
+      });
     addPiece("u-lauta", -1, 0, "Reel", "publicado", "Tutorial de tijera", 1);
     addPiece("u-lauta", -1, 1, "Foto", "publicado", "Detalle de línea", 2);
 

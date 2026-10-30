@@ -109,6 +109,7 @@
     opsTab: "tareas",
     academyTab: "resumen",
     pointsTab: "puntos",
+    pointsRange: "all",
     strikeFilter: "activos",
     unitFilter: "",
     txType: "",
@@ -167,7 +168,7 @@
         { route: "operacion", label: "Operación", icon: "check-square", roles: ["owner", "manager"], badge: () => S.overdueTasks().length },
         { route: "contenido", label: "Contenido", icon: "image", roles: ["owner", "manager"] },
         { route: "capacitaciones", label: "Capacitaciones", icon: "graduation", roles: ["owner", "manager"] },
-        { route: "puntos", label: "Puntos y strikes", icon: "zap", roles: ["owner", "manager"], badge: () => S.barbers().reduce((sum, barber) => sum + S.activeStrikes(barber.id).length, 0) }
+        { route: "puntos", label: "Puntos y strikes", icon: "zap", roles: ["owner", "manager"], badge: () => S.strikeScore() }
       ]
     },
     {
@@ -191,7 +192,7 @@
         { route: "mis-tareas", label: "Mis tareas", icon: "check-square", roles: ["barber"], badge: () => S.openTasks(S.currentUserId()).length },
         { route: "mi-contenido", label: "Mi contenido", icon: "image", roles: ["barber"] },
         { route: "mis-capacitaciones", label: "Mis capacitaciones", icon: "graduation", roles: ["barber"] },
-        { route: "mis-puntos", label: "Mis puntos", icon: "zap", roles: ["barber"], badge: () => S.activeStrikes(S.currentUserId()).length }
+        { route: "mis-puntos", label: "Mis puntos", icon: "zap", roles: ["barber"], badge: () => S.strikeScore(S.currentUserId()) }
       ]
     }
   ];
@@ -1584,7 +1585,7 @@
       <div class="grid grid--2-1">
         <article class="panel" data-reveal>
           <div class="panel-head panel-head--bordered">
-            <div><h2 class="panel-title">Contenido de la semana</h2><p class="panel-sub">Meta: ${S.getState().settings.contentGoal} piezas por barbero</p></div>
+            <div><h2 class="panel-title">Contenido de la semana</h2><p class="panel-sub">Meta: ${S.getState().settings.contentGoal} piezas por persona</p></div>
             <a class="link-btn" href="#/contenido">Abrir tablero <svg><use href="#i-arrow"/></svg></a>
           </div>
           <div class="content-mini-list">${content.map((item) => `
@@ -1635,7 +1636,7 @@
     const content = S.contentOverview();
     const meeting = S.getState().meetings[0];
     const pendingTraining = S.barbers().reduce((sum, barber) => sum + S.trainingStats(barber.id).pending, 0);
-    const totalStrikes = S.barbers().reduce((sum, barber) => sum + S.activeStrikes(barber.id).length, 0);
+    const totalStrikes = S.barbers().reduce((sum, barber) => sum + S.strikeScore(barber.id), 0);
     const contentBars = content.map((item) => ({ label: item.barber.name.split(" ")[0], value: item.compliance, color: item.compliance >= 100 ? "#34d399" : "#a78bfa", display: `${item.compliance}%` }));
 
     return `<section class="page">
@@ -1716,33 +1717,50 @@
           <p class="page-desc">Esto es lo tuyo: <strong>puntos, contenido, tareas y capacitaciones.</strong> Sin vueltas.</p>
           <div class="page-meta"><span><svg><use href="#i-scissors"/></svg>${esc(S.roleLabel(user.role))} · ${stats.user.commission}% comisión</span><span><svg><use href="#i-calendar"/></svg>Desde ${dateFull(user.startedAt)}</span></div>
         </div>
-        <div class="page-actions">${btn("Subir contenido", { action: "content", icon: "plus", variant: "primary" })}${btn("Mi ficha", { action: "go", route: "mi-ficha", icon: "user" })}</div>
+        <div class="page-actions">${btn("Nueva idea", { action: "content-idea", icon: "spark", variant: "primary" })}${btn("Nueva pieza", { action: "content", icon: "plus" })}${btn("Mi ficha", { action: "go", route: "mi-ficha", icon: "user" })}</div>
       </header>
 
-      ${strikes.length ? `<div class="risk-banner"><svg><use href="#i-alert"/></svg><div><b>Tenés ${strikes.length} strike${strikes.length > 1 ? "s" : ""} activo${strikes.length > 1 ? "s" : ""}</b><p>A los ${S.getState().settings.strikeLimit} strikes la marca puede discontinuar la relación. Podés dejar tu descargo en Mis puntos.</p></div><a class="btn btn--danger btn--sm" href="#/mis-puntos">Ver detalle</a></div>` : ""}
+      ${strikes.length ? `<div class="risk-banner"><svg><use href="#i-alert"/></svg><div><b>Tenés ${fmtStrike(S.strikeScore(user.id))} strike${S.strikeScore(user.id) === 1 ? "" : "s"} activo${S.strikeScore(user.id) === 1 ? "" : "s"}</b><p>A los ${S.getState().settings.strikeLimit} strikes la marca puede discontinuar la relación. Podés dejar tu descargo en Mis puntos.</p></div><a class="btn btn--danger btn--sm" href="#/mis-puntos">Ver detalle</a></div>` : ""}
+
+      <div class="content-deadline ${content.compliance >= 100 ? "is-done" : contentDaysLeft() === 0 ? "is-last" : ""}">
+        <span class="content-deadline-icon"><svg><use href="#i-${content.compliance >= 100 ? "check-circle" : "calendar"}"/></svg></span>
+        <div>
+          <b>${content.compliance >= 100 ? "Meta de contenido cumplida" : content.published ? `Te faltan ${Math.max(0, content.goal - content.published)} piezas` : "Tenés que publicar esta semana"}</b>
+          <p>${content.compliance >= 100 ? `Publicaste ${content.published} de ${content.goal}. Buen trabajo.` : `Meta: ${content.goal} piezas antes del sábado · ${content.published} publicadas · ${daysLeftLabel()}.`}</p>
+        </div>
+        <a class="btn btn--ghost btn--sm" href="#/mi-contenido">Ver contenido <svg><use href="#i-arrow"/></svg></a>
+      </div>
 
       <div class="metric-grid metric-grid--4">
         ${metricCard({ label: "Mis puntos", counterValue: stats.points, format: "number", icon: "zap", foot: "acumulados este año", spark: C.spark([30, 55, 70, 90, stats.points], { color: "#a78bfa" }) })}
         ${metricCard({ label: "Contenido semanal", value: `${content.compliance}<small>%</small>`, icon: "image", tone: content.compliance >= 100 ? "green" : "amber", foot: `${content.published}/${content.goal} publicadas` })}
-        ${metricCard({ label: "Strikes activos", value: `${stats.strikes}<small>/${S.getState().settings.strikeLimit}</small>`, icon: "shield", tone: stats.strikes ? "red" : "green", foot: stats.strikes ? "revisá el descargo" : "todo limpio" })}
+        ${metricCard({ label: "Strikes activos", value: `${fmtStrike(stats.strikes)}<small>/${S.getState().settings.strikeLimit}</small>`, icon: "shield", tone: stats.strikes ? "red" : "green", foot: stats.strikes ? "revisá el descargo" : "todo limpio" })}
         ${metricCard({ label: "Capacitaciones", value: `${stats.training.approved}<small>/${stats.training.total}</small>`, icon: "graduation", tone: "violet", foot: pendingTraining ? `${pendingTraining} pendientes` : "todas aprobadas" })}
       </div>
 
       <div class="grid grid--2-1">
         <article class="panel" data-reveal>
-          <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Tu contenido de la semana</h2><p class="panel-sub">Grabado → Drive → publicado</p></div><span class="status ${content.compliance >= 100 ? "status--ok" : "status--warn"}">${content.compliance >= 100 ? "Meta cumplida" : "En progreso"}</span></div>
+          <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Tu contenido de la semana</h2><p class="panel-sub">Idea el lunes · se publica antes del sábado</p></div><span class="status ${content.compliance >= 100 ? "status--ok" : contentDaysLeft() === 0 ? "status--danger" : "status--warn"}">${content.compliance >= 100 ? "Meta cumplida" : daysLeftLabel()}</span></div>
           <div class="panel-body" style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
             ${C.ring(content.compliance, { size: 116, thickness: 8, color: content.compliance >= 100 ? "#34d399" : "#a78bfa", label: "cumplido" })}
             <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:7px">
               <div class="pipeline">
-                <span class="pipeline-step ${content.pieces.length ? "done" : ""}"><b>${content.recorded}</b> grabado</span>
+                <span class="pipeline-step ${content.ideas ? "done" : ""}"><b>${content.ideas}</b> ideas</span>
+                <span class="pipeline-step ${content.recorded ? "done" : ""}"><b>${content.recorded}</b> grabado</span>
                 <span class="pipeline-step ${content.inDrive ? "done" : ""}"><b>${content.inDrive}</b> en Drive</span>
                 <span class="pipeline-step ${content.published ? "done" : ""}"><b>${content.published}</b> publicadas</span>
               </div>
-              ${content.pieces.length ? `<div class="piece-list">${content.pieces.map((piece) => `<div class="piece"><span class="piece-copy"><b>${esc(piece.title)}</b><small>${esc(piece.type)} · ${stageLabel(piece.stage)}</small></span>${stageChip(piece.stage)}${piece.stage !== "publicado" ? `<button class="row-action" type="button" data-action="advance-content" data-id="${piece.id}" title="Avanzar etapa"><svg><use href="#i-arrow"/></svg></button>` : ""}</div>`).join("")}</div>` : `<div class="content-empty">Todavía no cargaste piezas esta semana. Sumá la primera.</div>`}
+              ${content.pieces.length ? `<div class="piece-list">${content.pieces.map((piece) => `<div class="piece">
+                <span class="piece-copy"><b>${esc(piece.title)}</b><small>${esc(pieceMeta(piece))}</small>${piece.hook ? `<small class="piece-hook">“${esc(piece.hook)}”</small>` : ""}${piece.idea && piece.stage === "idea" ? `<small class="piece-guide">${esc(piece.idea)}</small>` : ""}</span>
+                ${stageChip(piece.stage)}
+                <span class="piece-actions">
+                  ${piece.stage !== "publicado" ? `<button class="row-action" type="button" data-action="advance-content" data-id="${esc(piece.id)}" title="Avanzar etapa"><svg><use href="#i-arrow"/></svg></button>` : ""}
+                  <button class="row-action" type="button" data-action="content-edit" data-id="${esc(piece.id)}" title="Editar idea, guion o etapa"><svg><use href="#i-edit"/></svg></button>
+                </span>
+              </div>`).join("")}</div>` : `<div class="content-empty">Todavía no hay ideas esta semana. Cargá la primera y arrancá el pipeline.</div>`}
             </div>
           </div>
-          <div class="panel-foot"><span>Meta: ${content.goal} piezas semanales</span><a class="link-btn" href="#/mi-contenido">Abrir tablero <svg><use href="#i-arrow"/></svg></a></div>
+          <div class="panel-foot"><span>Meta: ${content.goal} piezas semanales · ${daysLeftLabel()}</span><a class="link-btn" href="#/mi-contenido">Abrir tablero <svg><use href="#i-arrow"/></svg></a></div>
         </article>
 
         <article class="panel" data-reveal>
@@ -1780,8 +1798,8 @@
     "en-curso": { label: "En curso", tone: "info" },
     hecha: { label: "Hecha", tone: "ok" }
   };
-  const STAGE_LABEL = { grabado: "Grabado", drive: "En Drive", publicado: "Publicado" };
-  const STAGE_TONE = { grabado: "warn", drive: "violet", publicado: "ok" };
+  const STAGE_LABEL = { idea: "Idea", grabado: "Grabado", drive: "En Drive", publicado: "Publicado" };
+  const STAGE_TONE = { idea: "muted", grabado: "warn", drive: "violet", publicado: "ok" };
   const LEVEL_LABEL = { inicial: "Inicial", intermedio: "Intermedio", avanzado: "Avanzado", dueno: "Dueño" };
   const POINT_LABEL = { contenido: "Contenido", capacitacion: "Capacitación", ventas: "Ventas", equipo: "Equipo", manual: "Manual" };
   const LEAD_STAGE = {
@@ -1797,6 +1815,27 @@
 
   function stageChip(stage) {
     return status(stageLabel(stage), STAGE_TONE[stage] || "muted");
+  }
+
+  function contentDaysLeft() {
+    const today = new Date();
+    const left = (6 - today.getDay() + 7) % 7;
+    return left;
+  }
+
+  function daysLeftLabel() {
+    const left = contentDaysLeft();
+    if (left === 0) return "Vence hoy";
+    if (left === 1) return "Queda 1 día";
+    return `Quedan ${left} días`;
+  }
+
+  function fmtStrike(value) {
+    return Number(value).toFixed(1).replace(/\.0$/, "");
+  }
+
+  function pieceMeta(piece) {
+    return [piece.type, piece.format, piece.stage === "idea" ? "Idea" : stageLabel(piece.stage)].filter(Boolean).join(" · ");
   }
 
   function pointIcon(category) {
@@ -2543,7 +2582,7 @@
     const barbers = S.barbers();
     const month = ui.month;
     const totalPoints = barbers.reduce((sum, barber) => sum + S.userPoints(barber.id), 0);
-    const totalStrikes = barbers.reduce((sum, barber) => sum + S.activeStrikes(barber.id).length, 0);
+    const totalStrikes = barbers.reduce((sum, barber) => sum + S.strikeScore(barber.id), 0);
     const avgContent = S.averageContentCompliance();
 
     return `<section class="page">
@@ -2567,7 +2606,7 @@
         ${barbers.map((barber) => {
           const stats = S.barberStats(barber.id);
           const content = stats.content;
-          const strikes = S.activeStrikes(barber.id).length;
+          const strikes = S.strikeScore(barber.id);
           const open = S.openTasks(barber.id).length;
           const training = S.trainingStats(barber.id);
           return `<article class="barber-card ${strikes >= 2 ? "is-risk" : ""}" data-reveal>
@@ -3052,10 +3091,10 @@
   /* ---------------- contenido ---------------- */
 
   function renderContent(self = false) {
-    const barbers = self ? [S.currentUser()].filter(Boolean) : S.barbers();
+    const barbers = self ? [S.currentUser()].filter(Boolean) : S.contentCreators();
     const week = ui.contentWeek;
     const stats = barbers.map((barber) => ({ barber, stats: S.contentStats(barber.id, week) }));
-    const totalGoal = barbers.length * Number(S.getState().settings.contentGoal || 3);
+    const totalGoal = barbers.length * Number(S.getState().settings.contentGoal || 2);
     const totalPublished = stats.reduce((sum, item) => sum + item.stats.published, 0);
     const avg = barbers.length ? Math.round(stats.reduce((sum, item) => sum + item.stats.compliance, 0) / barbers.length) : 0;
     const weekIsCurrent = week === D.weekStart(0);
@@ -3065,15 +3104,15 @@
       ${pageHead({
         kicker: `Contenido · semana ${D.isoWeek(week)} · ${D.weekLabel(week)}`,
         title: self ? "Tu contenido" : "Contenido",
-        desc: self ? "Grabado, subido a Drive y publicado. Cada pieza publicada suma puntos y llena la agenda." : "El pipeline semanal de cada barbero. Meta clara, cumplimiento medible y puntos cuando se publica.",
-        actions: `${monthSwitcherFor(D.weekLabel(week), "week-prev", "week-next")}${weekIsCurrent ? "" : btn("Semana actual", { action: "week-now", icon: "refresh", size: "sm" })}${btn("Nueva pieza", { action: "content", icon: "plus", variant: "primary" })}`,
+        desc: self ? "Idea → grabado → Drive → publicado. Cada pieza publicada suma puntos y llena la agenda." : "El pipeline semanal de cada creador. Ideas con guion, meta clara y puntos cuando se publica.",
+        actions: `${monthSwitcherFor(D.weekLabel(week), "week-prev", "week-next")}${weekIsCurrent ? "" : btn("Semana actual", { action: "week-now", icon: "refresh", size: "sm" })}${btn("Nueva idea", { action: "content-idea", icon: "spark", variant: "primary" })}${btn("Nueva pieza", { action: "content", icon: "plus" })}`,
         meta: `<span><svg><use href="#i-image"/></svg>${totalPublished}/${totalGoal} publicadas</span><span><svg><use href="#i-target"/></svg>${avg}% cumplimiento promedio</span>`,
         hero: true
       })}
 
       <div class="content-hero">
         <article class="panel" data-reveal>
-          <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">${self ? "Tu semana" : "Ritmo de publicación"}</h2><p class="panel-sub">${D.weekLabel(week)} · meta ${S.getState().settings.contentGoal} piezas por barbero</p></div><span class="status ${avg >= 100 ? "status--ok" : "status--warn"}">${avg >= 100 ? "Meta cumplida" : "En progreso"}</span></div>
+          <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">${self ? "Tu semana" : "Ritmo de publicación"}</h2><p class="panel-sub">${D.weekLabel(week)} · meta ${S.getState().settings.contentGoal} piezas por persona</p></div><span class="status ${avg >= 100 ? "status--ok" : "status--warn"}">${avg >= 100 ? "Meta cumplida" : "En progreso"}</span></div>
           <div class="panel-body" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
             ${C.ring(avg, { size: 128, thickness: 9, color: avg >= 100 ? "#34d399" : "#a78bfa", label: "del equipo" })}
             <div style="flex:1;min-width:220px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
@@ -3087,8 +3126,8 @@
         <article class="panel" data-reveal>
           <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Cómo se mide</h2><p class="panel-sub">Cada etapa vale distinto</p></div></div>
           <div class="panel-body" style="display:flex;flex-direction:column;gap:9px">
-            ${[["Grabado", "34%", "warn"], ["En Drive", "67%", "violet"], ["Publicado", "100%", "ok"]].map(([label, value, tone]) => `<div class="row row--between"><span style="font-size:12px">${status(label, tone)}</span><b class="mono" style="font-size:12px">${value}</b></div>`).join("")}
-            <p class="form-hint" style="margin-top:2px">El objetivo es publicar. Lo grabado suma, pero no completa la meta.</p>
+            ${[["Idea", "0%", "muted"], ["Grabado", "34%", "warn"], ["En Drive", "67%", "violet"], ["Publicado", "100%", "ok"]].map(([label, value, tone]) => `<div class="row row--between"><span style="font-size:12px">${status(label, tone)}</span><b class="mono" style="font-size:12px">${value}</b></div>`).join("")}
+            <p class="form-hint" style="margin-top:2px">La idea arranca el lunes. El objetivo es publicar antes del sábado.</p>
           </div>
         </article>
       </div>
@@ -3104,20 +3143,22 @@
             </div>
             <div class="content-progress"><div class="content-progress-head"><span>Cumplimiento semanal</span><span>${item.pieces.length} piezas cargadas</span></div>${progressBar(item.compliance, complete ? "green" : item.compliance < 50 ? "amber" : "")}</div>
             <div class="pipeline">
+              <span class="pipeline-step ${item.ideas ? "done" : ""}"><b>${item.ideas}</b> ideas</span>
               <span class="pipeline-step ${item.recorded ? "done" : ""}"><b>${item.recorded}</b> grabado</span>
               <span class="pipeline-step ${item.inDrive ? "done" : ""}"><b>${item.inDrive}</b> Drive</span>
               <span class="pipeline-step ${item.published ? "done" : ""}"><b>${item.published}</b> publicadas</span>
             </div>
             ${item.pieces.length ? `<div class="piece-list">${item.pieces.map((piece) => `<div class="piece">
-              <span class="piece-copy"><b>${esc(piece.title)}</b><small>${esc(piece.type)} · ${date(piece.createdAt)}${piece.link ? " · con link" : ""}</small></span>
+              <span class="piece-copy"><b>${esc(piece.title)}</b><small>${esc(pieceMeta(piece))} · ${date(piece.createdAt)}${piece.link ? " · con link" : ""}</small>${piece.hook ? `<small class="piece-hook">“${esc(piece.hook)}”</small>` : ""}</span>
               ${stageChip(piece.stage)}
               <span class="piece-actions">
                 ${piece.stage !== "publicado" && (canManage || self || piece.userId === S.currentUserId()) ? `<button class="row-action" type="button" data-action="advance-content" data-id="${esc(piece.id)}" title="Avanzar etapa"><svg><use href="#i-arrow"/></svg></button>` : ""}
+                ${canManage || self || piece.userId === S.currentUserId() ? `<button class="row-action" type="button" data-action="content-edit" data-id="${esc(piece.id)}" title="Editar idea, guion o estado"><svg><use href="#i-edit"/></svg></button>` : ""}
                 ${piece.link ? `<a class="row-action" href="${esc(piece.link)}" target="_blank" rel="noopener" title="Abrir link"><svg><use href="#i-link"/></svg></a>` : ""}
                 ${canManage || self || piece.userId === S.currentUserId() ? `<button class="row-action danger" type="button" data-action="confirm-delete" data-kind="content" data-id="${esc(piece.id)}" title="Eliminar"><svg><use href="#i-trash"/></svg></button>` : ""}
               </span>
             </div>`).join("")}</div>` : `<div class="content-empty">Sin piezas esta semana. ${self || canManage ? "Cargá la primera y arrancá el pipeline." : ""}</div>`}
-            ${canManage || self ? `<button class="btn btn--ghost btn--sm btn--block" type="button" data-action="content" data-id="${esc(barber.id)}"><svg><use href="#i-plus"/></svg>Sumar pieza</button>` : ""}
+            ${canManage || self ? `<button class="btn btn--ghost btn--sm btn--block" type="button" data-action="content-idea" data-id="${esc(barber.id)}"><svg><use href="#i-spark"/></svg>Sumar idea</button>` : ""}
           </article>`;
         }).join("") || emptyState("Sin barberos activos", "Sumá al equipo para trackear contenido.", "image")}
       </div>
@@ -3195,12 +3236,12 @@
   function pointsTabs() {
     return `<nav class="page-tabs">
       <button class="tab ${ui.pointsTab === "puntos" ? "active" : ""}" type="button" data-action="points-tab" data-id="puntos">Puntos</button>
-      <button class="tab ${ui.pointsTab === "strikes" ? "active" : ""}" type="button" data-action="points-tab" data-id="strikes">Strikes ${S.isBarber() ? "" : `<span class="tab-badge">${S.barbers().reduce((sum, barber) => sum + S.activeStrikes(barber.id).length, 0)}</span>`}</button>
+      <button class="tab ${ui.pointsTab === "strikes" ? "active" : ""}" type="button" data-action="points-tab" data-id="strikes">Strikes ${S.isBarber() ? "" : `<span class="tab-badge">${fmtStrike(S.strikeScore())}</span>`}</button>
     </nav>`;
   }
 
   function renderPoints(self = false) {
-    const barbers = self ? [S.currentUser()].filter(Boolean) : S.barbers();
+    const barbers = self ? [S.currentUser()].filter(Boolean) : S.contentCreators();
     const canManage = S.isOwner() || S.can("points.manage");
     const points = S.getState().points
       .filter((entry) => !self || entry.userId === S.currentUserId())
@@ -3219,7 +3260,13 @@
       return true;
     });
     const totalPoints = barbers.reduce((sum, barber) => sum + S.userPoints(barber.id), 0);
-    const activeCount = barbers.reduce((sum, barber) => sum + S.activeStrikes(barber.id).length, 0);
+    const activeCount = barbers.reduce((sum, barber) => sum + S.strikeScore(barber.id), 0);
+    const rangeStart = ui.pointsRange === "7" ? D.iso(D.addDays(new Date(), -6)) : ui.pointsRange === "30" ? D.iso(D.addDays(new Date(), -29)) : "";
+    const rangeLabel = ui.pointsRange === "7" ? "últimos 7 días" : ui.pointsRange === "30" ? "últimos 30 días" : "historial completo";
+    const rangePoints = points.filter((entry) => !rangeStart || String(entry.date).slice(0, 10) >= rangeStart);
+    const pointsFor = (userId) => rangePoints.filter((entry) => entry.userId === userId).reduce((sum, entry) => sum + Number(entry.points || 0), 0);
+    const chartRows = barbers.map((barber) => ({ barber, value: pointsFor(barber.id) })).sort((a, b) => b.value - a.value);
+    const chartMax = Math.max(...chartRows.map((row) => row.value), 1);
 
     return `<section class="page">
       ${pageHead({
@@ -3236,10 +3283,32 @@
       ${ui.pointsTab === "puntos" ? `
         <div class="metric-grid metric-grid--4">
           ${metricCard({ label: "Puntos acumulados", counterValue: totalPoints, format: "number", icon: "zap", foot: self ? "en tu historial" : "en todo el equipo" })}
-          ${metricCard({ label: "Movimientos", counterValue: points.length, format: "number", icon: "list", foot: "registros de puntos" })}
-          ${metricCard({ label: "Promedio por barbero", counterValue: barbers.length ? Math.round(totalPoints / barbers.length) : 0, format: "number", icon: "users", foot: "puntos por persona" })}
+          ${metricCard({ label: "Movimientos", counterValue: rangePoints.length, format: "number", icon: "list", foot: "en el período" })}
+          ${metricCard({ label: "Promedio por persona", counterValue: barbers.length ? Math.round(totalPoints / barbers.length) : 0, format: "number", icon: "users", foot: "puntos por persona" })}
           ${metricCard({ label: "Capacitaciones aprobadas", counterValue: S.getState().trainingRecords.filter((record) => record.status === "aprobado").length, format: "number", icon: "graduation", tone: "violet", foot: "suman puntos automáticos" })}
         </div>
+
+        ${!self ? `<article class="panel points-chart-panel" data-reveal>
+          <div class="panel-head panel-head--bordered">
+            <div><h2 class="panel-title">Quién está ganando</h2><p class="panel-sub">Puntos por persona · ${rangeLabel}</p></div>
+            <div class="filters">
+              ${[["all", "Todo"], ["30", "30 días"], ["7", "7 días"]].map(([key, label]) => `<button class="chip chip--button ${ui.pointsRange === key ? "active" : ""}" type="button" data-action="points-range" data-id="${key}">${label}</button>`).join("")}
+            </div>
+          </div>
+          <div class="panel-body">
+            ${chartRows.length ? `<div class="points-chart">
+              ${chartRows.map(({ barber, value }, index) => {
+                const pct = value > 0 ? Math.max(8, Math.round((value / chartMax) * 100)) : 2;
+                return `<div class="points-col ${index === 0 && value > 0 ? "is-leader" : ""}">
+                  <span class="points-col-rank">#${index + 1}</span>
+                  <span class="points-col-value">${num(value)}<small> pts</small></span>
+                  <div class="points-col-track"><div class="points-col-fill" style="--h:${pct}%;--delay:${index * 0.07}s"></div></div>
+                  <div class="points-col-person">${avatar(barber, "avatar--sm")}<div><b>${esc(barber.name.split(" ")[0])}</b><small>${esc(S.roleLabel(barber.role))}</small></div></div>
+                </div>`;
+              }).join("")}
+            </div>` : emptyState("Sin puntos en el período", "Probá con otro rango de fechas.", "zap")}
+          </div>
+        </article>` : ""}
 
         <div class="grid grid--1-2">
           <article class="panel" data-reveal>
@@ -3259,10 +3328,10 @@
           </article>
 
           <article class="panel" data-reveal>
-            <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Historial de puntos</h2><p class="panel-sub">${points.length} movimientos</p></div></div>
+            <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Historial de puntos</h2><p class="panel-sub">${rangePoints.length} movimientos · ${rangeLabel}</p></div></div>
             <div class="table-wrap"><table class="data-table">
               <thead><tr>${self ? "" : "<th>Persona</th>"}<th>Motivo</th><th>Categoría</th><th>Puntos</th><th>Fecha</th></tr></thead>
-              <tbody>${points.length ? points.map((entry) => `<tr>
+              <tbody>${rangePoints.length ? rangePoints.map((entry) => `<tr>
                 ${self ? "" : `<td>${userInline(S.userById(entry.userId))}</td>`}
                 <td><b style="font-size:12px">${esc(entry.reason)}</b><small style="display:block;color:var(--muted-2);font-size:12.5px">${esc(S.userById(entry.createdBy)?.name || "Sistema")}</small></td>
                 <td><span class="category-pill ${esc(entry.category)}">${esc(categoryLabel(entry.category))}</span></td>
@@ -4151,6 +4220,7 @@
       ${textInput("username", "Usuario", user?.username || "", { required: true, placeholder: "sin espacios, ej. tomi" })}
       ${textInput("password", user ? "Nueva contraseña" : "Contraseña", "", { type: "password", required: !user, placeholder: user ? "Dejar en blanco para mantener" : "mínimo simple" })}
       ${selectField("role", "Rol", optionsFrom(roleOptions, role), role)}
+      ${checkField("contentCreator", "Realiza contenido", user ? user.contentCreator !== false : role === "barber" || role === "manager", "Le aparecen las ideas semanales y cuenta para la meta de contenido.")}
       ${textInput("commission", "Comisión (%)", user?.commission ?? (role === "barber" ? 40 : 0), { type: "number", min: 0, max: 100 })}
       ${textInput("email", "Email", user?.email || "", { type: "email" })}
       ${textInput("phone", "Teléfono", user?.phone || "", { type: "tel" })}
@@ -4179,6 +4249,7 @@
           email: data.email,
           phone: data.phone,
           commission: Number(data.commission || 0),
+          contentCreator: data.contentCreator,
           active: data.active,
           startedAt: data.startedAt
         });
@@ -4561,40 +4632,102 @@
 
   /* ---------------- modales: contenido ---------------- */
 
-  function openContent(presetUserId = "") {
-    const barbers = S.barbers();
-    if (!barbers.length) return toast("Primero sumá un barbero al equipo.", "error");
+  function contentFormatOptions(type, selected) {
+    const list = S.contentFormats(type);
+    if (selected && !list.some((item) => item.toLowerCase() === String(selected).toLowerCase())) list.unshift(selected);
+    return ["", ...list].map((value) => `<option value="${esc(value)}" ${String(value) === String(selected || "") ? "selected" : ""}>${esc(value || "Elegí un formato")}</option>`).join("");
+  }
+
+  function openContent(presetUserId = "", pieceId = "", forcedStage = "") {
+    const piece = pieceId ? S.getState().contentPieces.find((item) => item.id === pieceId) : null;
+    if (pieceId && !piece) return toast("No encontramos esa pieza.", "error");
+    const editing = Boolean(piece);
+    const creators = S.contentCreators();
+    if (!creators.length) return toast("Primero sumá personas al equipo.", "error");
+    if (editing && S.isBarber() && piece.userId !== S.currentUserId()) return toast("Solo podés editar tu propio contenido.", "error");
     const locked = S.isBarber();
-    const userId = locked ? S.currentUserId() : presetUserId || barbers[0].id;
+    const defaultCreator = creators.find((item) => item.id === S.currentUserId())?.id || creators[0].id;
+    const userId = editing ? piece.userId : locked ? S.currentUserId() : (creators.some((item) => item.id === presetUserId) ? presetUserId : defaultCreator);
+    const type = piece?.type || "Video";
+    const stage = piece?.stage || forcedStage || "idea";
+    const creatorOptions = creators.map((item) => [item.id, `${item.name} · ${S.roleLabel(item.role)}`]);
+    const stageOptions = [["idea", "Idea (recién anotada)"], ["grabado", "Grabado"], ["drive", "Subido a Drive"], ["publicado", "Publicado"]];
     const body = `<div class="form-grid">
       ${locked
-        ? `<input type="hidden" name="userId" value="${esc(userId)}"><div class="field field--full"><label>Barbero</label><div class="tag">${esc(S.userById(userId)?.name || "")}</div></div>`
-        : selectField("userId", "Barbero", barberOptions(userId), userId)}
-      ${textInput("title", "Título de la pieza", "", { required: true, full: true, placeholder: "Idea o descripción corta" })}
-      ${selectField("type", "Formato", optionsFrom([["Reel", "Reel"], ["Foto", "Foto"], ["Video", "Video"], ["Story", "Story"]], "Reel"), "Reel")}
-      ${selectField("stage", "Etapa", optionsFrom([["grabado", "Grabado"], ["drive", "Subido a Drive"], ["publicado", "Publicado"]], "grabado"), "grabado")}
-      ${textInput("link", "Link (Drive o publicación)", "", { type: "url", full: true, placeholder: "https://…" })}
+        ? `<input type="hidden" name="userId" value="${esc(userId)}"><div class="field field--full"><label>Persona</label><div class="tag">${esc(S.userById(userId)?.name || "")}</div></div>`
+        : selectField("userId", "Persona", optionsFrom(creatorOptions, userId), userId, "", true)}
+      ${textInput("title", "Título de la pieza", piece?.title || "", { required: true, full: true, placeholder: "Ej. Video 1: cómo pedir el corte" })}
+      <div class="field field--full content-type-row">
+        <div class="field">
+          <label for="f-type">Tipo</label>
+          <select class="select" id="f-type" name="type">${S.CONTENT_TYPES.map((item) => `<option value="${esc(item)}" ${item === type ? "selected" : ""}>${esc(item)}</option>`).join("")}</select>
+        </div>
+        <div class="field">
+          <label for="f-format">Formato</label>
+          <select class="select" id="f-format" name="format">${contentFormatOptions(type, piece?.format || "")}</select>
+        </div>
+      </div>
+      <div class="field field--full">
+        <label for="f-newFormat">Agregar un formato</label>
+        <div class="format-add">
+          <input class="input" id="f-newFormat" name="newFormat" placeholder="Ej. Tutorial, Reacción, B-Roll…">
+          <button class="btn btn--ghost btn--sm" type="button" data-add-format><svg><use href="#i-plus"/></svg>Agregar</button>
+        </div>
+        <span class="form-hint">Se suma al tipo que tengas elegido y queda disponible para todos.</span>
+      </div>
+      ${selectField("stage", "Etapa", optionsFrom(stageOptions, stage), stage)}
+      ${textInput("link", "Link (Drive o publicación)", piece?.link || "", { type: "url", full: true, placeholder: "https://…" })}
+      ${textArea("hook", "Hook / primera frase", piece?.hook || "", { rows: 2, full: true, placeholder: "La frase con la que arranca el video" })}
+      ${textArea("idea", "Idea o guía", piece?.idea || "", { rows: 3, full: true, placeholder: "Qué tiene que mostrar y por qué" })}
+      ${textArea("script", "Guion", piece?.script || "", { rows: 3, full: true, placeholder: "Paso a paso: 1…, 2…, 3…" })}
     </div>
-    <p class="form-hint" style="margin-top:10px">Semana ${D.weekLabel(ui.contentWeek)}. Si ya está publicada, suma ${S.getState().settings.pointsContent} puntos automáticamente.</p>`;
-    openModal({
-      kicker: "Contenido semanal",
-      title: "NUEVA PIEZA",
-      sub: "Grabado → Drive → publicado.",
+    <p class="form-hint" style="margin-top:10px">Semana ${D.weekLabel(editing ? piece.weekStart : ui.contentWeek)}. Cada pieza publicada suma ${S.getState().settings.pointsContent} puntos automáticamente.</p>`;
+    const form = openModal({
+      kicker: editing ? "Contenido · editar" : forcedStage === "idea" ? "Contenido · nueva idea" : "Contenido semanal",
+      title: editing ? "EDITAR PIEZA" : forcedStage === "idea" ? "NUEVA IDEA" : "NUEVA PIEZA",
+      sub: editing ? "Cambiá la idea, el guion, el formato o la etapa." : "Idea → grabado → Drive → publicado. La idea puede quedar cargada con guion para el barbero.",
       body,
-      submitLabel: "Cargar pieza",
+      submitLabel: editing ? "Guardar cambios" : forcedStage === "idea" ? "Guardar idea" : "Cargar pieza",
+      size: "lg",
       onSubmit: (data) => {
         if (!data.title.trim()) throw new Error("Poné un título a la pieza.");
-        if (data.stage === "publicado" && !data.link) throw new Error("Si ya está publicada, agregá el link.");
-        S.addContentPiece({
-          userId: data.userId,
-          weekStart: ui.contentWeek,
+        if (data.stage === "publicado" && !data.link && (!editing || piece.stage !== "publicado")) throw new Error("Si ya está publicada, agregá el link.");
+        const payload = {
+          userId: locked ? userId : data.userId,
           title: data.title.trim(),
           type: data.type,
+          format: data.format,
           stage: data.stage,
-          link: data.link
-        });
-        afterChange(data.stage === "publicado" ? "Pieza cargada y puntos acreditados." : "Pieza cargada en el pipeline.");
+          link: data.link,
+          hook: data.hook,
+          idea: data.idea,
+          script: data.script
+        };
+        if (editing) {
+          S.updateContentPiece(piece.id, payload);
+          afterChange(data.stage === "publicado" && piece.stage !== "publicado" ? "Pieza publicada y puntos acreditados." : "Pieza actualizada.");
+        } else {
+          S.addContentPiece(Object.assign({ weekStart: ui.contentWeek }, payload));
+          afterChange(data.stage === "publicado" ? "Pieza cargada y puntos acreditados." : "Pieza cargada en el pipeline.");
+        }
       }
+    });
+    if (!form) return;
+    const typeEl = form.querySelector('[name="type"]');
+    const formatEl = form.querySelector('[name="format"]');
+    const newFormatEl = form.querySelector('[name="newFormat"]');
+    const refreshFormats = (selected = "") => {
+      if (!typeEl || !formatEl) return;
+      formatEl.innerHTML = contentFormatOptions(typeEl.value, selected);
+    };
+    typeEl?.addEventListener("change", () => refreshFormats());
+    form.querySelector("[data-add-format]")?.addEventListener("click", () => {
+      const label = String(newFormatEl?.value || "").trim();
+      if (!label) return toast("Escribí el nombre del formato.", "error");
+      if (!S.addContentFormat(typeEl.value, label)) return toast("Ese formato ya existe en ese tipo.", "error");
+      refreshFormats(label);
+      if (newFormatEl) newFormatEl.value = "";
+      toast("Formato agregado.");
     });
   }
 
@@ -5562,6 +5695,12 @@
       case "content":
         openContent(id);
         return;
+      case "content-idea":
+        openContent(id, "", "idea");
+        return;
+      case "content-edit":
+        openContent("", id);
+        return;
       case "advance-content": {
         const piece = S.advanceContent(id);
         renderView();
@@ -5579,6 +5718,10 @@
         return;
       case "points-tab":
         ui.pointsTab = id;
+        renderView();
+        return;
+      case "points-range":
+        ui.pointsRange = id;
         renderView();
         return;
       case "strike-filter":

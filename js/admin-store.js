@@ -57,6 +57,7 @@
 
   let state = null;
   let session = null;
+  let automationRunning = false;
 
   /* ---------------- nube (Supabase) ---------------- */
 
@@ -319,7 +320,7 @@
       {
         businessName: "Masivo Barber",
         currency: "ARS",
-        contentGoal: 3,
+        contentGoal: 2,
         pointsContent: 10,
         pointsTraining: 20,
         pointsSale: 15,
@@ -358,6 +359,7 @@
     });
 
     ensureTeamMaps();
+    runContentAutomation();
   }
 
   function loadSession() {
@@ -507,6 +509,11 @@
 
   function barbers() {
     return state.users.filter((user) => user.role === "barber" && user.active);
+  }
+
+  /* Quiénes producen contenido: barberos y encargados. */
+  function contentCreators() {
+    return state.users.filter((user) => user.active && user.contentCreator !== false && (user.role === "barber" || user.role === "manager"));
   }
 
   function managers() {
@@ -786,7 +793,7 @@
 
   /* ---------------- barberos ---------------- */
 
-  const STAGE_WEIGHT = { grabado: 0.34, drive: 0.67, publicado: 1 };
+  const STAGE_WEIGHT = { idea: 0, grabado: 0.34, drive: 0.67, publicado: 1 };
 
   function userPoints(userId) {
     return state.points.filter((item) => item.userId === userId).reduce((sum, item) => sum + Number(item.points || 0), 0);
@@ -796,6 +803,15 @@
     if (!strike || strike.status === "archivado") return false;
     if (strike.status === "vencido") return false;
     return !strike.expiresAt || strike.expiresAt >= todayISO();
+  }
+
+  function strikeWeight(strike) {
+    const weight = Number(strike?.weight);
+    return Number.isFinite(weight) && weight > 0 ? weight : 1;
+  }
+
+  function strikeScore(userId) {
+    return state.strikes.filter((strike) => (!userId || strike.userId === userId) && isStrikeActive(strike)).reduce((sum, strike) => sum + strikeWeight(strike), 0);
   }
 
   function activeStrikes(userId) {
@@ -814,17 +830,20 @@
 
   function contentStats(userId, week = U.weekStart(0)) {
     const pieces = contentForWeek(userId, week);
-    const goal = Number(state.settings.contentGoal || 3);
+    const goal = Number(state.settings.contentGoal || 2);
     const weighted = pieces.reduce((sum, piece) => sum + (STAGE_WEIGHT[piece.stage] || 0), 0);
     const published = pieces.filter((piece) => piece.stage === "publicado").length;
     const inDrive = pieces.filter((piece) => piece.stage === "drive").length;
     const recorded = pieces.filter((piece) => piece.stage === "grabado").length;
+    const ideas = pieces.filter((piece) => piece.stage === "idea").length;
     return {
       pieces,
       goal,
       published,
       inDrive,
       recorded,
+      ideas,
+      pending: pieces.filter((piece) => piece.stage !== "publicado").length,
       compliance: goal > 0 ? Math.min(100, Math.round((weighted / goal) * 100)) : 0,
       rawCompliance: goal > 0 ? Math.round((weighted / goal) * 100) : 0
     };
@@ -864,7 +883,7 @@
     return {
       user: userById(userId),
       points: userPoints(userId),
-      strikes: activeStrikes(userId).length,
+      strikes: strikeScore(userId),
       content,
       training,
       tasks,
@@ -875,7 +894,7 @@
   }
 
   function contentOverview(week = U.weekStart(0)) {
-    return barbers().map((barber) => ({ barber, ...contentStats(barber.id, week) }));
+    return contentCreators().map((barber) => ({ barber, ...contentStats(barber.id, week) }));
   }
 
   function averageContentCompliance(week = U.weekStart(0)) {
@@ -1032,7 +1051,7 @@
   function alerts() {
     const list = [];
     barbers().forEach((barber) => {
-      const count = activeStrikes(barber.id).length;
+      const count = strikeScore(barber.id);
       if (count >= Number(state.settings.strikeLimit || 3)) {
         list.push({
           id: `strike-${barber.id}`,
@@ -1118,8 +1137,8 @@
     const newStudents = state.academy.students.filter((student) => inWeek(student.enrolledAt)).length;
     const leads = state.academy.leads.filter((lead) => inWeek(lead.createdAt)).length;
     const doneTasks = state.tasks.filter((task) => task.completedAt && inWeek(task.completedAt)).length;
-    const strikes = barbers().reduce((sum, barber) => sum + activeStrikes(barber.id).length, 0);
-    const contentGoal = Math.max(1, state.settings.contentGoal || 1) * Math.max(1, barbers().length);
+    const strikes = barbers().reduce((sum, barber) => sum + strikeScore(barber.id), 0);
+    const contentGoal = Math.max(1, state.settings.contentGoal || 1) * Math.max(1, contentCreators().length);
     return { start, end, income, collected, published, contentGoal, newStudents, leads, doneTasks, strikes };
   }
 
@@ -1138,7 +1157,7 @@
       newStudents: academy.newStudents,
       weeklyLeads: weeklyLeads().length,
       contentCompliance: averageContentCompliance(),
-      activeStrikes: barbers().reduce((sum, barber) => sum + activeStrikes(barber.id).length, 0),
+      activeStrikes: barbers().reduce((sum, barber) => sum + strikeScore(barber.id), 0),
       overdueTasks: overdueTasks().length,
       collected: academy.collected,
       pendingPayments: academy.pending,
@@ -1242,7 +1261,8 @@
         email: data.email !== undefined ? data.email : user.email,
         phone: data.phone !== undefined ? data.phone : user.phone,
         commission: data.commission !== undefined ? Number(data.commission) : user.commission,
-        active: data.active !== undefined ? Boolean(data.active) : user.active
+        active: data.active !== undefined ? Boolean(data.active) : user.active,
+        contentCreator: data.contentCreator !== undefined ? Boolean(data.contentCreator) : user.contentCreator !== false
       });
       if (data.password) user.password = String(data.password);
       if (!user.password && !user.hasPassword && !cloudMode) user.password = "masivo";
@@ -1266,6 +1286,7 @@
         active: data.active !== undefined ? Boolean(data.active) : true,
         startedAt: data.startedAt || todayISO(),
         commission: Number(data.commission || 0),
+        contentCreator: data.contentCreator !== undefined ? Boolean(data.contentCreator) : true,
         initials: String(data.name || "")
           .split(" ")
           .filter(Boolean)
@@ -1526,6 +1547,122 @@
     return streak;
   }
 
+  /* ---------------- contenido: tipos, formatos y automatización ---------------- */
+
+  const CONTENT_TYPES = ["Reel", "Video", "Foto", "Story"];
+
+  const DEFAULT_CONTENT_FORMATS = {
+    Reel: ["A cámara", "Testimonios", "POV"],
+    Video: ["A cámara", "Testimonios", "POV", "Antes y después"],
+    Foto: ["Antes y después", "Resultados", "Producto"],
+    Story: ["Resultados", "Interacción", "Promoción", "Vida del negocio"]
+  };
+
+  function contentFormats(type) {
+    const custom = state.settings.contentFormats || {};
+    const list = [...(DEFAULT_CONTENT_FORMATS[type] || []), ...((custom[type] || []))];
+    return [...new Set(list.map((item) => String(item).trim()).filter(Boolean))];
+  }
+
+  function addContentFormat(type, label) {
+    const clean = String(label || "").trim();
+    if (!type || !clean) return false;
+    if (contentFormats(type).some((item) => item.toLowerCase() === clean.toLowerCase())) return false;
+    state.settings.contentFormats = state.settings.contentFormats || {};
+    state.settings.contentFormats[type] = [...(state.settings.contentFormats[type] || []), clean];
+    commit({ action: "creó", entity: "Formato de contenido", entityId: type, detail: `${type} · ${clean}` });
+    return true;
+  }
+
+  function contentDeadline(weekStart) {
+    return U.iso(U.addDays(new Date(`${weekStart}T12:00:00`), 5));
+  }
+
+  /* Cada lunes se generan las ideas de la semana y, cuando cierra el sábado,
+     se aplica medio strike por cada pieza que quedó sin publicar. */
+  function runContentAutomation() {
+    if (automationRunning || !state) return;
+    automationRunning = true;
+    try {
+      const week = U.weekStart(0);
+      if (!state.settings.contentAutomationSince) {
+        state.settings.contentAutomationSince = week;
+        if (Number(state.settings.contentGoal) === 3) state.settings.contentGoal = 2;
+        writeLocal();
+      }
+      const goal = Math.max(1, Number(state.settings.contentGoal || 2));
+      const creators = contentCreators();
+      let created = 0;
+
+      creators.forEach((user) => {
+        const have = contentForWeek(user.id, week).length;
+        for (let index = have; index < goal; index += 1) {
+          state.contentPieces.push({
+            id: uid("cp"),
+            userId: user.id,
+            weekStart: week,
+            title: `Video ${index + 1}`,
+            type: "Video",
+            format: "",
+            stage: "idea",
+            link: "",
+            idea: "",
+            script: "",
+            hook: "",
+            auto: true,
+            createdAt: todayISO(),
+            publishedAt: null,
+            pointsAwarded: false
+          });
+          created += 1;
+        }
+      });
+
+      const since = String(state.settings.contentAutomationSince);
+      const closed = [...new Set(state.contentPieces.map((piece) => piece.weekStart))]
+        .filter((value) => value && value >= since && value < week)
+        .sort();
+
+      let penalized = 0;
+      closed.forEach((closedWeek) => {
+        const deadline = contentDeadline(closedWeek);
+        creators.forEach((user) => {
+          const pieces = contentForWeek(user.id, closedWeek);
+          if (!pieces.length) return;
+          const missing = pieces.filter((piece) => piece.stage !== "publicado");
+          if (!missing.length) return;
+          const autoKey = `contenido-${user.id}-${closedWeek}`;
+          if (state.strikes.some((strike) => strike.autoKey === autoKey)) return;
+          const expiryDays = Number(state.settings.strikeExpiryDays || 90);
+          state.strikes.unshift({
+            id: uid("st"),
+            userId: user.id,
+            date: deadline,
+            reason: "Incumplimiento en la creación de contenido",
+            detail: `${missing.length} de ${pieces.length} piezas quedaron sin publicar · semana del ${closedWeek}`,
+            evidence: "",
+            expiresAt: U.iso(U.addDays(new Date(`${deadline}T12:00:00`), expiryDays)),
+            response: "",
+            responseDate: null,
+            status: "activo",
+            weight: 0.5,
+            autoKey,
+            createdBy: "sistema"
+          });
+          penalized += 1;
+        });
+      });
+
+      if (created) log("creó", "Contenido", week, `${created} ideas generadas para la semana`);
+      if (penalized) log("registró", "Strike", "", `${penalized} medios strikes por contenido sin publicar`);
+      if (created || penalized) writeLocal();
+    } catch {
+      /* la automatización nunca frena la carga del panel */
+    } finally {
+      automationRunning = false;
+    }
+  }
+
   /* ---------------- mutaciones: contenido ---------------- */
 
   function addContentPiece(data) {
@@ -1536,8 +1673,13 @@
       weekStart: week,
       title: data.title,
       type: data.type || "Reel",
-      stage: data.stage || "grabado",
+      format: data.format || "",
+      stage: data.stage || "idea",
       link: data.link || "",
+      idea: data.idea || "",
+      script: data.script || "",
+      hook: data.hook || "",
+      auto: false,
       createdAt: todayISO(),
       publishedAt: data.stage === "publicado" ? todayISO() : null,
       pointsAwarded: false
@@ -1548,10 +1690,23 @@
     return piece;
   }
 
+  function updateContentPiece(id, data) {
+    const piece = state.contentPieces.find((item) => item.id === id);
+    if (!piece) return null;
+    ["title", "type", "format", "stage", "link", "idea", "script", "hook"].forEach((key) => {
+      if (data[key] !== undefined) piece[key] = data[key];
+    });
+    if (data.stage === "publicado" && !piece.publishedAt) piece.publishedAt = todayISO();
+    if (piece.stage === "publicado") awardForContent(piece);
+    piece.auto = false;
+    commit({ action: "actualizó", entity: "Contenido", entityId: id, detail: `${piece.title} · ${piece.stage}` });
+    return piece;
+  }
+
   function advanceContent(id) {
     const piece = state.contentPieces.find((item) => item.id === id);
     if (!piece) return null;
-    const flow = { grabado: "drive", drive: "publicado", publicado: "publicado" };
+    const flow = { idea: "grabado", grabado: "drive", drive: "publicado", publicado: "publicado" };
     piece.stage = flow[piece.stage] || "publicado";
     if (piece.stage === "publicado") {
       piece.publishedAt = todayISO();
@@ -1620,7 +1775,9 @@
       response: "",
       responseDate: null,
       status: "activo",
-      createdBy: currentUser()?.id || "sistema"
+      weight: Number(data.weight || 1),
+      autoKey: data.autoKey || "",
+      createdBy: data.createdBy || currentUser()?.id || "sistema"
     };
     state.strikes.unshift(strike);
     commit({
@@ -2156,6 +2313,14 @@
     contentForWeek,
     contentStats,
     contentOverview,
+    contentCreators,
+    CONTENT_TYPES,
+    contentFormats,
+    addContentFormat,
+    updateContentPiece,
+    runContentAutomation,
+    strikeScore,
+    strikeWeight,
     averageContentCompliance,
     trainingStats,
     tasksFor,
