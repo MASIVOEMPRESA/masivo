@@ -329,7 +329,7 @@
       },
       state.settings || {}
     );
-    ["users", "units", "transactions", "checklists", "checklistRuns", "tasks", "meetings", "trainings", "trainingRecords", "contentPieces", "points", "strikes", "reports", "audit"].forEach((key) => {
+    ["users", "units", "transactions", "checklists", "checklistRuns", "tasks", "meetings", "meetSessions", "trainings", "trainingRecords", "contentPieces", "points", "strikes", "reports", "audit"].forEach((key) => {
       if (!Array.isArray(state[key])) state[key] = [];
     });
 
@@ -1418,6 +1418,114 @@
     return meeting;
   }
 
+  /* ---------------- meetbarber: sesiones uno a uno ---------------- */
+
+  const MEET_RESULTS = [
+    { key: "cumplido", label: "Cumplido" },
+    { key: "parcial", label: "En progreso" },
+    { key: "no-cumplido", label: "No cumplido" },
+    { key: "sin-datos", label: "Sin evaluar" }
+  ];
+
+  function meetSessions() {
+    return (state.meetSessions || [])
+      .slice()
+      .sort((a, b) => String(b.weekStart || b.date).localeCompare(String(a.weekStart || a.date)) || String(b.date || "").localeCompare(String(a.date || "")));
+  }
+
+  function meetSessionFor(userId, weekStart) {
+    return (state.meetSessions || []).find((item) => item.userId === userId && item.weekStart === weekStart) || null;
+  }
+
+  function lastMeetSession(userId, beforeWeek) {
+    return meetSessions().find((item) => item.userId === userId && (!beforeWeek || String(item.weekStart) < String(beforeWeek))) || null;
+  }
+
+  function normalizeMeetResult(value) {
+    const key = String(value || "").trim();
+    return MEET_RESULTS.some((item) => item.key === key) ? key : "sin-datos";
+  }
+
+  function meetPayload(data) {
+    return {
+      userId: data.userId,
+      weekStart: data.weekStart,
+      date: data.date,
+      good: String(data.good || "").trim(),
+      adjust: String(data.adjust || "").trim(),
+      focus: String(data.focus || "").trim(),
+      prevFocus: String(data.prevFocus || "").trim(),
+      result: normalizeMeetResult(data.result),
+      reason: String(data.reason || "").trim(),
+      support: Array.isArray(data.support) ? data.support.filter(Boolean) : [],
+      supportWhat: String(data.supportWhat || "").trim()
+    };
+  }
+
+  function addMeetSession(data) {
+    const weekStart = data.weekStart || U.weekStart(0);
+    const existing = meetSessionFor(data.userId, weekStart);
+    const payload = meetPayload(Object.assign({}, data, { weekStart }));
+    if (existing) {
+      Object.assign(existing, payload, { updatedAt: new Date().toISOString() });
+      commit({ action: "actualizó", entity: "MeetBarber", entityId: existing.id, detail: `${userById(existing.userId)?.name || ""} · semana del ${weekStart}` });
+      return existing;
+    }
+    const session = Object.assign(
+      {
+        id: uid("mb"),
+        createdBy: data.createdBy || currentUser()?.id || "",
+        createdAt: new Date().toISOString(),
+        updatedAt: null
+      },
+      payload
+    );
+    state.meetSessions.unshift(session);
+    commit({ action: "creó", entity: "MeetBarber", entityId: session.id, detail: `${userById(session.userId)?.name || ""} · semana del ${weekStart}` });
+    return session;
+  }
+
+  function updateMeetSession(id, data) {
+    const session = (state.meetSessions || []).find((item) => item.id === id);
+    if (!session) return null;
+    Object.assign(session, meetPayload(Object.assign({}, session, data)), { updatedAt: new Date().toISOString() });
+    commit({ action: "actualizó", entity: "MeetBarber", entityId: id, detail: `${userById(session.userId)?.name || ""} · semana del ${session.weekStart}` });
+    return session;
+  }
+
+  function deleteMeetSession(id) {
+    const session = (state.meetSessions || []).find((item) => item.id === id);
+    if (!session) return false;
+    state.meetSessions = state.meetSessions.filter((item) => item.id !== id);
+    commit({ action: "eliminó", entity: "MeetBarber", entityId: id, detail: `${userById(session.userId)?.name || ""} · semana del ${session.weekStart}` });
+    return true;
+  }
+
+  function meetStats(list) {
+    const sessions = Array.isArray(list) ? list : meetSessions();
+    const evaluated = sessions.filter((item) => item.result !== "sin-datos");
+    const done = sessions.filter((item) => item.result === "cumplido").length;
+    return {
+      total: sessions.length,
+      evaluated: evaluated.length,
+      done,
+      progress: sessions.filter((item) => item.result === "parcial").length,
+      failed: sessions.filter((item) => item.result === "no-cumplido").length,
+      rate: evaluated.length ? Math.round((done / evaluated.length) * 100) : 0,
+      supports: sessions.filter((item) => Array.isArray(item.support) && item.support.length).length
+    };
+  }
+
+  function meetStreak(userId) {
+    const list = meetSessions().filter((item) => item.userId === userId);
+    let streak = 0;
+    for (const session of list) {
+      if (session.result !== "cumplido") break;
+      streak += 1;
+    }
+    return streak;
+  }
+
   /* ---------------- mutaciones: contenido ---------------- */
 
   function addContentPiece(data) {
@@ -2096,6 +2204,15 @@
     deleteTask,
     saveChecklistRun,
     addMeeting,
+    MEET_RESULTS,
+    meetSessions,
+    meetSessionFor,
+    lastMeetSession,
+    addMeetSession,
+    updateMeetSession,
+    deleteMeetSession,
+    meetStats,
+    meetStreak,
     addContentPiece,
     advanceContent,
     deleteContentPiece,

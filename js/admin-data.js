@@ -764,6 +764,75 @@
       }
     ];
 
+    /* ---------------- meetbarber: sesiones uno a uno ---------------- */
+
+    const meetSessions = [
+      {
+        id: "mb-1",
+        userId: "u-tomi",
+        weekStart: weekStart(-1),
+        date: daysAgo(2),
+        good: "Facturación arriba de la meta y ninguna queja de clientes en la semana.",
+        adjust: "Venta de productos en 0%. No ofrece nada al cerrar el corte.",
+        focus: "Ofrecer una tasa de 10% de productos a cada cliente que se haga la barba.",
+        prevFocus: "Mostrar el antes y después en redes al menos una vez por día.",
+        result: "cumplido",
+        reason: "Subió 5 publicaciones y creció el alcance.",
+        support: [],
+        supportWhat: "",
+        createdBy: "u-diego",
+        createdAt: daysAgo(2)
+      },
+      {
+        id: "mb-2",
+        userId: "u-lauta",
+        weekStart: weekStart(-1),
+        date: daysAgo(3),
+        good: "Bajó el tiempo de corte promedio y mejoró la prolijidad en los degradados.",
+        adjust: "Llega justo a los turnos de la mañana y arranca tarde la primera cita.",
+        focus: "Estar 10 minutos antes de su primer turno todos los días.",
+        prevFocus: "Ordenar la estación al terminar cada cliente.",
+        result: "parcial",
+        reason: "Ordenó la estación, pero solo 3 de 5 días.",
+        support: ["aitor"],
+        supportWhat: "Revisar el horario de entrada y el viaje con Diego.",
+        createdBy: "u-diego",
+        createdAt: daysAgo(3)
+      },
+      {
+        id: "mb-3",
+        userId: "u-mica",
+        weekStart: weekStart(-2),
+        date: daysAgo(9),
+        good: "Muy buena facturación y clientes fieles que vuelven por ella.",
+        adjust: "Cierra pocos servicios extra y no registra los productos que usa.",
+        focus: "Ofrecer un tratamiento de hidratación a cada cliente nuevo.",
+        prevFocus: "Cargar el cierre de turno antes de irse.",
+        result: "no-cumplido",
+        reason: "Se le pasó el cierre tres veces y no lo justificó.",
+        support: ["ivan"],
+        supportWhat: "Simplificar el formulario de cierre y avisarle 15 minutos antes.",
+        createdBy: "u-diego",
+        createdAt: daysAgo(9)
+      },
+      {
+        id: "mb-4",
+        userId: "u-fede",
+        weekStart: weekStart(-2),
+        date: daysAgo(10),
+        good: "Mejoró el trato con el cliente y las reseñas de la semana fueron positivas.",
+        adjust: "Vende muy poco producto y no propone upgrades.",
+        focus: "Vender una tasa de 10% de productos por día.",
+        prevFocus: "Saludar a cada cliente por su nombre.",
+        result: "cumplido",
+        reason: "Se acordó de todos los nombres y lo destacaron en una reseña.",
+        support: [],
+        supportWhat: "",
+        createdBy: "u-diego",
+        createdAt: daysAgo(10)
+      }
+    ];
+
     /* ---------------- capacitaciones ---------------- */
 
     const trainings = [
@@ -1504,7 +1573,8 @@
         stockMoves
       },
       audit,
-      teamMaps
+      teamMaps,
+      meetSessions
     };
   }
 

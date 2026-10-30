@@ -117,6 +117,8 @@
     auditEntity: "",
     auditUser: "",
     taskFilter: "todas",
+    meetUser: "all",
+    meetRange: "all",
     studentsQuery: "",
     studentsLevel: "",
     studentsStatus: "",
@@ -582,7 +584,7 @@
   }
 
   function syncTabFromRoute(base, sub) {
-    if (base === "operacion" && ["tareas", "checklists", "reuniones"].includes(sub)) ui.opsTab = sub;
+    if (base === "operacion" && ["tareas", "checklists", "reuniones", "meetbarber"].includes(sub)) ui.opsTab = sub;
     if (base === "academia" && ["resumen", "embudo", "alumnos", "pagos", "stock", "metricas"].includes(sub)) ui.academyTab = sub;
     if (base === "puntos" && ["puntos", "strikes"].includes(sub)) ui.pointsTab = sub;
   }
@@ -2134,27 +2136,31 @@
     }
 
     if (metric === "meetbarber") {
-      const latest = state.meetings.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
-      if (!latest) {
-        return {
-          percent: 0,
-          pending: 1,
-          tone: "red",
-          items: [{ label: "Agendar el próximo MeetBarber", meta: "Todavía no hay actas cargadas", tone: "warn" }],
-          route: "operacion/reuniones",
-          summary: "Sin reunión registrada"
-        };
-      }
-      const actions = latest.actions || [];
-      const pendingActions = actions.filter((action) => action.status !== "hecha");
-      const percent = actions.length ? Math.round(((actions.length - pendingActions.length) / actions.length) * 100) : 100;
-      const pending = pendingActions.length;
-      const items = pendingActions.map((action) => ({
-        label: action.text,
-        meta: `${S.userById(action.ownerId)?.name || "Sin responsable"} · vence ${date(action.due)}`,
-        tone: action.due && action.due < today ? "danger" : "warn"
-      }));
-      return { percent, pending, tone: teamMapTone(percent, pending), items, route: "operacion/reuniones", summary: latest.title };
+      const barbers = S.barbers();
+      const week = D.weekStart(0);
+      const all = S.meetSessions();
+      const weekSessions = all.filter((session) => session.weekStart === week);
+      const missing = barbers.filter((barber) => !weekSessions.some((session) => session.userId === barber.id));
+      const percent = barbers.length ? Math.round(((barbers.length - missing.length) / barbers.length) * 100) : 0;
+      const pending = missing.length;
+      const items = pending
+        ? missing.map((barber) => ({ label: `${barber.name}: sesión pendiente`, meta: "MeetBarber de esta semana", tone: "warn" }))
+        : weekSessions.slice(0, 3).map((session) => {
+            const result = meetResultMeta(session.result);
+            return {
+              label: `${S.userById(session.userId)?.name || "Barbero"}: foco ${result.label.toLowerCase()}`,
+              meta: D.weekLabel(session.weekStart),
+              tone: result.tone === "danger" ? "danger" : result.tone === "ok" ? "ok" : "warn"
+            };
+          });
+      return {
+        percent,
+        pending,
+        tone: teamMapTone(percent, pending),
+        items,
+        route: "operacion/meetbarber",
+        summary: barbers.length ? `${weekSessions.length} de ${barbers.length} sesiones esta semana` : "Sin barberos cargados"
+      };
     }
 
     if (metric === "checklist") {
@@ -2749,7 +2755,7 @@
       ${pageHead({
         kicker: "Operación · el día a día",
         title: "Operación",
-        desc: "Tareas con responsable y fecha, checklists que se repiten y las actas de MeetBarber. Nada queda en el aire.",
+        desc: "Tareas con responsable y fecha, checklists que se repiten, las sesiones uno a uno de MeetBarber y las actas del equipo. Nada queda en el aire.",
         actions: `${btn("Nueva tarea", { action: "task", icon: "plus", variant: "primary" })}${btn("Nueva reunión", { action: "meeting", icon: "message" })}`,
         meta: `<span><svg><use href="#i-check-square"/></svg>${S.openTasks().length} tareas abiertas</span><span><svg><use href="#i-alert"/></svg>${S.overdueTasks().length} vencidas</span>`,
         hero: true
@@ -2758,11 +2764,13 @@
       ${tabs([
         { key: "tareas", label: "Tareas", route: "operacion/tareas", badge: S.openTasks().length },
         { key: "checklists", label: "Checklists", route: "operacion/checklists" },
+        { key: "meetbarber", label: "MeetBarber", route: "operacion/meetbarber", badge: S.meetSessions().length },
         { key: "reuniones", label: "Reuniones", route: "operacion/reuniones", badge: meetings.length }
       ], ui.opsTab)}
 
       ${ui.opsTab === "tareas" ? renderTaskBoard(tasks, columns, today) : ""}
       ${ui.opsTab === "checklists" ? renderChecklists(checklists) : ""}
+      ${ui.opsTab === "meetbarber" ? renderMeetBarber() : ""}
       ${ui.opsTab === "reuniones" ? renderMeetings(meetings) : ""}
     </section>`;
   }
@@ -2858,6 +2866,186 @@
         </div>
       </article>`).join("") : emptyState("Todavía no hay actas", "Registrá la primera reunión de equipo.", "message")}
       <div class="row" style="justify-content:center">${btn("Registrar MeetBarber", { action: "meeting", icon: "plus", variant: "soft" })}</div>
+    </div>`;
+  }
+
+  /* ---------------- meetbarber: sesiones uno a uno ---------------- */
+
+  function meetResultMeta(key) {
+    return {
+      cumplido: { label: "Cumplido", tone: "ok" },
+      parcial: { label: "En progreso", tone: "info" },
+      "no-cumplido": { label: "No cumplido", tone: "danger" },
+      "sin-datos": { label: "Sin evaluar", tone: "muted" }
+    }[key] || { label: "Sin evaluar", tone: "muted" };
+  }
+
+  function supportName(key) {
+    return { aitor: "Aitor", ivan: "Iván" }[key] || key;
+  }
+
+  function weekStartOf(value) {
+    return D.iso(D.startOfWeek(D.parseISO(value) || new Date()));
+  }
+
+  function renderMeetBarber() {
+    const barbers = S.barbers();
+    const canEdit = S.isOwner() || S.can("equipo");
+    const all = S.meetSessions();
+    const currentWeek = D.weekStart(0);
+    const minWeek = ui.meetRange === "4" ? D.weekStart(-3) : ui.meetRange === "8" ? D.weekStart(-7) : "";
+    const sessions = all.filter((session) => {
+      if (ui.meetUser !== "all" && session.userId !== ui.meetUser) return false;
+      if (minWeek && String(session.weekStart) < minWeek) return false;
+      return true;
+    });
+    const stats = S.meetStats(sessions);
+    const globalStats = S.meetStats(all);
+    const pendingWeek = barbers.filter((barber) => !all.some((session) => session.userId === barber.id && session.weekStart === currentWeek));
+    const perBarber = barbers.map((barber) => {
+      const list = all.filter((session) => session.userId === barber.id);
+      return { barber, stats: S.meetStats(list), last: list[0] || null, streak: S.meetStreak(barber.id) };
+    });
+
+    return `<section class="page">
+      ${pageHead({
+        kicker: "MeetBarber · miércoles 10:00 · uno por uno",
+        title: "MeetBarber",
+        desc: "Una sesión corta por barbero: primero lo que salió bien, después un solo ajuste y un foco medible para la semana. Acá queda el registro y el seguimiento.",
+        actions: `${btn("Guía", { action: "meet-guide", icon: "file" })}${canEdit ? btn("Registrar sesión", { action: "meet-session", icon: "plus", variant: "primary" }) : ""}`,
+        meta: `<span><svg><use href="#i-users"/></svg>${plural(barbers.length, "barbero", "barberos")}</span><span><svg><use href="#i-message"/></svg>${all.length} sesiones</span><span><svg><use href="#i-target"/></svg>${globalStats.rate}% de focos cumplidos</span>`,
+        hero: true
+      })}
+
+      <div class="metric-grid">
+        ${metricCard({ label: "Sesiones registradas", value: String(stats.total), icon: "message", tone: "violet", foot: ui.meetRange === "all" ? "Historial completo" : "Período filtrado" })}
+        ${metricCard({ label: "Focos cumplidos", value: `${stats.rate}%`, icon: "target", tone: "green", foot: `${stats.done} de ${stats.evaluated} evaluados` })}
+        ${metricCard({ label: "En progreso", value: String(stats.progress), icon: "clock", tone: "amber", foot: "Foco en camino" })}
+        ${metricCard({ label: "Apoyo solicitado", value: String(stats.supports), icon: "alert", tone: "red", foot: "Aitor / Iván" })}
+      </div>
+
+      ${barbers.length && pendingWeek.length ? `<div class="mb-pending" data-reveal>
+        <div class="mb-pending-copy">
+          <span class="kicker"><i></i>Esta semana</span>
+          <b>Faltan ${pendingWeek.length} de ${barbers.length} sesiones</b>
+          <span>${esc(D.weekLabel(currentWeek))} · Miércoles 10:00</span>
+        </div>
+        <div class="mb-pending-list">
+          ${pendingWeek.map((barber) => `<button class="mb-pending-chip" type="button" data-action="${canEdit ? "meet-session" : "go"}" data-id="${esc(barber.id)}" ${canEdit ? "" : `data-route="equipo"`}>
+            ${avatar(barber, "avatar--sm")}
+            <span>${esc(barber.name.split(" ")[0])}</span>
+            <svg><use href="#i-${canEdit ? "plus" : "arrow"}"/></svg>
+          </button>`).join("")}
+        </div>
+      </div>` : ""}
+
+      ${barbers.length ? `<div class="row row--between mb-filters">
+        <div class="filters">
+          <button class="chip chip--button ${ui.meetUser === "all" ? "active" : ""}" type="button" data-action="meet-filter" data-kind="user" data-id="all">Todos</button>
+          ${barbers.map((barber) => `<button class="chip chip--button ${ui.meetUser === barber.id ? "active" : ""}" type="button" data-action="meet-filter" data-kind="user" data-id="${esc(barber.id)}">${esc(barber.name.split(" ")[0])}</button>`).join("")}
+        </div>
+        <div class="filters">
+          ${[["all", "Todo"], ["8", "8 semanas"], ["4", "4 semanas"]].map(([key, label]) => `<button class="chip chip--button ${ui.meetRange === key ? "active" : ""}" type="button" data-action="meet-filter" data-kind="range" data-id="${key}">${label}</button>`).join("")}
+        </div>
+      </div>` : ""}
+
+      ${!barbers.length
+        ? emptyState("Todavía no hay barberos", "Sumá al equipo para empezar a registrar el MeetBarber uno por uno.", "users")
+        : sessions.length
+          ? `<div class="mb-list">${sessions.map((session) => renderMeetCard(session, canEdit)).join("")}</div>`
+          : emptyState("Sin sesiones en este filtro", "Probá con otro barbero o registrá la primera sesión de la semana.", "message")}
+
+      ${perBarber.length ? `<div class="mb-follow">
+        ${sectionHead("Seguimiento por barbero", "Cumplimiento de focos y apoyo pendiente", "", "chart")}
+        <div class="mb-follow-grid">
+          ${perBarber.map(({ barber, stats: bStats, last, streak }) => `<article class="mb-follow-card" data-reveal>
+            <div class="mb-follow-head">
+              ${avatar(barber, "avatar--sm")}
+              <div><b>${esc(barber.name)}</b><span>${last ? `Última: ${date(last.date)}` : "Sin sesiones"}</span></div>
+              ${streak > 1 ? `<span class="mb-streak"><svg><use href="#i-flame"/></svg>${streak}</span>` : ""}
+            </div>
+            <div class="mb-follow-rate"><b>${bStats.rate}%</b><span>${bStats.done}/${bStats.evaluated} focos cumplidos</span></div>
+            ${progressBar(bStats.rate, bStats.rate >= 70 ? "green" : bStats.rate >= 40 ? "violet" : "amber")}
+            <p class="mb-follow-focus">${last?.focus ? `Foco actual: ${esc(last.focus)}` : "Sin foco acordado todavía."}</p>
+            ${last?.support?.length ? `<span class="mb-support-tag"><svg><use href="#i-alert"/></svg>Pide apoyo: ${esc(last.support.map(supportName).join(" · "))}</span>` : ""}
+          </article>`).join("")}
+        </div>
+      </div>` : ""}
+
+      <p class="mb-foot-note">Regla de oro: un solo foco por semana, con números, y siempre reconocer antes de corregir.</p>
+    </section>`;
+  }
+
+  function renderMeetCard(session, canEdit) {
+    const barber = S.userById(session.userId);
+    const result = meetResultMeta(session.result);
+    const support = Array.isArray(session.support) ? session.support : [];
+    return `<article class="mb-card" data-reveal>
+      <header class="mb-card-head">
+        <div class="mb-person">
+          ${avatar(barber, "avatar--sm")}
+          <div>
+            <b>${esc(barber?.name || "Barbero")}</b>
+            <span>Semana ${D.isoWeek(session.weekStart)} · ${esc(D.weekLabel(session.weekStart))} · ${date(session.date)}</span>
+          </div>
+        </div>
+        <div class="mb-card-side">
+          ${status(result.label, result.tone)}
+          ${canEdit ? `<button class="row-action" type="button" data-action="meet-edit" data-id="${esc(session.id)}" title="Editar sesión"><svg><use href="#i-edit"/></svg></button>
+          <button class="row-action" type="button" data-action="confirm-delete" data-kind="meet" data-id="${esc(session.id)}" title="Eliminar sesión"><svg><use href="#i-trash"/></svg></button>` : ""}
+        </div>
+      </header>
+      <div class="mb-grid">
+        <div class="mb-block mb-block--good">
+          <span class="mb-label"><svg><use href="#i-check-circle"/></svg>Lo que salió bien</span>
+          <p>${esc(session.good || "Sin registrar.")}</p>
+        </div>
+        <div class="mb-block mb-block--adjust">
+          <span class="mb-label"><svg><use href="#i-alert"/></svg>Lo que hay que ajustar</span>
+          <p>${esc(session.adjust || "Sin registrar.")}</p>
+        </div>
+        <div class="mb-block mb-block--focus">
+          <span class="mb-label"><svg><use href="#i-target"/></svg>Foco de la semana</span>
+          <p>${esc(session.focus || "Sin foco acordado.")}</p>
+        </div>
+      </div>
+      ${session.prevFocus || session.reason ? `<div class="mb-prev">
+        <div class="mb-prev-top"><span class="mb-label">Foco anterior</span>${status(result.label, result.tone)}</div>
+        <p>${esc(session.prevFocus || "Sin foco registrado en la sesión previa.")}</p>
+        ${session.reason ? `<small>${esc(session.reason)}</small>` : ""}
+      </div>` : ""}
+      ${support.length ? `<div class="mb-support">
+        <svg><use href="#i-alert"/></svg>
+        <span>Necesita apoyo de <b>${esc(support.map(supportName).join(" y "))}</b>${session.supportWhat ? `: ${esc(session.supportWhat)}` : ""}</span>
+      </div>` : ""}
+    </article>`;
+  }
+
+  function meetPrevBox(userId, weekStart, session) {
+    const previous = S.lastMeetSession(userId, weekStart);
+    if (!previous) {
+      return `<div class="mb-prev-box mb-prev-box--empty">
+        <span class="mb-label">Resultado del foco anterior</span>
+        <p>Es la primera sesión de esta persona. No hay foco previo para evaluar.</p>
+      </div>`;
+    }
+    const current = session && session.weekStart === weekStart ? session : null;
+    const result = current?.result || "sin-datos";
+    const reason = current?.reason || "";
+    return `<div class="mb-prev-box">
+      <div class="mb-prev-top"><span class="mb-label">Resultado del foco anterior</span><small>${esc(D.weekLabel(previous.weekStart))}</small></div>
+      <p class="mb-prev-quote">${esc(previous.focus || "Sin foco registrado.")}</p>
+      <div class="form-grid">
+        <div class="field">
+          <label for="f-result">¿Se cumplió?</label>
+          <select class="select" id="f-result" name="result">${S.MEET_RESULTS.map((item) => `<option value="${item.key}" ${item.key === result ? "selected" : ""}>${item.label}</option>`).join("")}</select>
+        </div>
+        <div class="field">
+          <label for="f-reason">Por qué (en una línea)</label>
+          <input class="input" id="f-reason" name="reason" value="${esc(reason)}" placeholder="Qué pasó, sin vueltas">
+        </div>
+      </div>
+      <input type="hidden" name="prevFocus" value="${esc(previous.focus || "")}">
     </div>`;
   }
 
@@ -4196,6 +4384,142 @@
     });
   }
 
+  function meetDupHint(userId, weekStart, session) {
+    if (session || !S.meetSessionFor(userId, weekStart)) return "";
+    return `<p class="form-hint" style="margin-top:8px;color:var(--amber)">Ya hay una sesión esa semana para esta persona: editala desde la lista.</p>`;
+  }
+
+  function openMeetSession(id = "", presetUserId = "") {
+    if (!(S.isOwner() || S.can("equipo"))) return toast("No tenés permiso para registrar MeetBarber.", "error");
+    const barbers = S.barbers();
+    if (!barbers.length) return toast("Primero sumá barberos al equipo.", "error");
+    const session = id ? S.meetSessions().find((item) => item.id === id) : null;
+    const userId = session?.userId || presetUserId || barbers[0].id;
+    const weekStart = session?.weekStart || D.weekStart(0);
+    const dateValue = session?.date || D.iso(new Date());
+    const support = new Set(session?.support || []);
+    const userOptions = barbers.map((barber) => [barber.id, `${barber.name} · ${S.roleLabel(barber.role)}`]);
+    const body = `<div class="form-grid">
+      ${selectField("userId", "Barbero", optionsFrom(userOptions, userId), userId)}
+      ${textInput("date", "Fecha de la sesión", dateValue, { type: "date" })}
+      ${textArea("good", "Lo que salió bien", session?.good || "", { rows: 2, full: true, placeholder: "Con datos concretos: números, reseñas, actitud…" })}
+      ${textArea("adjust", "Lo que hay que ajustar", session?.adjust || "", { rows: 2, full: true, placeholder: "Un solo punto, mostrando el número" })}
+      ${textArea("focus", "Foco acordado para la próxima semana", session?.focus || "", { rows: 2, full: true, placeholder: "Claro, medible y uno solo" })}
+      <div class="field field--full" id="mb-prev">${meetPrevBox(userId, weekStart, session)}${meetDupHint(userId, weekStart, session)}</div>
+      <div class="field field--full">
+        <label>¿Necesita apoyo de Aitor o Iván?</label>
+        <div class="row" style="gap:8px 20px;flex-wrap:wrap">
+          <label class="checkbox"><input type="checkbox" name="support" data-multi="true" value="aitor" ${support.has("aitor") ? "checked" : ""}><span class="box"><svg><use href="#i-check"/></svg></span><span>Aitor</span></label>
+          <label class="checkbox"><input type="checkbox" name="support" data-multi="true" value="ivan" ${support.has("ivan") ? "checked" : ""}><span class="box"><svg><use href="#i-check"/></svg></span><span>Iván</span></label>
+        </div>
+        <p class="form-hint">Marcá solo si el ajuste depende de ellos.</p>
+      </div>
+      ${textArea("supportWhat", "¿En qué necesita apoyo?", session?.supportWhat || "", { rows: 2, full: true, placeholder: "Qué necesita y para cuándo" })}
+    </div>`;
+    const form = openModal({
+      kicker: "MeetBarber · sesión uno a uno",
+      title: session ? "EDITAR SESIÓN" : "REGISTRAR SESIÓN",
+      sub: "15 minutos: reconocer, ajustar y acordar un solo foco.",
+      body,
+      submitLabel: session ? "Guardar cambios" : "Guardar sesión",
+      size: "lg",
+      onSubmit: (data) => {
+        const target = String(data.userId || "").trim();
+        if (!target) throw new Error("Elegí el barbero de la sesión.");
+        const date = data.date || D.iso(new Date());
+        const week = weekStartOf(date);
+        const payload = {
+          userId: target,
+          weekStart: week,
+          date,
+          good: data.good,
+          adjust: data.adjust,
+          focus: data.focus,
+          prevFocus: data.prevFocus,
+          result: data.result,
+          reason: data.reason,
+          support: data.support || [],
+          supportWhat: data.supportWhat
+        };
+        if (!session && S.meetSessionFor(target, week)) {
+          throw new Error("Ya hay una sesión de esa semana para ese barbero. Editala desde la lista.");
+        }
+        if (session) S.updateMeetSession(session.id, payload);
+        else S.addMeetSession(payload);
+        afterChange(session ? "Sesión de MeetBarber actualizada." : "Sesión de MeetBarber guardada.");
+      }
+    });
+    if (!form) return;
+    const prev = $("#mb-prev", form);
+    const refresh = () => {
+      if (!prev) return;
+      const target = form.querySelector('[name="userId"]')?.value || "";
+      const date = form.querySelector('[name="date"]')?.value || D.iso(new Date());
+      const week = weekStartOf(date);
+      const duplicated = !session && S.meetSessionFor(target, week);
+      prev.innerHTML = meetPrevBox(target, week, session) + meetDupHint(target, week, session);
+    };
+    form.querySelector('[name="userId"]')?.addEventListener("change", refresh);
+    form.querySelector('[name="date"]')?.addEventListener("change", refresh);
+  }
+
+  function openMeetGuide() {
+    const steps = [
+      ["0–2", "Arrancá cómodo: preguntale cómo viene la semana."],
+      ["2–6", "Lo que está saliendo bien. Decilo con datos concretos. Reconocé antes de corregir."],
+      ["6–11", "Lo que hay que ajustar. Mostrá el número, preguntale qué piensa y escuchá antes de dar tu opinión."],
+      ["11–14", "Acordar un foco para la semana próxima. Uno solo, claro y medible."],
+      ["14–15", "Cierre: repetí el foco en una frase y despedite con algo positivo."]
+    ];
+    const rules = [
+      "Siempre empezás por lo bueno.",
+      "Hablá con números, no con opiniones.",
+      "Preguntá más de lo que hablás.",
+      "Un solo foco por semana.",
+      "Respetá los 15 minutos.",
+      "Uno por uno: los ajustes se hablan en privado.",
+      "No pases de semana: la constancia genera el hábito."
+    ];
+    const body = `<div class="mb-guide">
+      <div class="mb-guide-block">
+        <h3>Antes de la reunión (5 min)</h3>
+        <ul>
+          <li>Mirá los números de la semana de cada barbero.</li>
+          <li>Anotá 1 o 2 cosas que salieron bien y 1 o 2 cosas a ajustar. No más.</li>
+          <li>Elegí un solo foco para la semana próxima.</li>
+        </ul>
+      </div>
+      <div class="mb-guide-block">
+        <h3>Durante la reunión (15 min)</h3>
+        <div class="mb-guide-steps">
+          ${steps.map(([time, text]) => `<div class="mb-guide-step"><span>${time}</span><p>${esc(text)}</p></div>`).join("")}
+        </div>
+      </div>
+      <div class="mb-guide-block">
+        <h3>Reglas de oro</h3>
+        <ol>${rules.map((rule) => `<li>${esc(rule)}</li>`).join("")}</ol>
+      </div>
+      <div class="mb-guide-block">
+        <h3>Frases que ayudan</h3>
+        <ul>
+          <li>“Esta semana hiciste muy bien ___, se nota en ___.”</li>
+          <li>“Mirá este número, ¿qué creés que pasó?”</li>
+          <li>“Entonces para la semana que viene nos enfocamos en ___. ¿Te parece?”</li>
+          <li>“Lo que más rescato de esta semana es ___. Seguí así.”</li>
+        </ul>
+      </div>
+    </div>`;
+    openModal({
+      kicker: "MeetBarber",
+      title: "GUÍA DEL MEET BARBER",
+      sub: "Diego · una vez por semana · miércoles 10:00 · 15 min por barbero.",
+      body,
+      submitLabel: "Entendido",
+      size: "lg",
+      onSubmit: () => closeModal()
+    });
+  }
+
   function openMeeting() {
     const state = S.getState();
     const active = state.users.filter((user) => user.active);
@@ -5221,6 +5545,20 @@
       case "meeting":
         openMeeting();
         return;
+      case "meet-session":
+        openMeetSession("", id);
+        return;
+      case "meet-edit":
+        openMeetSession(id);
+        return;
+      case "meet-guide":
+        openMeetGuide();
+        return;
+      case "meet-filter":
+        if (target.dataset.kind === "user") ui.meetUser = id;
+        else ui.meetRange = id;
+        renderView();
+        return;
       case "content":
         openContent(id);
         return;
@@ -5388,6 +5726,19 @@
         onConfirm: () => {
           S.deleteTransaction(id);
           afterChange("Movimiento eliminado.");
+        }
+      });
+      return;
+    }
+    if (kind === "meet") {
+      const session = state.meetSessions.find((item) => item.id === id);
+      if (!session) return;
+      confirmDialog({
+        title: "ELIMINAR SESIÓN",
+        text: `Se borra la sesión de ${S.userById(session.userId)?.name || "el barbero"} de la semana del ${D.weekLabel(session.weekStart)}. Queda registrado en auditoría.`,
+        onConfirm: () => {
+          S.deleteMeetSession(id);
+          afterChange("Sesión eliminada.");
         }
       });
       return;
