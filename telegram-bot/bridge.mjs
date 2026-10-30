@@ -51,8 +51,8 @@ const DEFAULT_MODEL = String(env.MODEL || "").trim();
 const DEFAULT_AGENT = String(env.AGENT || "").trim();
 const AUTO_APPROVE = String(env.AUTO_APPROVE ?? "1") !== "0";
 const MAX_OUTPUT = Math.max(1000, Number(env.MAX_OUTPUT || 9000));
-const STATE_FILE = path.join(__dirname, "state.json");
-const LOG_FILE = path.join(__dirname, "bridge.log");
+const STATE_FILE = path.join(process.env.HOME || __dirname, "Library/Application Support/masivo-telegram-bot-state.json");
+const LOG_FILE = process.env.MASIVO_LOG || path.join(process.env.HOME || __dirname, "Library/Logs/masivo-telegram-bot.log");
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 /* ---------------- estado ---------------- */
@@ -74,6 +74,7 @@ const state = loadState();
 
 function saveState() {
   try {
+    fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
     fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
   } catch (error) {
     log(`No se pudo guardar state.json: ${error.message}`);

@@ -66,4 +66,5 @@ Todo lo que no sea un comando se envía a OpenCode como instrucción.
 
 - Si el modelo gratuito llega al límite, usá `/modelo proveedor/modelo` con un modelo pago o configurá `MODEL` en `.env`.
 - La Mac tiene que estar encendida y con internet. `start.sh` usa `caffeinate` para evitar la suspensión por inactividad.
-- Los logs quedan en `bridge.log` y `service.log`.
+- Los logs quedan en `~/Library/Logs/masivo-telegram-bot.log` (macOS no permite que el servicio escriba en el Escritorio).
+- El estado de la sesión se guarda en `~/Library/Application Support/masivo-telegram-bot-state.json`.

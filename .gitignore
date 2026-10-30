@@ -6,5 +6,4 @@ _preview-mobile.html
 .DS_Store
 
 telegram-bot/.env
-telegram-bot/state.json
 telegram-bot/*.log

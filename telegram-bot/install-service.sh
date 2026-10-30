@@ -8,4 +8,4 @@ cp com.masivo.telegram-bot.plist "$PLIST"
 launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 launchctl enable "gui/$(id -u)/com.masivo.telegram-bot"
-echo "Servicio instalado. Log: $(pwd)/service.log"
+echo "Servicio instalado. Log: $HOME/Library/Logs/masivo-telegram-bot.log"

@@ -18,8 +18,8 @@
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>/Users/ividella/Desktop/masivoweb/telegram-bot/service.log</string>
+  <string>/Users/ividella/Library/Logs/masivo-telegram-bot.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/ividella/Desktop/masivoweb/telegram-bot/service.log</string>
+  <string>/Users/ividella/Library/Logs/masivo-telegram-bot.log</string>
 </dict>
 </plist>
