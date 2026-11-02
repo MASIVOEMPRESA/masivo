@@ -2858,17 +2858,32 @@
     </div>`;
   }
 
+  function canEditChecklists() {
+    return S.isOwner() || S.can("operacion");
+  }
+
   function renderChecklists(checklists) {
     const today = D.iso(new Date());
-    return `<div class="checklist-grid">
-      ${checklists.map((checklist) => {
+    const editable = canEditChecklists();
+    return `<div class="row row--between" style="margin-bottom:10px">
+      <span class="section-sub">${checklists.length} checklists activos · los puede completar cualquier encargado</span>
+      ${editable ? btn("Nuevo checklist", { action: "checklist", icon: "plus", variant: "primary" }) : ""}
+    </div>
+    <div class="checklist-grid">
+      ${checklists.length ? checklists.map((checklist) => {
         const run = S.getState().checklistRuns.find((item) => item.checklistId === checklist.id && item.date === today);
         const completed = run?.completed || [];
         const pctDone = Math.round((completed.length / checklist.items.length) * 100);
         return `<article class="checklist-card" data-reveal>
           <div class="checklist-card-head">
             <div><h2>${esc(checklist.title)}</h2><p>${esc(checklist.area)} · ${esc(checklist.frequency)} · ${esc(checklist.time)}</p></div>
-            ${status(completed.length >= checklist.items.length ? "Completo" : completed.length ? "En curso" : "Sin empezar", completed.length >= checklist.items.length ? "ok" : completed.length ? "info" : "muted")}
+            <div style="display:flex;align-items:center;gap:6px">
+              ${status(completed.length >= checklist.items.length ? "Completo" : completed.length ? "En curso" : "Sin empezar", completed.length >= checklist.items.length ? "ok" : completed.length ? "info" : "muted")}
+              ${editable ? `<div style="display:flex;gap:2px">
+                <button class="row-action" type="button" data-action="edit-checklist" data-id="${esc(checklist.id)}" title="Editar checklist"><svg><use href="#i-edit"/></svg></button>
+                <button class="row-action danger" type="button" data-action="confirm-delete" data-kind="checklist" data-id="${esc(checklist.id)}" title="Eliminar checklist"><svg><use href="#i-trash"/></svg></button>
+              </div>` : ""}
+            </div>
           </div>
           <div class="checklist-progress"><div class="checklist-progress-head"><span>${completed.length}/${checklist.items.length}</span><b>${pctDone}%</b></div>${progressBar(pctDone, pctDone >= 100 ? "green" : "violet")}</div>
           <div class="checklist-items">
@@ -2881,7 +2896,7 @@
           </div>
           <div class="panel-foot" style="padding:7px 0 0;border-top:1px solid var(--line)"><span>${run ? `Actualizado por ${esc(S.userById(run.userId)?.name || "—")}` : "Lo puede hacer cualquier encargado"}</span>${run?.completedAt ? `<span class="mono" style="font-size:12px">${relative(run.completedAt)}</span>` : ""}</div>
         </article>`;
-      }).join("")}
+      }).join("") : emptyState("Todavía no hay checklists", "Creá el primero con el botón de arriba.", "check-square")}
     </div>`;
   }
 
@@ -4455,6 +4470,36 @@
     });
   }
 
+  function openChecklist(id = "") {
+    if (!canEditChecklists()) return toast("No tenés permiso para editar checklists.", "error");
+    const checklist = id ? S.checklistById(id) : null;
+    const itemsText = checklist ? checklist.items.map((item) => item.label).join("\n") : "";
+    const body = `<div class="form-grid">
+      ${textInput("title", "Nombre del checklist", checklist?.title || "", { required: true, full: true, placeholder: "Ej: Apertura del local" })}
+      ${textInput("area", "Área", checklist?.area || "", { placeholder: "Apertura, cierre, limpieza…" })}
+      ${selectField("frequency", "Frecuencia", optionsFrom([["diaria", "Diaria"], ["semanal", "Semanal"], ["mensual", "Mensual"]], checklist?.frequency || "diaria"), checklist?.frequency || "diaria")}
+      ${textInput("time", "Horario o día", checklist?.time || "", { placeholder: "09:30 o Lunes" })}
+      ${textArea("items", "Ítems del checklist", itemsText, { rows: 10, required: true, placeholder: "Un ítem por línea" })}
+    </div>
+    <p class="form-hint">Escribí un ítem por línea. Podés agregar, borrar o reordenar la lista completa; los ítems que mantengas conservan su progreso de hoy.</p>`;
+    openModal({
+      kicker: "Operación · checklist",
+      title: checklist ? "EDITAR CHECKLIST" : "NUEVO CHECKLIST",
+      sub: checklist ? "Cambios aplican al instante para todo el equipo." : "Definí la lista completa de ítems que va a ver el encargado.",
+      body,
+      submitLabel: checklist ? "Guardar cambios" : "Crear checklist",
+      size: "lg",
+      onSubmit: (data) => {
+        const items = String(data.items || "").split("\n").map((line) => line.trim()).filter(Boolean);
+        if (!data.title.trim()) throw new Error("El checklist necesita un nombre.");
+        if (!items.length) throw new Error("Agregá al menos un ítem.");
+        if (checklist) S.updateChecklist(checklist.id, { ...data, items });
+        else S.addChecklist({ ...data, items });
+        afterChange(checklist ? "Checklist actualizado." : "Checklist creado.");
+      }
+    });
+  }
+
   function meetDupHint(userId, weekStart, session) {
     if (session || !S.meetSessionFor(userId, weekStart)) return "";
     return `<p class="form-hint" style="margin-top:8px;color:var(--amber)">Ya hay una sesión esa semana para esta persona: editala desde la lista.</p>`;
@@ -5660,6 +5705,12 @@
       case "run-checklist":
         navigate("operacion/checklists");
         return;
+      case "checklist":
+        openChecklist();
+        return;
+      case "edit-checklist":
+        openChecklist(id);
+        return;
       case "toggle-checklist-item": {
         const checklistId = target.dataset.checklist;
         const itemId = target.dataset.item;
@@ -5895,6 +5946,19 @@
         onConfirm: () => {
           S.deleteTask(id);
           afterChange("Tarea eliminada.");
+        }
+      });
+      return;
+    }
+    if (kind === "checklist") {
+      const checklist = state.checklists.find((item) => item.id === id);
+      if (!checklist) return;
+      confirmDialog({
+        title: "ELIMINAR CHECKLIST",
+        text: `“${checklist.title}” se borra junto con su historial de hoy. Queda registrado en auditoría.`,
+        onConfirm: () => {
+          S.deleteChecklist(id);
+          afterChange("Checklist eliminado.");
         }
       });
       return;

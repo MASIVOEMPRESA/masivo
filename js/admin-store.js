@@ -1424,6 +1424,66 @@
     return run;
   }
 
+  function normalizeChecklistItems(items, previous = []) {
+    const used = new Set();
+    return (Array.isArray(items) ? items : [])
+      .map((item) => (typeof item === "string" ? { label: item } : item) || {})
+      .map((item) => String(item.label || "").trim())
+      .filter(Boolean)
+      .map((label) => {
+        const match = previous.find((old) => old.label === label && !used.has(old.id));
+        const id = match ? match.id : uid("ci");
+        used.add(id);
+        return { id, label };
+      });
+  }
+
+  function addChecklist(data) {
+    const items = normalizeChecklistItems(data.items);
+    if (!items.length) throw new Error("El checklist necesita al menos un ítem.");
+    const checklist = {
+      id: uid("cl"),
+      title: String(data.title || "").trim() || "Checklist sin título",
+      area: String(data.area || "General").trim() || "General",
+      frequency: data.frequency || "diaria",
+      time: String(data.time || "").trim() || "—",
+      items,
+      createdBy: currentUser()?.id || "sistema",
+      createdAt: new Date().toISOString()
+    };
+    state.checklists.push(checklist);
+    commit({ action: "creó", entity: "Checklist", entityId: checklist.id, detail: checklist.title });
+    return checklist;
+  }
+
+  function updateChecklist(id, data) {
+    const checklist = checklistById(id);
+    if (!checklist) return null;
+    const items = normalizeChecklistItems(data.items, checklist.items);
+    if (!items.length) throw new Error("El checklist necesita al menos un ítem.");
+    const valid = new Set(items.map((item) => item.id));
+    checklist.title = String(data.title || "").trim() || checklist.title;
+    checklist.area = String(data.area || "").trim() || checklist.area;
+    checklist.frequency = data.frequency || checklist.frequency;
+    checklist.time = String(data.time || "").trim() || checklist.time;
+    checklist.items = items;
+    state.checklistRuns.forEach((run) => {
+      if (run.checklistId !== id) return;
+      run.completed = run.completed.filter((itemId) => valid.has(itemId));
+    });
+    commit({ action: "editó", entity: "Checklist", entityId: id, detail: checklist.title });
+    return checklist;
+  }
+
+  function deleteChecklist(id) {
+    const checklist = checklistById(id);
+    if (!checklist) return false;
+    state.checklists = state.checklists.filter((item) => item.id !== id);
+    state.checklistRuns = state.checklistRuns.filter((run) => run.checklistId !== id);
+    commit({ action: "eliminó", entity: "Checklist", entityId: id, detail: checklist.title });
+    return true;
+  }
+
   function addMeeting(data) {
     const meeting = {
       id: uid("m"),
@@ -2368,6 +2428,9 @@
     setTaskStatus,
     deleteTask,
     saveChecklistRun,
+    addChecklist,
+    updateChecklist,
+    deleteChecklist,
     addMeeting,
     MEET_RESULTS,
     meetSessions,
