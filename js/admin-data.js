@@ -556,6 +556,45 @@
       }
     ];
 
+    /* ---------------- masivo sessions ---------------- */
+
+    const sessions = [
+      {
+        id: "ms-ventas",
+        title: "Ventas",
+        summary: "",
+        thumbnail: "",
+        driveUrl: "",
+        resources: [],
+        date: daysAgo(21),
+        presenterId: "u-nico",
+        duration: 90,
+        tags: ["Ventas"],
+        status: "borrador",
+        trainingId: "",
+        createdBy: "u-nico",
+        createdAt: daysAgo(21)
+      },
+      {
+        id: "ms-contenido",
+        title: "Creación de contenido",
+        summary: "",
+        thumbnail: "",
+        driveUrl: "",
+        resources: [],
+        date: daysAgo(7),
+        presenterId: "u-sofi",
+        duration: 75,
+        tags: ["Contenido"],
+        status: "borrador",
+        trainingId: "",
+        createdBy: "u-sofi",
+        createdAt: daysAgo(7)
+      }
+    ];
+
+    const sessionViews = [];
+
     /* ---------------- tareas ---------------- */
 
     const tasks = [
@@ -1572,6 +1611,8 @@
       transactions,
       checklists,
       checklistRuns,
+      sessions,
+      sessionViews,
       tasks,
       meetings,
       trainings,

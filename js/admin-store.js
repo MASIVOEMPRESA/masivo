@@ -330,7 +330,14 @@
       },
       state.settings || {}
     );
-    ["users", "units", "transactions", "checklists", "checklistRuns", "tasks", "meetings", "meetSessions", "trainings", "trainingRecords", "contentPieces", "points", "strikes", "reports", "audit"].forEach((key) => {
+    /* Masivo Session: los estados viejos arrancan con los dos módulos que ya dimos. */
+    if (!Array.isArray(state.sessions)) {
+      state.sessions = [
+        { id: "ms-ventas", title: "Ventas", summary: "", thumbnail: "", driveUrl: "", resources: [], date: "2026-10-12", presenterId: "u-nico", duration: 90, tags: ["Ventas"], status: "borrador", trainingId: "", createdBy: "u-nico", createdAt: new Date().toISOString() },
+        { id: "ms-contenido", title: "Creación de contenido", summary: "", thumbnail: "", driveUrl: "", resources: [], date: "2026-10-26", presenterId: "u-sofi", duration: 75, tags: ["Contenido"], status: "borrador", trainingId: "", createdBy: "u-sofi", createdAt: new Date().toISOString() }
+      ];
+    }
+    ["users", "units", "transactions", "checklists", "checklistRuns", "sessions", "sessionViews", "tasks", "meetings", "meetSessions", "trainings", "trainingRecords", "contentPieces", "points", "strikes", "reports", "audit"].forEach((key) => {
       if (!Array.isArray(state[key])) state[key] = [];
     });
 
@@ -1886,6 +1893,119 @@
     return report;
   }
 
+  /* ---------------- mutaciones: masivo sessions ---------------- */
+
+  function sessionById(id) {
+    return state.sessions.find((item) => item.id === id) || null;
+  }
+
+  function sessionsList(options = {}) {
+    const includeDrafts = options.includeDrafts !== false;
+    return state.sessions
+      .filter((item) => includeDrafts || item.status === "publicado")
+      .slice()
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  }
+
+  function normalizeSessionResources(resources, previous = []) {
+    const used = new Set();
+    return (Array.isArray(resources) ? resources : [])
+      .map((item) => (typeof item === "string" ? { label: item, url: item } : item) || {})
+      .map((item) => ({ label: String(item.label || "").trim(), url: String(item.url || "").trim() }))
+      .filter((item) => item.label || item.url)
+      .map((item) => {
+        const match = previous.find((old) => old.label === item.label && !used.has(old.id));
+        const id = match ? match.id : uid("msr");
+        used.add(id);
+        return { id, label: item.label || "Recurso", url: item.url };
+      });
+  }
+
+  function addSession(data) {
+    const session = {
+      id: uid("ms"),
+      title: String(data.title || "").trim() || "Masivo Session",
+      summary: String(data.summary || "").trim(),
+      thumbnail: String(data.thumbnail || "").trim(),
+      driveUrl: String(data.driveUrl || "").trim(),
+      resources: normalizeSessionResources(data.resources),
+      date: data.date || todayISO(),
+      presenterId: data.presenterId || currentUser()?.id || "",
+      duration: Number(data.duration || 0),
+      tags: (Array.isArray(data.tags) ? data.tags : String(data.tags || "").split(",")).map((tag) => String(tag).trim()).filter(Boolean),
+      status: data.status === "publicado" ? "publicado" : "borrador",
+      trainingId: "",
+      createdBy: currentUser()?.id || "sistema",
+      createdAt: new Date().toISOString()
+    };
+    state.sessions.unshift(session);
+    commit({ action: "creó", entity: "Masivo Session", entityId: session.id, detail: session.title });
+    return session;
+  }
+
+  function updateSession(id, data) {
+    const session = sessionById(id);
+    if (!session) return null;
+    session.title = String(data.title || "").trim() || session.title;
+    session.summary = data.summary !== undefined ? String(data.summary || "").trim() : session.summary;
+    session.thumbnail = data.thumbnail !== undefined ? String(data.thumbnail || "").trim() : session.thumbnail;
+    session.driveUrl = data.driveUrl !== undefined ? String(data.driveUrl || "").trim() : session.driveUrl;
+    session.resources = data.resources !== undefined ? normalizeSessionResources(data.resources, session.resources) : session.resources;
+    session.date = data.date || session.date;
+    session.presenterId = data.presenterId || session.presenterId;
+    session.duration = data.duration !== undefined ? Number(data.duration || 0) : session.duration;
+    if (data.tags !== undefined) {
+      session.tags = (Array.isArray(data.tags) ? data.tags : String(data.tags || "").split(",")).map((tag) => String(tag).trim()).filter(Boolean);
+    }
+    if (data.status) session.status = data.status === "publicado" ? "publicado" : "borrador";
+    commit({ action: "editó", entity: "Masivo Session", entityId: id, detail: session.title });
+    return session;
+  }
+
+  function deleteSession(id) {
+    const session = sessionById(id);
+    if (!session) return false;
+    state.sessions = state.sessions.filter((item) => item.id !== id);
+    state.sessionViews = state.sessionViews.filter((view) => view.sessionId !== id);
+    state.trainings.forEach((training) => {
+      if (training.sessionId === id) training.sessionId = "";
+    });
+    commit({ action: "eliminó", entity: "Masivo Session", entityId: id, detail: session.title });
+    return true;
+  }
+
+  function markSessionViewed(sessionId, userId) {
+    const session = sessionById(sessionId);
+    if (!session) return null;
+    const target = userId || currentUser()?.id;
+    if (!target) return null;
+    const existing = state.sessionViews.find((view) => view.sessionId === sessionId && view.userId === target);
+    if (existing) {
+      existing.date = todayISO();
+      return existing;
+    }
+    const view = { id: uid("msv"), sessionId, userId: target, date: todayISO() };
+    state.sessionViews.push(view);
+    commit();
+    return view;
+  }
+
+  function sessionViewFor(sessionId, userId) {
+    return state.sessionViews.find((view) => view.sessionId === sessionId && view.userId === (userId || currentUser()?.id)) || null;
+  }
+
+  function sessionStats(userId) {
+    const published = state.sessions.filter((session) => session.status === "publicado");
+    const viewed = new Set(state.sessionViews.filter((view) => view.userId === userId).map((view) => view.sessionId));
+    const seen = published.filter((session) => viewed.has(session.id)).length;
+    return {
+      total: published.length,
+      viewed: seen,
+      pending: Math.max(0, published.length - seen),
+      pct: published.length ? Math.round((seen / published.length) * 100) : 0
+    };
+  }
+
   /* ---------------- mutaciones: capacitaciones ---------------- */
 
   function addTraining(data) {
@@ -1896,6 +2016,7 @@
       level: data.level || "inicial",
       minutes: Number(data.minutes || 30),
       passScore: Number(data.passScore || 70),
+      sessionId: data.sessionId || "",
       questions: data.questions || []
     };
     state.trainings.push(training);
@@ -2354,6 +2475,10 @@
     unitById,
     trainingById,
     checklistById,
+    sessionById,
+    sessionsList,
+    sessionViewFor,
+    sessionStats,
     studentById,
     cohortById,
     leadById,
@@ -2449,6 +2574,10 @@
     respondStrike,
     archiveStrike,
     addReport,
+    addSession,
+    updateSession,
+    deleteSession,
+    markSessionViewed,
     addTraining,
     saveTrainingRecord,
     addLead,

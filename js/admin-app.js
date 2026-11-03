@@ -107,6 +107,7 @@
     month: D.monthKey(0),
     contentWeek: D.weekStart(0),
     opsTab: "tareas",
+    trainingTab: "training",
     academyTab: "resumen",
     pointsTab: "puntos",
     pointsRange: "all",
@@ -3183,22 +3184,44 @@
   /* ---------------- capacitaciones ---------------- */
 
   function renderTraining(self = false) {
-    const barbers = self ? [S.currentUser()].filter(Boolean) : S.barbers();
-    const trainings = S.getState().trainings;
-    const records = S.getState().trainingRecords;
     const canManage = S.isOwner() || S.can("training.manage");
+    const onSessions = ui.trainingTab === "session";
+    const trainings = S.getState().trainings;
+    const sessions = S.sessionsList({ includeDrafts: canManage });
     const myStats = self ? S.trainingStats(S.currentUserId()) : null;
+
+    const actions = canManage
+      ? (onSessions
+        ? btn("Nueva Masivo Session", { action: "new-session", icon: "plus", variant: "primary" })
+        : btn("Nuevo examen", { action: "new-training", icon: "plus", variant: "primary" }))
+      : "";
 
     return `<section class="page">
       ${pageHead({
         kicker: self ? "Mi espacio · capacitaciones" : "Operación · formación",
         title: self ? "Tus capacitaciones" : "Capacitaciones",
-        desc: self ? "Cada capacitación tiene un mini quiz. Si aprobás, sumás puntos y queda en tu ficha." : "Contenido corto, quiz y registro por persona. Se ve quién aprobó, quién quedó debajo y qué falta.",
-        actions: canManage ? btn("Nueva capacitación", { action: "new-training", icon: "plus", variant: "primary" }) : "",
-        meta: `<span><svg><use href="#i-graduation"/></svg>${trainings.length} módulos</span><span><svg><use href="#i-users"/></svg>${barbers.length} ${barbers.length === 1 ? "persona" : "personas"}</span>${myStats ? `<span><svg><use href="#i-check-circle"/></svg>${myStats.approved}/${myStats.total} aprobadas</span>` : ""}`,
+        desc: self
+          ? "Mirá las Masivo Session cuando quieras y rendí los exámenes de Training. Aprobar suma puntos y queda en tu ficha."
+          : "Training: los exámenes internos del equipo. Masivo Session: las capacitaciones presenciales con grabación, resumen y material descargable.",
+        actions,
+        meta: `<span><svg><use href="#i-graduation"/></svg>${trainings.length} exámenes</span><span><svg><use href="#i-play"/></svg>${sessions.length} Masivo Session</span>${myStats ? `<span><svg><use href="#i-check-circle"/></svg>${myStats.approved}/${myStats.total} aprobadas</span>` : ""}`,
         hero: true
       })}
 
+      <nav class="page-tabs">
+        <button class="tab ${!onSessions ? "active" : ""}" type="button" data-action="training-tab" data-id="training">Training${trainings.length ? `<span class="tab-badge">${trainings.length}</span>` : ""}</button>
+        <button class="tab ${onSessions ? "active" : ""}" type="button" data-action="training-tab" data-id="session">Masivo Session${sessions.length ? `<span class="tab-badge">${sessions.length}</span>` : ""}</button>
+      </nav>
+
+      ${onSessions ? renderSessions(sessions, self, canManage) : renderTrainingBoard(self, trainings, canManage, myStats)}
+    </section>`;
+  }
+
+  function renderTrainingBoard(self, trainings, canManage, myStats) {
+    const barbers = self ? [S.currentUser()].filter(Boolean) : S.barbers();
+    const records = S.getState().trainingRecords;
+
+    return `
       ${myStats ? `<div class="metric-grid metric-grid--4">
         ${metricCard({ label: "Aprobadas", counterValue: myStats.approved, format: "number", icon: "check-circle", tone: "green", foot: `de ${myStats.total} módulos` })}
         ${metricCard({ label: "Pendientes", counterValue: myStats.pending, format: "number", icon: "clock", tone: myStats.pending ? "amber" : "green", foot: "para rendir" })}
@@ -3218,6 +3241,7 @@
               ${self ? (myRecord ? status(myRecord.status === "aprobado" ? `Aprobada · ${myRecord.score}%` : `Desaprobada · ${myRecord.score}%`, myRecord.status === "aprobado" ? "ok" : "danger") : status("Pendiente", "warn")) : status(`${completion}% del equipo`, completion >= 100 ? "ok" : completion > 0 ? "info" : "muted")}
             </div>
             <h2>${esc(training.title)}</h2>
+            ${training.sessionId && S.sessionById(training.sessionId) ? `<span class="session-tag session-tag--exam"><svg><use href="#i-play"/></svg>Desde ${esc(S.sessionById(training.sessionId).title)}</span>` : ""}
             <p class="training-desc">${esc(training.description)}</p>
             <div class="training-meta"><span><svg><use href="#i-target"/></svg>${esc(LEVEL_LABEL[training.level] || training.level)}</span><span><svg><use href="#i-clock"/></svg>${training.minutes} min</span><span><svg><use href="#i-check-circle"/></svg>${training.passScore}% para aprobar</span><span><svg><use href="#i-list"/></svg>${training.questions.length} preguntas</span></div>
             <div class="training-completion"><div class="training-progress" style="margin-bottom:4px">${progressBar(self ? (myRecord?.status === "aprobado" ? 100 : 0) : completion, completion >= 100 ? "green" : "violet")}</div><small>${self ? (myRecord ? `Último intento ${date(myRecord.date)}` : "Todavía no la rendiste") : `${approved}/${barbers.length} aprobadas`}</small></div>
@@ -3243,7 +3267,69 @@
           </tr>`).join("")}</tbody>
         </table></div></div>
       </article>` : ""}
-    </section>`;
+    `;
+  }
+
+  /* ---------------- masivo session ---------------- */
+
+  function sessionCover(session, extraClass = "") {
+    const thumb = String(session.thumbnail || "").trim();
+    const label = esc(session.title || "Masivo Session");
+    if (thumb) {
+      return `<div class="session-cover ${extraClass}"><img src="${esc(thumb)}" alt="${label}" loading="lazy"><span class="session-cover-shade"></span></div>`;
+    }
+    const initials = String(session.title || "MS").split(/\s+/).slice(0, 2).map((word) => word[0] || "").join("").toUpperCase();
+    return `<div class="session-cover session-cover--fallback ${extraClass}"><span class="session-cover-initials">${esc(initials)}</span><span class="session-cover-shade"></span></div>`;
+  }
+
+  function renderSessions(sessions, self, canManage) {
+    const stat = self ? S.sessionStats(S.currentUserId()) : null;
+    const published = sessions.filter((session) => session.status === "publicado");
+    const drafts = sessions.filter((session) => session.status !== "publicado");
+    const ordered = published.concat(drafts);
+
+    return `
+      ${self ? `<div class="metric-grid metric-grid--3">
+        ${metricCard({ label: "Sesiones vistas", counterValue: stat.viewed, format: "number", icon: "eye", tone: "green", foot: `de ${stat.total} publicadas` })}
+        ${metricCard({ label: "Te faltan", counterValue: stat.pending, format: "number", icon: "play", tone: stat.pending ? "amber" : "green", foot: "para ver" })}
+        ${metricCard({ label: "Avance", counterValue: stat.pct, format: "number", suffix: "%", icon: "trending", tone: "violet", foot: "del plan de sesiones" })}
+      </div>` : ""}
+
+      ${!self && drafts.length ? `<div class="session-draft-note"><svg><use href="#i-eye-off"/></svg><span>${plural(drafts.length, "módulo en borrador", "módulos en borrador")} · solo los ves vos hasta que los publiques.</span></div>` : ""}
+
+      <div class="session-grid">
+        ${ordered.length ? ordered.map((session) => {
+          const viewed = self ? S.sessionViewFor(session.id, S.currentUserId()) : null;
+          const isDraft = session.status !== "publicado";
+          const presenter = S.userById(session.presenterId);
+          const resources = Array.isArray(session.resources) ? session.resources.length : 0;
+          const linked = session.trainingId ? S.trainingById(session.trainingId) : null;
+          return `<article class="session-card ${isDraft ? "is-draft" : ""}" data-action="open-session" data-id="${esc(session.id)}" role="button" tabindex="0" aria-label="${esc(session.title)}">
+            <div class="session-cover-wrap">
+              ${sessionCover(session)}
+              <span class="session-play"><svg><use href="#i-play"/></svg></span>
+              ${isDraft ? `<span class="session-flag session-flag--draft">Borrador</span>` : viewed ? `<span class="session-flag session-flag--seen"><svg><use href="#i-check"/></svg>Visto</span>` : `<span class="session-flag">Nuevo</span>`}
+            </div>
+            <div class="session-body">
+              <div class="session-topline">
+                <span class="session-tag">${esc((session.tags && session.tags[0]) || "Masivo Session")}</span>
+                ${linked ? `<span class="session-tag session-tag--exam"><svg><use href="#i-graduation"/></svg>Con examen</span>` : ""}
+              </div>
+              <h2>${esc(session.title)}</h2>
+              <p class="session-summary">${session.summary ? esc(session.summary) : (canManage ? "Sin resumen todavía. Completá el módulo para que el equipo sepa de qué se trata." : "El resumen se publica pronto.")}</p>
+              <div class="session-meta">
+                <span><svg><use href="#i-calendar"/></svg>${date(session.date)}</span>
+                ${session.duration ? `<span><svg><use href="#i-clock"/></svg>${session.duration} min</span>` : ""}
+                ${presenter ? `<span><svg><use href="#i-user"/></svg>${esc(presenter.name.split(" ")[0])}</span>` : ""}
+              </div>
+              <div class="session-foot">
+                <span class="session-res"><svg><use href="#i-file"/></svg>${plural(resources, "recurso", "recursos")}</span>
+                <span class="session-open">Ver módulo <svg><use href="#i-arrow"/></svg></span>
+              </div>
+            </div>
+          </article>`;
+        }).join("") : emptyState("Sin Masivo Session", canManage ? "Creá el primer módulo con la grabación y el material." : "Todavía no hay sesiones publicadas.", "play")}
+      </div>`;
   }
 
   /* ---------------- puntos y strikes ---------------- */
@@ -4778,10 +4864,165 @@
 
   /* ---------------- modales: capacitaciones ---------------- */
 
-  function openTraining() {
-    if (!(S.isOwner() || S.can("training.manage"))) return toast("No tenés permiso para crear capacitaciones.", "error");
+  function sessionCoverField(session) {
+    const thumb = session?.thumbnail || "";
+    return `<div class="field field--full">
+      <label>Miniatura</label>
+      <div class="thumb-picker">
+        <div class="thumb-preview" id="session-thumb-preview">${thumb ? `<img src="${esc(thumb)}" alt="">` : `<span><svg><use href="#i-image"/></svg>Sin miniatura</span>`}</div>
+        <div class="thumb-actions">
+          <button class="btn btn--soft btn--sm" type="button" data-action="pick-session-thumb"><svg><use href="#i-upload"/></svg>Subir imagen</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-action="clear-session-thumb">Quitar</button>
+          <span class="form-hint">Un screenshot de la grabación. Ideal 16:9.</span>
+        </div>
+      </div>
+      <input type="hidden" name="thumbnail" id="f-thumbnail" value="${esc(thumb)}">
+    </div>`;
+  }
+
+  function openSessionForm(id = "") {
+    if (!(S.isOwner() || S.can("training.manage"))) return toast("No tenés permiso para editar Masivo Session.", "error");
+    const session = id ? S.sessionById(id) : null;
+    const resourcesText = session ? (session.resources || []).map((item) => `${item.label} | ${item.url || ""}`).join("\n") : "";
     const body = `<div class="form-grid">
-      ${textInput("title", "Título", "", { required: true, full: true })}
+      ${textInput("title", "Nombre de la sesión", session?.title || "", { required: true, full: true, placeholder: "Ej: Ventas" })}
+      ${textInput("date", "Fecha", session?.date || D.iso(new Date()), { type: "date" })}
+      ${selectField("presenterId", "Quién la dio", userOptions(session?.presenterId || S.currentUserId()), session?.presenterId || S.currentUserId())}
+      ${textInput("duration", "Duración (min)", session?.duration || 60, { type: "number", min: 0 })}
+      ${selectField("status", "Visibilidad", optionsFrom([["publicado", "Publicada para el equipo"], ["borrador", "Borrador (solo managers)"]], session?.status || "borrador"), session?.status || "borrador")}
+      ${textInput("tags", "Etiqueta", (session?.tags || []).join(", "), { full: true, placeholder: "Ventas, Contenido, Atención al cliente…" })}
+      ${textArea("summary", "Resumen de la capacitación", session?.summary || "", { rows: 4, placeholder: "Qué se vio, qué se llevan y por qué importa. 3 o 4 líneas." })}
+      ${textInput("driveUrl", "Link de Google Drive", session?.driveUrl || "", { full: true, placeholder: "https://drive.google.com/…" })}
+      ${textArea("resources", "Material y plantillas (una por línea: Nombre | URL)", resourcesText, { rows: 4, placeholder: "Plantilla de seguimiento | https://drive.google.com/…" })}
+      ${sessionCoverField(session)}
+    </div>`;
+    openModal({
+      kicker: "Masivo Session",
+      title: session ? "EDITAR SESIÓN" : "NUEVA SESIÓN",
+      sub: "Como un módulo de Skool: portada, resumen, grabación y material.",
+      body,
+      submitLabel: session ? "Guardar cambios" : "Crear módulo",
+      size: "lg",
+      onSubmit: (data) => {
+        if (!String(data.title || "").trim()) throw new Error("La sesión necesita un nombre.");
+        const resources = String(data.resources || "").split("\n").map((line) => line.trim()).filter(Boolean).map((line) => {
+          const [label, ...rest] = line.split("|");
+          return { label: label.trim(), url: rest.join("|").trim() };
+        });
+        const payload = {
+          title: data.title,
+          summary: data.summary,
+          driveUrl: data.driveUrl,
+          thumbnail: data.thumbnail,
+          resources,
+          date: data.date,
+          presenterId: data.presenterId,
+          duration: Number(data.duration || 0),
+          tags: String(data.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+          status: data.status
+        };
+        if (session) S.updateSession(session.id, payload);
+        else S.addSession(payload);
+        afterChange(session ? "Módulo actualizado." : "Módulo creado.");
+      }
+    });
+  }
+
+  function pickSessionThumb() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) return toast("Elegí una imagen.", "error");
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          try {
+            const max = 1200;
+            const scale = Math.min(1, max / Math.max(image.width, image.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const context = canvas.getContext("2d");
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL("image/webp", 0.82);
+            const hidden = $("#f-thumbnail");
+            if (hidden) hidden.value = dataUrl;
+            const preview = $("#session-thumb-preview");
+            if (preview) preview.innerHTML = `<img src="${dataUrl}" alt="">`;
+          } catch {
+            toast("No pudimos procesar la imagen.", "error");
+          }
+        };
+        image.onerror = () => toast("No pudimos leer la imagen.", "error");
+        image.src = String(reader.result || "");
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
+  function openSession(id) {
+    const session = S.sessionById(id);
+    if (!session) return;
+    const canManage = S.isOwner() || S.can("training.manage");
+    const isDraft = session.status !== "publicado";
+    if (isDraft && !canManage) return toast("Este módulo todavía no está publicado.", "error");
+    const presenter = S.userById(session.presenterId);
+    const resources = Array.isArray(session.resources) ? session.resources : [];
+    const linked = session.trainingId ? S.trainingById(session.trainingId) : null;
+    if (!S.sessionViewFor(session.id, S.currentUserId())) {
+      S.markSessionViewed(session.id, S.currentUserId());
+      renderView();
+    }
+    const body = `<div class="session-detail">
+      ${sessionCover(session, "session-cover--detail")}
+      <div class="session-detail-meta">
+        <span class="session-tag">${esc((session.tags && session.tags[0]) || "Masivo Session")}</span>
+        <span><svg><use href="#i-calendar"/></svg>${dateFull(session.date)}</span>
+        ${session.duration ? `<span><svg><use href="#i-clock"/></svg>${session.duration} min</span>` : ""}
+        ${presenter ? `<span><svg><use href="#i-user"/></svg>${esc(presenter.name)}</span>` : ""}
+        ${isDraft ? status("Borrador", "warn") : ""}
+      </div>
+      <p class="session-detail-text">${session.summary ? esc(session.summary) : "Sin resumen cargado todavía."}</p>
+
+      ${session.driveUrl
+        ? `<a class="session-cta" href="${esc(session.driveUrl)}" target="_blank" rel="noopener"><span class="session-cta-icon"><svg><use href="#i-play"/></svg></span><span><b>Ver la capacitación completa</b><small>Grabación en Google Drive</small></span><svg class="session-cta-arrow"><use href="#i-arrow"/></svg></a>`
+        : canManage ? `<div class="session-missing"><svg><use href="#i-link"/></svg><span>Falta el link de Google Drive. <button class="link-btn" type="button" data-action="edit-session" data-id="${esc(session.id)}">Agregarlo</button></span></div>` : ""}
+
+      <div class="session-resources">
+        <div class="session-resources-head"><h4>Material y plantillas</h4><span>${plural(resources.length, "recurso", "recursos")}</span></div>
+        ${resources.length
+          ? `<ul>${resources.map((item) => `<li><a href="${esc(item.url || "#")}" target="_blank" rel="noopener"><span class="session-res-icon"><svg><use href="#i-file"/></svg></span><span class="session-res-copy"><b>${esc(item.label)}</b><small>${item.url ? "Abrir en Drive" : "Sin link"}</small></span><svg><use href="#i-download"/></svg></a></li>`).join("")}</ul>`
+          : `<p class="session-empty-text">Todavía no hay documentos cargados.</p>`}
+      </div>
+
+      ${linked
+        ? `<div class="session-exam"><div><span class="kicker"><i></i>Examen vinculado</span><b>${esc(linked.title)}</b><small>${linked.questions.length} preguntas · ${linked.passScore}% para aprobar</small></div>${S.isBarber() ? `<button class="btn btn--primary btn--sm" type="button" data-action="take-training" data-id="${esc(linked.id)}">Rendir</button>` : ""}</div>`
+        : canManage ? `<button class="btn btn--soft btn--sm" type="button" data-action="new-training" data-session="${esc(session.id)}"><svg><use href="#i-graduation"/></svg>Crear examen de esta sesión</button>` : ""}
+
+      ${canManage ? `<div class="session-admin"><button class="btn btn--ghost btn--sm" type="button" data-action="edit-session" data-id="${esc(session.id)}"><svg><use href="#i-edit"/></svg>Editar módulo</button><button class="btn btn--danger btn--sm" type="button" data-action="confirm-delete" data-kind="session" data-id="${esc(session.id)}"><svg><use href="#i-trash"/></svg>Eliminar</button></div>` : ""}
+    </div>`;
+    openModal({
+      kicker: "Masivo Session",
+      title: String(session.title || "").toUpperCase(),
+      sub: "Resumen, grabación completa y material descargable.",
+      body,
+      hideSubmit: true,
+      cancelLabel: "Cerrar",
+      size: "lg"
+    });
+  }
+
+  function openTraining(sessionId = "") {
+    if (!(S.isOwner() || S.can("training.manage"))) return toast("No tenés permiso para crear capacitaciones.", "error");
+    const session = sessionId ? S.sessionById(sessionId) : null;
+    const body = `<div class="form-grid">
+      ${session ? `<input type="hidden" name="sessionId" value="${esc(session.id)}"><p class="form-hint field--full" style="margin:0">Examen creado desde la Masivo Session <b>${esc(session.title)}</b>.</p>` : ""}
+      ${textInput("title", "Título", session ? `Examen · ${session.title}` : "", { required: true, full: true })}
       ${textArea("description", "Descripción", "", { rows: 2, placeholder: "Qué aprende y para qué sirve" })}
       ${selectField("level", "Nivel", optionsFrom([["inicial", "Inicial"], ["intermedio", "Intermedio"], ["avanzado", "Avanzado"], ["dueno", "Dueño"]], "inicial"), "inicial")}
       ${textInput("minutes", "Duración (min)", 30, { type: "number", min: 1 })}
@@ -4796,14 +5037,14 @@
       </div>
     </div>`).join("")}`;
     openModal({
-      kicker: "Capacitaciones",
-      title: "NUEVO MÓDULO",
-      sub: "Contenido corto + mini quiz. Aprobar suma puntos.",
+      kicker: "Training",
+      title: "NUEVO EXAMEN",
+      sub: "Preguntas de repaso para el equipo. Aprobar suma puntos.",
       body,
-      submitLabel: "Crear módulo",
+      submitLabel: "Crear examen",
       size: "lg",
       onSubmit: (data) => {
-        if (!data.title.trim()) throw new Error("El módulo necesita un título.");
+        if (!data.title.trim()) throw new Error("El examen necesita un título.");
         const questions = [1, 2, 3]
           .map((index) => {
             const question = String(data[`q${index}`] || "").trim();
@@ -4819,9 +5060,10 @@
           level: data.level,
           minutes: Number(data.minutes || 30),
           passScore: Number(data.passScore || 70),
+          sessionId: data.sessionId || "",
           questions
         });
-        afterChange("Módulo creado con su mini quiz.");
+        afterChange("Examen creado con su mini quiz.");
       }
     });
   }
@@ -5758,9 +6000,34 @@
         if (piece) toast(`${piece.title} → ${stageLabel(piece.stage)}${piece.stage === "publicado" ? " · puntos acreditados" : ""}.`);
         return;
       }
-      case "new-training":
-        openTraining();
+      case "training-tab":
+        ui.trainingTab = id === "session" ? "session" : "training";
+        renderView();
         return;
+      case "new-training":
+        if (document.querySelector("#modal-root.open")) closeModal();
+        openTraining(target.dataset.session || "");
+        return;
+      case "new-session":
+        openSessionForm();
+        return;
+      case "edit-session":
+        if (document.querySelector("#modal-root.open")) closeModal();
+        openSessionForm(id);
+        return;
+      case "open-session":
+        openSession(id);
+        return;
+      case "pick-session-thumb":
+        pickSessionThumb();
+        return;
+      case "clear-session-thumb": {
+        const hidden = $("#f-thumbnail");
+        if (hidden) hidden.value = "";
+        const preview = $("#session-thumb-preview");
+        if (preview) preview.innerHTML = `<span><svg><use href="#i-image"/></svg>Sin miniatura</span>`;
+        return;
+      }
       case "training-record":
         openTrainingRecord(target.dataset.training || "", target.dataset.user || "");
         return;
@@ -5959,6 +6226,19 @@
         onConfirm: () => {
           S.deleteChecklist(id);
           afterChange("Checklist eliminado.");
+        }
+      });
+      return;
+    }
+    if (kind === "session") {
+      const session = state.sessions.find((item) => item.id === id);
+      if (!session) return;
+      confirmDialog({
+        title: "ELIMINAR MASIVO SESSION",
+        text: `“${session.title}” se borra con su material y sus vistas. Los exámenes creados desde esta sesión se conservan.`,
+        onConfirm: () => {
+          S.deleteSession(id);
+          afterChange("Módulo eliminado.");
         }
       });
       return;
