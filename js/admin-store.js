@@ -1244,6 +1244,14 @@
     return unit;
   }
 
+  function archiveUnit(id) {
+    const unit = state.units.find((item) => item.id === id);
+    if (!unit) return false;
+    unit.active = false;
+    commit({ action: "archivó", entity: "Unidad", entityId: id, detail: unit.name });
+    return true;
+  }
+
   function toggleUnit(id) {
     const unit = unitById(id);
     if (!unit) return false;
@@ -1504,6 +1512,27 @@
     state.meetings.unshift(meeting);
     commit({ action: "creó", entity: "Reunión", entityId: meeting.id, detail: meeting.title });
     return meeting;
+  }
+
+  function updateMeeting(id, data) {
+    const meeting = state.meetings.find((item) => item.id === id);
+    if (!meeting) return null;
+    meeting.title = data.title || meeting.title;
+    meeting.date = data.date || meeting.date;
+    meeting.attendees = data.attendees || meeting.attendees;
+    meeting.notes = data.notes !== undefined ? data.notes : meeting.notes;
+    meeting.decisions = data.decisions !== undefined ? data.decisions : meeting.decisions;
+    meeting.actions = data.actions !== undefined ? data.actions : meeting.actions;
+    commit({ action: "editó", entity: "Reunión", entityId: id, detail: meeting.title });
+    return meeting;
+  }
+
+  function deleteMeeting(id) {
+    const meeting = state.meetings.find((item) => item.id === id);
+    if (!meeting) return false;
+    state.meetings = state.meetings.filter((item) => item.id !== id);
+    commit({ action: "eliminó", entity: "Reunión", entityId: id, detail: meeting.title });
+    return true;
   }
 
   /* ---------------- meetbarber: sesiones uno a uno ---------------- */
@@ -1814,19 +1843,46 @@
   /* ---------------- mutaciones: puntos / strikes ---------------- */
 
   function awardPoints(data) {
+    const value = Math.round(Number(data.points || 0));
     const entry = {
       id: uid("pt"),
       userId: data.userId,
       date: data.date || todayISO(),
-      points: Math.round(Number(data.points || 0)),
+      points: value,
       reason: data.reason,
-      category: data.category || "manual",
+      category: data.category || (value < 0 ? "ajuste" : "manual"),
       refId: data.refId || null,
       createdBy: currentUser()?.id || "sistema"
     };
     state.points.push(entry);
-    commit({ action: "otorgó", entity: "Puntos", entityId: entry.userId, detail: `+${entry.points} · ${entry.reason}` });
+    commit({
+      action: value < 0 ? "restó" : "otorgó",
+      entity: "Puntos",
+      entityId: entry.userId,
+      detail: `${value > 0 ? "+" : ""}${entry.points} · ${entry.reason}`
+    });
     return entry;
+  }
+
+  function updatePoints(id, data) {
+    const entry = state.points.find((item) => item.id === id);
+    if (!entry) return null;
+    const value = data.points !== undefined ? Math.round(Number(data.points || 0)) : entry.points;
+    entry.points = value;
+    entry.reason = data.reason !== undefined ? data.reason : entry.reason;
+    entry.category = data.category || entry.category;
+    entry.date = data.date || entry.date;
+    entry.userId = data.userId || entry.userId;
+    commit({ action: "editó", entity: "Puntos", entityId: entry.userId, detail: `${value > 0 ? "+" : ""}${value} · ${entry.reason}` });
+    return entry;
+  }
+
+  function deletePoints(id) {
+    const entry = state.points.find((item) => item.id === id);
+    if (!entry) return false;
+    state.points = state.points.filter((item) => item.id !== id);
+    commit({ action: "eliminó", entity: "Puntos", entityId: entry.userId, detail: `${entry.points} · ${entry.reason}` });
+    return true;
   }
 
   function addStrike(data) {
@@ -1874,6 +1930,14 @@
     return strike;
   }
 
+  function deleteStrike(id) {
+    const strike = state.strikes.find((item) => item.id === id);
+    if (!strike) return false;
+    state.strikes = state.strikes.filter((item) => item.id !== id);
+    commit({ action: "eliminó", entity: "Strike", entityId: strike.userId, detail: strike.reason });
+    return true;
+  }
+
   function addReport(data) {
     const report = {
       id: uid("rep"),
@@ -1891,6 +1955,14 @@
     state.reports.unshift(report);
     commit({ action: "registró", entity: "Reporte", entityId: report.userId, detail: `${userById(report.userId)?.name || ""} · ${report.type}` });
     return report;
+  }
+
+  function deleteReport(id) {
+    const report = state.reports.find((item) => item.id === id);
+    if (!report) return false;
+    state.reports = state.reports.filter((item) => item.id !== id);
+    commit({ action: "eliminó", entity: "Reporte", entityId: report.userId, detail: `${userById(report.userId)?.name || ""} · ${report.type}` });
+    return true;
   }
 
   /* ---------------- mutaciones: masivo sessions ---------------- */
@@ -2024,6 +2096,31 @@
     return training;
   }
 
+  function updateTraining(id, data) {
+    const training = trainingById(id);
+    if (!training) return null;
+    training.title = data.title ? String(data.title).trim() : training.title;
+    if (data.description !== undefined) training.description = data.description;
+    training.level = data.level || training.level;
+    training.minutes = data.minutes !== undefined ? Number(data.minutes || 0) : training.minutes;
+    training.passScore = data.passScore !== undefined ? Number(data.passScore || 70) : training.passScore;
+    if (data.sessionId !== undefined) training.sessionId = data.sessionId;
+    if (data.questions !== undefined) training.questions = data.questions;
+    commit({ action: "editó", entity: "Capacitación", entityId: id, detail: training.title });
+    return training;
+  }
+
+  function deleteTraining(id) {
+    const training = trainingById(id);
+    if (!training) return false;
+    const recordIds = new Set(state.trainingRecords.filter((record) => record.trainingId === id).map((record) => record.id));
+    state.trainings = state.trainings.filter((item) => item.id !== id);
+    state.trainingRecords = state.trainingRecords.filter((record) => record.trainingId !== id);
+    state.points = state.points.filter((point) => !recordIds.has(point.refId));
+    commit({ action: "eliminó", entity: "Capacitación", entityId: id, detail: training.title });
+    return true;
+  }
+
   function saveTrainingRecord(data) {
     const existing = state.trainingRecords.find((record) => record.trainingId === data.trainingId && record.userId === data.userId);
     const score = Math.max(0, Math.min(100, Math.round(Number(data.score || 0))));
@@ -2086,6 +2183,14 @@
     state.academy.leads.unshift(lead);
     commit({ action: "creó", entity: "Lead", entityId: lead.id, detail: `${lead.name} · ${lead.source}` });
     return lead;
+  }
+
+  function deleteLead(id) {
+    const lead = state.academy.leads.find((item) => item.id === id);
+    if (!lead) return false;
+    state.academy.leads = state.academy.leads.filter((item) => item.id !== id);
+    commit({ action: "eliminó", entity: "Lead", entityId: id, detail: lead.name });
+    return true;
   }
 
   function updateLead(id, data) {
@@ -2311,6 +2416,14 @@
     return product;
   }
 
+  function deleteProduct(id) {
+    const product = state.academy.products.find((item) => item.id === id);
+    if (!product) return false;
+    state.academy.products = state.academy.products.filter((item) => item.id !== id);
+    commit({ action: "eliminó", entity: "Producto", entityId: id, detail: product.name });
+    return true;
+  }
+
   function updateProduct(id, data) {
     const product = productById(id);
     if (!product) return null;
@@ -2533,6 +2646,7 @@
     updateTransaction,
     deleteTransaction,
     upsertUnit,
+    archiveUnit,
     toggleUnit,
     upsertUser,
     toggleUser,
@@ -2557,6 +2671,8 @@
     updateChecklist,
     deleteChecklist,
     addMeeting,
+    updateMeeting,
+    deleteMeeting,
     MEET_RESULTS,
     meetSessions,
     meetSessionFor,
@@ -2570,17 +2686,24 @@
     advanceContent,
     deleteContentPiece,
     awardPoints,
+    updatePoints,
+    deletePoints,
     addStrike,
+    deleteStrike,
     respondStrike,
     archiveStrike,
     addReport,
+    deleteReport,
     addSession,
     updateSession,
     deleteSession,
     markSessionViewed,
     addTraining,
+    updateTraining,
+    deleteTraining,
     saveTrainingRecord,
     addLead,
+    deleteLead,
     updateLead,
     moveLead,
     addCohort,
@@ -2591,6 +2714,7 @@
     markPaymentPending,
     saveAttendance,
     addProduct,
+    deleteProduct,
     updateProduct,
     stockMove,
     saveSettings,

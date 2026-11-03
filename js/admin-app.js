@@ -2008,6 +2008,7 @@
               <div><h2 class="unit-name">${esc(item.unit.name)}</h2><span class="unit-kind">${esc(item.unit.kind)}</span></div>
             </div>
             <button class="row-action" type="button" data-action="edit-unit" data-id="${esc(item.unit.id)}" title="Editar unidad"><svg><use href="#i-edit"/></svg></button>
+            <button class="row-action danger" type="button" data-action="confirm-delete" data-kind="unit" data-id="${esc(item.unit.id)}" title="Archivar unidad"><svg><use href="#i-trash"/></svg></button>
           </div>
           <div class="unit-metrics">
             <div class="unit-metric"><span>Ingresos</span><b>${moneyC(item.income)}</b><small>${item.transactions.filter((tx) => tx.type === "income").length} mov.</small></div>
@@ -2707,6 +2708,7 @@
 
       ${canManage ? `<div class="row" style="justify-content:flex-end">
         ${btn("Sumar puntos", { action: "new-points", id: user.id, icon: "zap", variant: "soft", size: "sm" })}
+        ${btn("Restar puntos", { action: "subtract-points", id: user.id, icon: "trending", size: "sm" })}
         ${btn("Registrar strike", { action: "new-strike", id: user.id, icon: "shield", size: "sm" })}
         ${btn("Reporte", { action: "new-report", id: user.id, icon: "file", size: "sm" })}
       </div>` : ""}
@@ -2736,7 +2738,7 @@
           <article class="panel" data-reveal>
             <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Reportes de trabajo</h2><p class="panel-sub">${reports.length} registros</p></div>${canManage || self ? btn("Nuevo reporte", { action: "new-report", id: user.id, icon: "plus", size: "sm", variant: "soft" }) : ""}</div>
             <div class="panel-body" style="display:flex;flex-direction:column;gap:8px">
-              ${reports.length ? reports.slice(0, 6).map((report) => `<div class="report-card"><div class="report-card-head"><b style="font-size:12.5px">${esc(report.type)}</b><span class="status status--muted">${date(report.date)}</span></div><p>${esc(report.summary)}</p><div class="report-metrics"><span><b>${report.metrics.cortes}</b> cortes</span><span><b>${report.metrics.ventas}</b> ventas</span><span><b>${report.metrics.resenas}</b> reseñas</span></div></div>`).join("") : emptyState("Sin reportes", "Todavía no cargó ninguno.", "file")}
+              ${reports.length ? reports.slice(0, 6).map((report) => `<div class="report-card"><div class="report-card-head"><b style="font-size:12.5px">${esc(report.type)}</b><span style="display:flex;align-items:center;gap:4px"><span class="status status--muted">${date(report.date)}</span>${canManage ? `<button class="row-action danger" type="button" data-action="confirm-delete" data-kind="report" data-id="${esc(report.id)}" title="Eliminar reporte"><svg><use href="#i-trash"/></svg></button>` : ""}</span></div><p>${esc(report.summary)}</p><div class="report-metrics"><span><b>${report.metrics.cortes}</b> cortes</span><span><b>${report.metrics.ventas}</b> ventas</span><span><b>${report.metrics.resenas}</b> reseñas</span></div></div>`).join("") : emptyState("Sin reportes", "Todavía no cargó ninguno.", "file")}
             </div>
           </article>
         </div>
@@ -2914,6 +2916,10 @@
           </div>
         </div>
         <div class="meeting-side">
+          ${S.isOwner() || S.can("operacion") ? `<div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:6px">
+            <button class="row-action" type="button" data-action="edit-meeting" data-id="${esc(meeting.id)}" title="Editar acta"><svg><use href="#i-edit"/></svg></button>
+            <button class="row-action danger" type="button" data-action="confirm-delete" data-kind="meeting" data-id="${esc(meeting.id)}" title="Eliminar acta"><svg><use href="#i-trash"/></svg></button>
+          </div>` : ""}
           <h3>Decisiones</h3>
           <ul class="decision-list">${meeting.decisions.length ? meeting.decisions.map((decision) => `<li>${esc(decision)}</li>`).join("") : "<li>Sin decisiones registradas.</li>"}</ul>
           <h3 style="margin-top:4px">Acciones</h3>
@@ -3247,7 +3253,11 @@
             <div class="training-completion"><div class="training-progress" style="margin-bottom:4px">${progressBar(self ? (myRecord?.status === "aprobado" ? 100 : 0) : completion, completion >= 100 ? "green" : "violet")}</div><small>${self ? (myRecord ? `Último intento ${date(myRecord.date)}` : "Todavía no la rendiste") : `${approved}/${barbers.length} aprobadas`}</small></div>
             <div class="training-foot">
               ${self ? `<button class="btn btn--primary btn--sm" type="button" data-action="take-training" data-id="${esc(training.id)}" ${training.questions.length ? "" : "disabled"}>${myRecord ? "Volver a rendir" : "Rendir"} <svg><use href="#i-arrow"/></svg></button>` : `<span class="section-sub">${trainingRecords.length} intentos registrados</span>`}
-              ${canManage ? `<button class="row-action" type="button" data-action="training-record" data-training="${esc(training.id)}" title="Cargar resultado"><svg><use href="#i-edit"/></svg></button>` : ""}
+              ${canManage ? `<div style="display:flex;gap:2px">
+                <button class="row-action" type="button" data-action="training-record" data-training="${esc(training.id)}" title="Cargar resultado"><svg><use href="#i-check-square"/></svg></button>
+                <button class="row-action" type="button" data-action="edit-training" data-id="${esc(training.id)}" title="Editar examen"><svg><use href="#i-edit"/></svg></button>
+                <button class="row-action danger" type="button" data-action="confirm-delete" data-kind="training" data-id="${esc(training.id)}" title="Eliminar examen"><svg><use href="#i-trash"/></svg></button>
+              </div>` : ""}
             </div>
           </article>`;
         }).join("") || emptyState("Sin capacitaciones", "Creá el primer módulo.", "graduation")}
@@ -3374,7 +3384,7 @@
         kicker: self ? "Mi espacio · puntos y strikes" : "Operación · reconocimiento y conducta",
         title: self ? "Tus puntos" : "Puntos y strikes",
         desc: self ? "Los puntos se ganan con contenido, ventas y capacitaciones. Los strikes son sanciones con motivo, evidencia y descargo." : "Dos sistemas separados: puntos para premiar lo objetivo, strikes para cuidar la conducta. Tres strikes activos pueden discontinuar la relación.",
-        actions: canManage ? `${btn("Sumar puntos", { action: "new-points", icon: "zap", variant: "soft" })}${btn("Registrar strike", { action: "new-strike", icon: "shield", variant: "danger" })}` : "",
+        actions: canManage ? `${btn("Sumar puntos", { action: "new-points", icon: "zap", variant: "soft" })}${btn("Restar puntos", { action: "subtract-points", icon: "trending", variant: "ghost" })}${btn("Registrar strike", { action: "new-strike", icon: "shield", variant: "danger" })}` : "",
         meta: `<span><svg><use href="#i-zap"/></svg>${num(totalPoints)} puntos</span><span><svg><use href="#i-shield"/></svg>${plural(activeCount, "strike activo", "strikes activos")}</span><span><svg><use href="#i-scale"/></svg>límite ${strikeLimit()}</span>`,
         hero: true
       })}
@@ -3431,14 +3441,18 @@
           <article class="panel" data-reveal>
             <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Historial de puntos</h2><p class="panel-sub">${rangePoints.length} movimientos · ${rangeLabel}</p></div></div>
             <div class="table-wrap"><table class="data-table">
-              <thead><tr>${self ? "" : "<th>Persona</th>"}<th>Motivo</th><th>Categoría</th><th>Puntos</th><th>Fecha</th></tr></thead>
+              <thead><tr>${self ? "" : "<th>Persona</th>"}<th>Motivo</th><th>Categoría</th><th>Puntos</th><th>Fecha</th>${canManage && !self ? "<th></th>" : ""}</tr></thead>
               <tbody>${rangePoints.length ? rangePoints.map((entry) => `<tr>
                 ${self ? "" : `<td>${userInline(S.userById(entry.userId))}</td>`}
                 <td><b style="font-size:12px">${esc(entry.reason)}</b><small style="display:block;color:var(--muted-2);font-size:12.5px">${esc(S.userById(entry.createdBy)?.name || "Sistema")}</small></td>
                 <td><span class="category-pill ${esc(entry.category)}">${esc(categoryLabel(entry.category))}</span></td>
-                <td><span class="cell-amount text-cyan">+${entry.points}</span></td>
+                <td><span class="cell-amount ${entry.points < 0 ? "text-red" : "text-cyan"}">${entry.points > 0 ? "+" : ""}${entry.points}</span></td>
                 <td><span class="mono" style="font-size:12.5px">${date(entry.date)}</span></td>
-              </tr>`).join("") : `<tr><td colspan="${self ? 4 : 5}">${emptyState("Sin puntos", "Todavía no hay movimientos.", "zap")}</td></tr>`}</tbody>
+                ${canManage && !self ? `<td><div style="display:flex;gap:2px;justify-content:flex-end">
+                  <button class="row-action" type="button" data-action="edit-points" data-id="${esc(entry.id)}" title="Editar movimiento"><svg><use href="#i-edit"/></svg></button>
+                  <button class="row-action danger" type="button" data-action="confirm-delete" data-kind="points" data-id="${esc(entry.id)}" title="Eliminar movimiento"><svg><use href="#i-trash"/></svg></button>
+                </div></td>` : ""}
+              </tr>`).join("") : `<tr><td colspan="${self ? 4 : canManage ? 6 : 5}">${emptyState("Sin puntos", "Todavía no hay movimientos.", "zap")}</td></tr>`}</tbody>
             </table></div>
           </article>
         </div>
@@ -3477,6 +3491,7 @@
                 ${(self || strike.userId === S.currentUserId()) && state === "activo" ? `<button class="btn btn--ghost btn--sm" type="button" data-action="respond-strike" data-id="${esc(strike.id)}">${strike.response ? "Editar descargo" : "Dejar descargo"} <svg><use href="#i-message"/></svg></button>` : ""}
                 ${canManage && state === "activo" ? `<button class="btn btn--danger btn--sm" type="button" data-action="archive-strike" data-id="${esc(strike.id)}">Archivar <svg><use href="#i-check"/></svg></button>` : ""}
                 ${canManage ? `<button class="row-action" type="button" data-action="new-strike" data-id="${esc(strike.userId)}" title="Nuevo strike para ${esc(barber?.name || "")}"><svg><use href="#i-plus"/></svg></button>` : ""}
+                ${canManage ? `<button class="row-action danger" type="button" data-action="confirm-delete" data-kind="strike" data-id="${esc(strike.id)}" title="Eliminar strike"><svg><use href="#i-trash"/></svg></button>` : ""}
               </div>
             </article>`;
           }).join("") : emptyState("Sin strikes en este filtro", "No hay registros para mostrar.", "shield")}
@@ -3626,6 +3641,7 @@
                   ${next && stage !== "perdido" ? `<button class="btn btn--soft btn--sm" type="button" data-action="${next === "inscripto" ? "enroll-lead" : "move-lead"}" data-id="${esc(lead.id)}" ${next === "inscripto" ? "" : `data-stage="${next}"`}>${next === "entrevista" ? "Entrevista" : "Inscribir"} <svg><use href="#i-arrow"/></svg></button>` : ""}
                   ${stage !== "inscripto" ? `<button class="btn btn--ghost btn--sm" type="button" data-action="enroll-lead" data-id="${esc(lead.id)}">A cohorte</button>` : ""}
                   <button class="row-action" type="button" data-action="edit-lead" data-id="${esc(lead.id)}" title="Editar"><svg><use href="#i-edit"/></svg></button>
+                  <button class="row-action danger" type="button" data-action="confirm-delete" data-kind="lead" data-id="${esc(lead.id)}" title="Eliminar lead"><svg><use href="#i-trash"/></svg></button>
                   ${lead.phone ? `<a class="row-action" href="https://wa.me/${esc(String(lead.phone).replace(/[^0-9]/g, ""))}" target="_blank" rel="noopener" title="WhatsApp"><svg><use href="#i-message"/></svg></a>` : ""}
                 </div>
               </article>`;
@@ -3754,6 +3770,7 @@
           <td><div class="cell-actions">
             <button class="row-action" type="button" data-action="stock-move" data-id="${esc(product.id)}" title="Mover stock"><svg><use href="#i-refresh"/></svg></button>
             <button class="row-action" type="button" data-action="edit-product" data-id="${esc(product.id)}" title="Editar"><svg><use href="#i-edit"/></svg></button>
+            <button class="row-action danger" type="button" data-action="confirm-delete" data-kind="product" data-id="${esc(product.id)}" title="Eliminar producto"><svg><use href="#i-trash"/></svg></button>
           </div></td>
         </tr>`).join("")}</tbody>
       </table></div>
@@ -4722,41 +4739,50 @@
     });
   }
 
-  function openMeeting() {
+  function openMeeting(id = "") {
     const state = S.getState();
     const active = state.users.filter((user) => user.active);
+    const meeting = id ? state.meetings.find((item) => item.id === id) : null;
+    const firstAction = meeting?.actions?.[0] || null;
+    const attendeesSet = new Set(meeting?.attendees || active.map((user) => user.id));
     const body = `<div class="form-grid">
-      ${textInput("title", "Título del acta", `MeetBarber · ${D.weekLabel(D.weekStart(0))}`, { full: true })}
-      ${textInput("date", "Fecha", D.iso(new Date()), { type: "date" })}
-      ${textArea("notes", "Resumen de la reunión", "", { rows: 3, placeholder: "Qué se habló, cómo viene la semana…" })}
-      ${textArea("decisions", "Decisiones", "", { rows: 3, placeholder: "Una decisión por línea" })}
-      ${textInput("actionText", "Acción principal", "", { full: true, placeholder: "Qué se hace y quién lo hace" })}
-      ${selectField("actionOwner", "Responsable de la acción", userOptions("", "all"), "")}
-      ${textInput("actionDue", "Vence", D.daysAhead(7), { type: "date" })}
+      ${textInput("title", "Título del acta", meeting?.title || `MeetBarber · ${D.weekLabel(D.weekStart(0))}`, { full: true })}
+      ${textInput("date", "Fecha", meeting?.date || D.iso(new Date()), { type: "date" })}
+      ${textArea("notes", "Resumen de la reunión", meeting?.notes || "", { rows: 3, placeholder: "Qué se habló, cómo viene la semana…" })}
+      ${textArea("decisions", "Decisiones", meeting ? (meeting.decisions || []).join("\n") : "", { rows: 3, placeholder: "Una decisión por línea" })}
+      ${textInput("actionText", "Acción principal", firstAction?.text || "", { full: true, placeholder: "Qué se hace y quién lo hace" })}
+      ${selectField("actionOwner", "Responsable de la acción", userOptions(firstAction?.ownerId || "", "all"), firstAction?.ownerId || "")}
+      ${textInput("actionDue", "Vence", firstAction?.due || D.daysAhead(7), { type: "date" })}
     </div>
     <div class="modal-section" style="margin-top:14px">
       <h3>Asistentes</h3>
       <div style="display:flex;flex-wrap:wrap;gap:6px 14px">
-        ${active.map((user) => checkField(`attendee-${user.id}`, user.name, true)).join("")}
+        ${active.map((user) => checkField(`attendee-${user.id}`, user.name, attendeesSet.has(user.id))).join("")}
       </div>
     </div>`;
     openModal({
       kicker: "MeetBarber",
-      title: "REGISTRAR REUNIÓN",
+      title: meeting ? "EDITAR ACTA" : "REGISTRAR REUNIÓN",
       sub: "Decisiones y acciones quedan en el acta del equipo.",
       body,
-      submitLabel: "Guardar acta",
+      submitLabel: meeting ? "Guardar cambios" : "Guardar acta",
       size: "lg",
       onSubmit: (data) => {
         const attendees = active
           .filter((user) => data[`attendee-${user.id}`])
           .map((user) => user.id);
         const decisions = String(data.decisions || "").split("\n").map((line) => line.trim()).filter(Boolean);
-        const actions = data.actionText.trim()
-          ? [{ text: data.actionText.trim(), ownerId: data.actionOwner, due: data.actionDue, status: "pendiente" }]
+        let actions = data.actionText.trim()
+          ? [{ text: data.actionText.trim(), ownerId: data.actionOwner, due: data.actionDue, status: firstAction?.status || "pendiente" }]
           : [];
-        S.addMeeting({ title: data.title, date: data.date, notes: data.notes, attendees, decisions, actions });
-        afterChange("Acta de MeetBarber guardada.");
+        if (meeting) actions = actions.concat((meeting.actions || []).slice(1));
+        if (meeting) {
+          S.updateMeeting(meeting.id, { title: data.title, date: data.date, notes: data.notes, attendees, decisions, actions });
+          afterChange("Acta actualizada.");
+        } else {
+          S.addMeeting({ title: data.title, date: data.date, notes: data.notes, attendees, decisions, actions });
+          afterChange("Acta de MeetBarber guardada.");
+        }
       }
     });
   }
@@ -5017,35 +5043,40 @@
     });
   }
 
-  function openTraining(sessionId = "") {
+  function openTraining(sessionId = "", trainingId = "") {
     if (!(S.isOwner() || S.can("training.manage"))) return toast("No tenés permiso para crear capacitaciones.", "error");
-    const session = sessionId ? S.sessionById(sessionId) : null;
+    const training = trainingId ? S.trainingById(trainingId) : null;
+    const session = sessionId ? S.sessionById(sessionId) : training?.sessionId ? S.sessionById(training.sessionId) : null;
+    const slots = [0, 1, 2].map((index) => training?.questions?.[index] || null);
     const body = `<div class="form-grid">
-      ${session ? `<input type="hidden" name="sessionId" value="${esc(session.id)}"><p class="form-hint field--full" style="margin:0">Examen creado desde la Masivo Session <b>${esc(session.title)}</b>.</p>` : ""}
-      ${textInput("title", "Título", session ? `Examen · ${session.title}` : "", { required: true, full: true })}
-      ${textArea("description", "Descripción", "", { rows: 2, placeholder: "Qué aprende y para qué sirve" })}
-      ${selectField("level", "Nivel", optionsFrom([["inicial", "Inicial"], ["intermedio", "Intermedio"], ["avanzado", "Avanzado"], ["dueno", "Dueño"]], "inicial"), "inicial")}
-      ${textInput("minutes", "Duración (min)", 30, { type: "number", min: 1 })}
-      ${textInput("passScore", "Score mínimo para aprobar", 70, { type: "number", min: 1, max: 100 })}
+      ${session ? `<input type="hidden" name="sessionId" value="${esc(session.id)}"><p class="form-hint field--full" style="margin:0">Examen ${training ? "vinculado" : "creado"} desde la Masivo Session <b>${esc(session.title)}</b>.</p>` : ""}
+      ${textInput("title", "Título", training?.title || (session ? `Examen · ${session.title}` : ""), { required: true, full: true })}
+      ${textArea("description", "Descripción", training?.description || "", { rows: 2, placeholder: "Qué aprende y para qué sirve" })}
+      ${selectField("level", "Nivel", optionsFrom([["inicial", "Inicial"], ["intermedio", "Intermedio"], ["avanzado", "Avanzado"], ["dueno", "Dueño"]], training?.level || "inicial"), training?.level || "inicial")}
+      ${textInput("minutes", "Duración (min)", training?.minutes || 30, { type: "number", min: 1 })}
+      ${textInput("passScore", "Score mínimo para aprobar", training?.passScore || 70, { type: "number", min: 1, max: 100 })}
     </div>
-    ${[1, 2, 3].map((index) => `<div class="modal-section" style="margin-top:14px">
+    ${[1, 2, 3].map((index) => {
+      const current = slots[index - 1];
+      return `<div class="modal-section" style="margin-top:14px">
       <h3>Pregunta ${index} ${index === 1 ? "" : "(opcional)"}</h3>
       <div class="form-grid">
-        ${textInput(`q${index}`, "Pregunta", "", { full: true })}
-        ${textInput(`o${index}`, "Opciones separadas con |", "", { full: true, placeholder: "Opción A | Opción B | Opción C" })}
-        ${textInput(`a${index}`, "Respuesta correcta (1, 2 o 3)", 1, { type: "number", min: 1, max: 3 })}
+        ${textInput(`q${index}`, "Pregunta", current?.q || "", { full: true })}
+        ${textInput(`o${index}`, "Opciones separadas con |", current ? current.options.join(" | ") : "", { full: true, placeholder: "Opción A | Opción B | Opción C" })}
+        ${textInput(`a${index}`, "Respuesta correcta (1, 2 o 3)", current ? current.answer + 1 : 1, { type: "number", min: 1, max: 3 })}
       </div>
-    </div>`).join("")}`;
+    </div>`;
+    }).join("")}`;
     openModal({
       kicker: "Training",
-      title: "NUEVO EXAMEN",
+      title: training ? "EDITAR EXAMEN" : "NUEVO EXAMEN",
       sub: "Preguntas de repaso para el equipo. Aprobar suma puntos.",
       body,
-      submitLabel: "Crear examen",
+      submitLabel: training ? "Guardar cambios" : "Crear examen",
       size: "lg",
       onSubmit: (data) => {
         if (!data.title.trim()) throw new Error("El examen necesita un título.");
-        const questions = [1, 2, 3]
+        const edited = [1, 2, 3]
           .map((index) => {
             const question = String(data[`q${index}`] || "").trim();
             const options = String(data[`o${index}`] || "").split("|").map((option) => option.trim()).filter(Boolean);
@@ -5054,16 +5085,23 @@
             return { q: question, options, answer };
           })
           .filter(Boolean);
-        S.addTraining({
+        const questions = training ? edited.concat((training.questions || []).slice(3)) : edited;
+        const payload = {
           title: data.title.trim(),
           description: data.description,
           level: data.level,
           minutes: Number(data.minutes || 30),
           passScore: Number(data.passScore || 70),
-          sessionId: data.sessionId || "",
+          sessionId: data.sessionId !== undefined ? data.sessionId : (training?.sessionId || ""),
           questions
-        });
-        afterChange("Examen creado con su mini quiz.");
+        };
+        if (training) {
+          S.updateTraining(training.id, payload);
+          afterChange("Examen actualizado.");
+        } else {
+          S.addTraining(payload);
+          afterChange("Examen creado con su mini quiz.");
+        }
       }
     });
   }
@@ -5141,27 +5179,38 @@
 
   /* ---------------- modales: puntos y strikes ---------------- */
 
-  function openPoints(userId = "") {
-    if (!(S.isOwner() || S.can("points.manage"))) return toast("No tenés permiso para otorgar puntos.", "error");
+  function openPoints(userId = "", mode = "sumar", pointId = "") {
+    if (!(S.isOwner() || S.can("points.manage"))) return toast("No tenés permiso para mover puntos.", "error");
     const barbers = S.barbers();
     if (!barbers.length) return toast("Primero sumá un barbero.", "error");
+    const entry = pointId ? S.getState().points.find((item) => item.id === pointId) : null;
+    const subtracting = mode === "restar";
+    const target = entry?.userId || userId || barbers[0].id;
     const body = `<div class="form-grid">
-      ${selectField("userId", "Persona", barberOptions(userId || barbers[0].id), userId || barbers[0].id)}
-      ${textInput("points", "Puntos", 20, { type: "number", min: 1, required: true })}
-      ${selectField("category", "Categoría", optionsFrom([["contenido", "Contenido"], ["capacitacion", "Capacitación"], ["ventas", "Ventas"], ["equipo", "Equipo"], ["manual", "Manual"]], "equipo"), "equipo")}
-      ${textInput("date", "Fecha", D.iso(new Date()), { type: "date" })}
-      ${textInput("reason", "Motivo", "", { full: true, required: true, placeholder: "Qué hizo para ganarlos" })}
-    </div>`;
+      ${selectField("userId", "Persona", barberOptions(target), target)}
+      ${textInput("points", subtracting ? "Puntos a restar" : "Puntos", entry ? Math.abs(entry.points) : subtracting ? 10 : 20, { type: "number", min: 1, required: true })}
+      ${selectField("category", "Categoría", optionsFrom([["contenido", "Contenido"], ["capacitacion", "Capacitación"], ["ventas", "Ventas"], ["equipo", "Equipo"], ["manual", "Manual"], ["ajuste", "Ajuste / corrección"]], entry?.category || (subtracting ? "ajuste" : "equipo")), entry?.category || (subtracting ? "ajuste" : "equipo"))}
+      ${textInput("date", "Fecha", entry?.date || D.iso(new Date()), { type: "date" })}
+      ${textInput("reason", "Motivo", entry?.reason || "", { full: true, required: true, placeholder: subtracting ? "Por qué se restan (error, ajuste, corrección)" : "Qué hizo para ganarlos" })}
+    </div>
+    <p class="form-hint" style="margin-top:10px">${subtracting ? "Restar puntos descuenta del total y queda registrado en auditoría. Para una sanción formal usá Strikes." : "Los puntos premian lo objetivo. No son sanción."}</p>`;
     openModal({
-      kicker: "Puntos · reconocimiento",
-      title: "SUMAR PUNTOS",
-      sub: "Los puntos premian lo objetivo. No son sanción.",
+      kicker: "Puntos · ajuste manual",
+      title: entry ? "EDITAR MOVIMIENTO" : subtracting ? "RESTAR PUNTOS" : "SUMAR PUNTOS",
+      sub: entry ? "Corregí el movimiento sin borrar el historial." : subtracting ? "Descuenta puntos con motivo y queda en auditoría." : "Los puntos premian lo objetivo. No son sanción.",
       body,
-      submitLabel: "Otorgar puntos",
+      submitLabel: entry ? "Guardar cambios" : subtracting ? "Restar puntos" : "Otorgar puntos",
       onSubmit: (data) => {
-        if (!data.reason.trim()) throw new Error("Contá el motivo de los puntos.");
-        S.awardPoints({ userId: data.userId, points: Number(data.points), category: data.category, reason: data.reason.trim(), date: data.date });
-        afterChange(`+${Number(data.points)} puntos otorgados.`);
+        if (!data.reason.trim()) throw new Error("Contá el motivo del movimiento.");
+        const magnitude = Math.abs(Number(data.points || 0));
+        const value = subtracting ? -magnitude : magnitude;
+        if (entry) {
+          S.updatePoints(entry.id, { userId: data.userId, points: value, category: data.category, reason: data.reason.trim(), date: data.date });
+          afterChange("Movimiento actualizado.");
+        } else {
+          S.awardPoints({ userId: data.userId, points: value, category: data.category, reason: data.reason.trim(), date: data.date });
+          afterChange(`${value > 0 ? "+" : ""}${value} puntos registrados.`);
+        }
       }
     });
   }
@@ -5971,6 +6020,9 @@
       case "meeting":
         openMeeting();
         return;
+      case "edit-meeting":
+        openMeeting(id);
+        return;
       case "meet-session":
         openMeetSession("", id);
         return;
@@ -6007,6 +6059,9 @@
       case "new-training":
         if (document.querySelector("#modal-root.open")) closeModal();
         openTraining(target.dataset.session || "");
+        return;
+      case "edit-training":
+        openTraining("", id);
         return;
       case "new-session":
         openSessionForm();
@@ -6047,7 +6102,13 @@
         renderView();
         return;
       case "new-points":
-        openPoints(id);
+        openPoints(id, "sumar");
+        return;
+      case "subtract-points":
+        openPoints(id, "restar");
+        return;
+      case "edit-points":
+        openPoints("", "sumar", id);
         return;
       case "new-strike":
         openStrike(id);
@@ -6226,6 +6287,111 @@
         onConfirm: () => {
           S.deleteChecklist(id);
           afterChange("Checklist eliminado.");
+        }
+      });
+      return;
+    }
+    if (kind === "points") {
+      const entry = state.points.find((item) => item.id === id);
+      if (!entry) return;
+      confirmDialog({
+        title: "ELIMINAR MOVIMIENTO",
+        text: `${entry.points > 0 ? "+" : ""}${entry.points} puntos · “${entry.reason}”. El total de la persona se recalcula.`,
+        onConfirm: () => {
+          S.deletePoints(id);
+          afterChange("Movimiento eliminado.");
+        }
+      });
+      return;
+    }
+    if (kind === "training") {
+      const training = state.trainings.find((item) => item.id === id);
+      if (!training) return;
+      confirmDialog({
+        title: "ELIMINAR EXAMEN",
+        text: `“${training.title}” se borra con sus resultados e intentos. Los puntos ya otorgados se descuentan.`,
+        onConfirm: () => {
+          S.deleteTraining(id);
+          afterChange("Examen eliminado.");
+        }
+      });
+      return;
+    }
+    if (kind === "meeting") {
+      const meeting = state.meetings.find((item) => item.id === id);
+      if (!meeting) return;
+      confirmDialog({
+        title: "ELIMINAR ACTA",
+        text: `“${meeting.title}” del ${date(meeting.date)} se borra con sus decisiones y acciones.`,
+        onConfirm: () => {
+          S.deleteMeeting(id);
+          afterChange("Acta eliminada.");
+        }
+      });
+      return;
+    }
+    if (kind === "strike") {
+      const strike = state.strikes.find((item) => item.id === id);
+      if (!strike) return;
+      confirmDialog({
+        title: "ELIMINAR STRIKE",
+        text: `“${strike.reason}” de ${S.userById(strike.userId)?.name || "—"} se borra del historial. Queda registrado en auditoría.`,
+        onConfirm: () => {
+          S.deleteStrike(id);
+          afterChange("Strike eliminado.");
+        }
+      });
+      return;
+    }
+    if (kind === "report") {
+      const report = state.reports.find((item) => item.id === id);
+      if (!report) return;
+      confirmDialog({
+        title: "ELIMINAR REPORTE",
+        text: `El reporte de ${S.userById(report.userId)?.name || "—"} del ${date(report.date)} se borra.`,
+        onConfirm: () => {
+          S.deleteReport(id);
+          afterChange("Reporte eliminado.");
+        }
+      });
+      return;
+    }
+    if (kind === "lead") {
+      const lead = state.academy.leads.find((item) => item.id === id);
+      if (!lead) return;
+      confirmDialog({
+        title: "ELIMINAR LEAD",
+        text: `“${lead.name}” sale del pipeline de la academia.`,
+        onConfirm: () => {
+          S.deleteLead(id);
+          afterChange("Lead eliminado.");
+        }
+      });
+      return;
+    }
+    if (kind === "product") {
+      const product = state.academy.products.find((item) => item.id === id);
+      if (!product) return;
+      confirmDialog({
+        title: "ELIMINAR PRODUCTO",
+        text: `“${product.name}” se borra del stock y del catálogo.`,
+        onConfirm: () => {
+          S.deleteProduct(id);
+          afterChange("Producto eliminado.");
+        }
+      });
+      return;
+    }
+    if (kind === "unit") {
+      const unit = state.units.find((item) => item.id === id);
+      if (!unit) return;
+      confirmDialog({
+        title: "ARCHIVAR UNIDAD",
+        text: `“${unit.name}” deja de mostrarse en el dashboard. Sus movimientos se conservan.`,
+        label: "Archivar",
+        onConfirm: () => {
+          S.archiveUnit(id);
+          afterChange("Unidad archivada.");
         }
       });
       return;
