@@ -253,6 +253,24 @@
     else location.hash = target;
   }
 
+  function rotateBootText() {
+    const el = $("#boot-text");
+    if (!el) return;
+    const phrases = ["Cargando tu panel…", "Sincronizando datos…", "Preparando el equipo…"];
+    let index = 0;
+    setInterval(() => {
+      index = (index + 1) % phrases.length;
+      el.textContent = phrases[index];
+    }, 1700);
+  }
+
+  function hideBoot() {
+    const el = $("#boot-screen");
+    if (!el || el.classList.contains("is-hidden")) return;
+    el.classList.add("is-hidden");
+    setTimeout(() => el.remove(), 650);
+  }
+
   function init() {
     const year = $("#login-year");
     if (year) year.textContent = new Date().getFullYear();
@@ -261,6 +279,7 @@
     if (S.currentUser()) enterApp();
     else showLogin();
     renderSyncChip();
+    hideBoot();
   }
 
   async function boot() {
@@ -4967,14 +4986,14 @@
         const image = new Image();
         image.onload = () => {
           try {
-            const max = 1200;
+            const max = 1000;
             const scale = Math.min(1, max / Math.max(image.width, image.height));
             const canvas = document.createElement("canvas");
             canvas.width = Math.max(1, Math.round(image.width * scale));
             canvas.height = Math.max(1, Math.round(image.height * scale));
             const context = canvas.getContext("2d");
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL("image/webp", 0.82);
+            const dataUrl = canvas.toDataURL("image/webp", 0.78);
             const hidden = $("#f-thumbnail");
             if (hidden) hidden.value = dataUrl;
             const preview = $("#session-thumb-preview");
@@ -6732,5 +6751,7 @@
     });
   }
 
+  rotateBootText();
+  setTimeout(hideBoot, 9000);
   boot();
 })();
