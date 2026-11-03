@@ -198,6 +198,28 @@
     }
   ];
 
+  /* ---------------- dock (isla de navegación) ---------------- */
+
+  const DOCK_STAFF = ["resumen", "operacion", "contenido", "capacitaciones", "puntos", "academia"];
+  const DOCK_BARBER = ["mi-panel", "mis-tareas", "mis-puntos", "mis-capacitaciones"];
+  const DOCK_SHORT = {
+    resumen: "Inicio",
+    operacion: "Operación",
+    contenido: "Contenido",
+    capacitaciones: "Cursos",
+    puntos: "Puntos",
+    academia: "Academia",
+    equipo: "Equipo",
+    unidades: "Unidades",
+    auditoria: "Auditoría",
+    config: "Config",
+    "mi-panel": "Mi panel",
+    "mis-tareas": "Tareas",
+    "mi-contenido": "Contenido",
+    "mis-capacitaciones": "Cursos",
+    "mis-puntos": "Puntos"
+  };
+
   /* ---------------- router / init ---------------- */
 
   const ROUTE_PERMISSION = {
@@ -321,7 +343,7 @@
   function showLogin() {
     $("#login-screen").hidden = false;
     $("#admin-app").hidden = true;
-    document.body.classList.remove("no-scroll", "sidebar-open");
+    document.body.classList.remove("no-scroll", "sidebar-open", "dock-sheet-open", "dock-expanded");
     renderLogin();
   }
 
@@ -451,22 +473,10 @@
     $("#top-avatar").className = `avatar avatar--sm tone-${user.tone || "cyan"}`;
 
     const current = parseHash().base;
-    const nav = $("#side-nav");
-    nav.innerHTML = NAV.map((group) => {
-      const items = group.items
-        .filter((item) => canAccess(item.route))
-        .map((item) => {
-          const badge = typeof item.badge === "function" ? item.badge() : 0;
-          const active = current === item.route || (item.route === "barberos" && current === "barbero");
-          return `<a class="nav-item ${active ? "active" : ""}" href="#/${item.route}">
-            <svg><use href="#i-${item.icon}"/></svg>
-            <span>${esc(item.label)}</span>
-            ${badge ? `<span class="nav-badge">${badge}</span>` : ""}
-          </a>`;
-        })
-        .join("");
-      return items ? `<div class="nav-section"><span class="nav-section-title">${esc(group.title)}</span>${items}</div>` : "";
-    }).join("");
+    const brand = $(".topbar-brand");
+    if (brand) brand.setAttribute("href", `#/${defaultRoute()}`);
+    renderDock(current);
+    renderDockSheet();
 
     const storage = S.storageInfo();
     const cloud = storage.cloud || {};
@@ -480,6 +490,149 @@
       pill.classList.toggle("is-offline", cloud.status === "offline" || cloud.status === "error");
     }
     updateNotificationBadge();
+  }
+
+  function dockRouteItems() {
+    const wanted = S.isBarber() ? DOCK_BARBER : DOCK_STAFF;
+    const byRoute = new Map();
+    NAV.forEach((group) => group.items.forEach((item) => byRoute.set(item.route, item)));
+    return wanted.map((route) => byRoute.get(route)).filter((item) => item && canAccess(item.route));
+  }
+
+  function dockSubItems(base) {
+    if (base === "operacion") {
+      const meetings = S.getState().meetings;
+      return {
+        active: ui.opsTab,
+        items: [
+          { key: "tareas", label: "Tareas", route: "operacion/tareas", badge: S.openTasks().length },
+          { key: "checklists", label: "Checklists", route: "operacion/checklists" },
+          { key: "meetbarber", label: "MeetBarber", route: "operacion/meetbarber", badge: S.meetSessions().length },
+          { key: "reuniones", label: "Reuniones", route: "operacion/reuniones", badge: meetings.length }
+        ]
+      };
+    }
+    if (base === "academia") {
+      const items = [
+        { key: "resumen", label: "Resumen", route: "academia/resumen" },
+        { key: "embudo", label: "Embudo", route: "academia/embudo", badge: S.weeklyLeads().length },
+        { key: "alumnos", label: "Alumnos", route: "academia/alumnos", badge: S.activeStudents().length }
+      ];
+      if (S.can("academia.pagos")) items.push({ key: "pagos", label: "Pagos", route: "academia/pagos", badge: S.overduePayments().length });
+      items.push({ key: "stock", label: "Stock", route: "academia/stock", badge: S.lowStock().length });
+      if (S.can("academia.metricas")) items.push({ key: "metricas", label: "Métricas", route: "academia/metricas" });
+      return { active: ui.academyTab, items };
+    }
+    if (base === "puntos") {
+      return {
+        active: ui.pointsTab,
+        items: [
+          { key: "puntos", label: "Puntos", action: "points-tab", id: "puntos" },
+          { key: "strikes", label: "Strikes", action: "points-tab", id: "strikes", badge: S.isBarber() ? 0 : fmtStrike(S.strikeScore()) }
+        ]
+      };
+    }
+    if (base === "capacitaciones" || base === "mis-capacitaciones") {
+      return {
+        active: ui.trainingTab === "session" ? "session" : "training",
+        items: [
+          { key: "training", label: "Training", action: "training-tab", id: "training" },
+          { key: "session", label: "Masivo Session", action: "training-tab", id: "session" }
+        ]
+      };
+    }
+    return null;
+  }
+
+  function renderDock(current) {
+    const main = $("#dock-main");
+    if (!main) return;
+    const items = dockRouteItems();
+    const activeInDock = items.some((item) => item.route === current || (item.route === "barberos" && current === "barbero"));
+    main.innerHTML =
+      items
+        .map((item) => {
+          const badge = typeof item.badge === "function" ? item.badge() : 0;
+          const active = item.route === current || (item.route === "barberos" && current === "barbero");
+          return `<a class="dock-item ${active ? "is-active" : ""}" href="#/${item.route}" aria-current="${active ? "page" : "false"}">
+            <span class="dock-icon"><svg><use href="#i-${item.icon}"/></svg>${badge ? `<i class="dock-badge">${badge}</i>` : ""}</span>
+            <span class="dock-label">${esc(DOCK_SHORT[item.route] || item.label)}</span>
+          </a>`;
+        })
+        .join("") +
+      `<button class="dock-item dock-more ${activeInDock ? "" : "is-active"}" type="button" data-action="open-dock-sheet" aria-label="Todas las secciones">
+        <span class="dock-icon"><svg><use href="#i-grid"/></svg></span>
+        <span class="dock-label">Más</span>
+      </button>`;
+
+    const sub = $("#dock-sub");
+    if (!sub) return;
+    const group = dockSubItems(current);
+    if (!group || !group.items.length) {
+      sub.hidden = true;
+      sub.innerHTML = "";
+      document.body.classList.remove("dock-expanded");
+      return;
+    }
+    sub.hidden = false;
+    document.body.classList.add("dock-expanded");
+    sub.innerHTML = group.items
+      .map((item) => {
+        const active = item.key === group.active;
+        const inner = `${esc(item.label)}${item.badge ? `<span class="dock-sub-badge">${item.badge}</span>` : ""}`;
+        return item.route
+          ? `<a class="dock-sub-item ${active ? "is-active" : ""}" href="#/${item.route}">${inner}</a>`
+          : `<button class="dock-sub-item ${active ? "is-active" : ""}" type="button" data-action="${item.action}" data-id="${esc(item.id)}">${inner}</button>`;
+      })
+      .join("");
+  }
+
+  function renderDockSheet() {
+    const body = $("#dock-sheet-body");
+    if (!body) return;
+    const current = parseHash().base;
+    body.innerHTML = NAV.map((group) => {
+      const items = group.items.filter((item) => canAccess(item.route));
+      if (!items.length) return "";
+      return `<div class="dock-sheet-group">
+        <span class="dock-sheet-title">${esc(group.title)}</span>
+        <div class="dock-sheet-grid">${items
+          .map((item) => {
+            const badge = typeof item.badge === "function" ? item.badge() : 0;
+            const active = item.route === current || (item.route === "barberos" && current === "barbero");
+            return `<a class="dock-sheet-item ${active ? "is-active" : ""}" href="#/${item.route}">
+              <span class="dock-sheet-icon"><svg><use href="#i-${item.icon}"/></svg></span>
+              <span class="dock-sheet-text"><b>${esc(item.label)}</b><small>${esc(group.title)}</small></span>
+              ${badge ? `<span class="dock-sheet-badge">${badge}</span>` : ""}
+            </a>`;
+          })
+          .join("")}</div>
+      </div>`;
+    }).join("");
+  }
+
+  function openDockSheet() {
+    const sheet = $("#dock-sheet");
+    const scrim = $("#dock-scrim");
+    if (!sheet) return;
+    closePopovers();
+    sheet.hidden = false;
+    if (scrim) scrim.hidden = false;
+    document.body.classList.add("dock-sheet-open");
+    void sheet.offsetWidth;
+    sheet.classList.add("is-open");
+  }
+
+  function closeDockSheet() {
+    const sheet = $("#dock-sheet");
+    const scrim = $("#dock-scrim");
+    if (!sheet || sheet.hidden) return;
+    sheet.classList.remove("is-open");
+    if (scrim) scrim.hidden = true;
+    document.body.classList.remove("dock-sheet-open");
+    setTimeout(() => {
+      if (!sheet.classList.contains("is-open")) sheet.hidden = true;
+    }, 220);
   }
 
   function updateNotificationBadge() {
@@ -591,8 +744,7 @@
     updateBreadcrumb(base);
     document.title = `MASIVO CONTROL · ${ROUTES[base]?.label || "Panel"}`;
     document.body.classList.remove("sidebar-open");
-    const backdrop = $(".sidebar-backdrop");
-    if (backdrop) backdrop.hidden = true;
+    closeDockSheet();
     $("#notif-panel").hidden = true;
     $("#user-menu").hidden = true;
     $("#quick-menu").hidden = true;
@@ -5795,19 +5947,12 @@
         } else panel.hidden = true;
         return;
       }
-      case "open-sidebar":
-        document.body.classList.add("sidebar-open");
-        {
-          const backdrop = $(".sidebar-backdrop");
-          if (backdrop) backdrop.hidden = false;
-        }
+      case "open-dock-sheet":
+        if (document.body.classList.contains("dock-sheet-open")) closeDockSheet();
+        else openDockSheet();
         return;
-      case "close-sidebar":
-        document.body.classList.remove("sidebar-open");
-        {
-          const backdrop = $(".sidebar-backdrop");
-          if (backdrop) backdrop.hidden = true;
-        }
+      case "close-dock-sheet":
+        closeDockSheet();
         return;
       case "close-modal":
         closeModal();
@@ -6571,6 +6716,7 @@
       const control = event.target.closest("[data-action]");
       const action = control?.dataset.action || "";
       if (!action.startsWith("toggle-")) closePopovers();
+      if (event.target.closest(".dock-sheet-item")) closeDockSheet();
       if (control) handleAction(action, control);
       sparkAt(event.clientX, event.clientY);
     });
@@ -6730,10 +6876,9 @@
           closePopovers();
           return;
         }
-        if (document.body.classList.contains("sidebar-open")) {
-          document.body.classList.remove("sidebar-open");
-          const backdrop = $(".sidebar-backdrop");
-          if (backdrop) backdrop.hidden = true;
+        if (document.body.classList.contains("dock-sheet-open")) {
+          closeDockSheet();
+          return;
         }
         return;
       }

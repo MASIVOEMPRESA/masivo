@@ -17,7 +17,7 @@
   <link rel="dns-prefetch" href="https://zjfmaoxydakayicgylme.supabase.co">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/admin.css?v=20261028p">
-  <link rel="stylesheet" href="/css/admin-v2.css?v=20261102c">
+  <link rel="stylesheet" href="/css/admin-v2.css?v=20261103e">
 </head>
 <body class="admin-body">
   <div class="boot-screen" id="boot-screen" role="status" aria-live="polite">
@@ -158,38 +158,13 @@
 
   <!-- ================= APP ================= -->
   <div class="admin-app" id="admin-app" hidden>
-    <aside class="sidebar" id="sidebar" aria-label="Navegación del panel">
-      <div class="sidebar-head">
-        <a href="#/resumen" class="brand">
-          <span class="brand-mark">M</span>
-          <span class="brand-word">MASIVO<span class="brand-sub">CONTROL</span></span>
-        </a>
-        <button class="sidebar-close" type="button" data-action="close-sidebar" aria-label="Cerrar menú">
-          <svg><use href="#i-x"/></svg>
-        </button>
-      </div>
-      <div class="sidebar-scroll">
-        <nav class="side-nav" id="side-nav"></nav>
-      </div>
-      <div class="sidebar-foot">
-        <div class="storage-pill" id="storage-pill">
-          <span class="pulse-dot"></span>
-          <div><b>Datos guardados</b><small id="storage-label">Local · ahora</small></div>
-        </div>
-        <a class="sidebar-link" href="/" target="_blank" rel="noopener">
-          <svg><use href="#i-globe"/></svg> Ver landing
-        </a>
-      </div>
-    </aside>
-
-    <div class="sidebar-backdrop" data-action="close-sidebar" hidden></div>
-
     <div class="app-main">
       <header class="topbar">
         <div class="topbar-left">
-          <button class="icon-btn menu-btn" type="button" data-action="open-sidebar" aria-label="Abrir menú">
-            <svg><use href="#i-menu"/></svg>
-          </button>
+          <a class="topbar-brand" href="#/resumen" aria-label="Ir al resumen">
+            <span class="brand-mark">M</span>
+            <span class="topbar-brand-word">MASIVO<span>CONTROL</span></span>
+          </a>
           <div class="breadcrumb" id="breadcrumb">
             <span>Control</span>
             <svg><use href="#i-chevron"/></svg>
@@ -232,6 +207,35 @@
 
       <main class="view" id="view" tabindex="-1"></main>
     </div>
+
+    <nav class="dock" id="dock" aria-label="Navegación del panel">
+      <div class="dock-sheet" id="dock-sheet" hidden>
+        <div class="dock-sheet-head">
+          <div>
+            <b>Todas las secciones</b>
+            <small>Accesos directos del panel</small>
+          </div>
+          <button class="dock-sheet-close" type="button" data-action="close-dock-sheet" aria-label="Cerrar menú">
+            <svg><use href="#i-x"/></svg>
+          </button>
+        </div>
+        <div class="dock-sheet-body" id="dock-sheet-body"></div>
+        <div class="dock-sheet-foot">
+          <div class="storage-pill" id="storage-pill">
+            <span class="pulse-dot"></span>
+            <div><b>Datos guardados</b><small id="storage-label">Local · ahora</small></div>
+          </div>
+          <a class="dock-sheet-link" href="/" target="_blank" rel="noopener">
+            <svg><use href="#i-globe"/></svg> Ver landing
+          </a>
+        </div>
+      </div>
+      <div class="dock-bar">
+        <div class="dock-sub" id="dock-sub" hidden></div>
+        <div class="dock-main" id="dock-main"></div>
+      </div>
+    </nav>
+    <div class="dock-scrim" id="dock-scrim" data-action="close-dock-sheet" hidden></div>
   </div>
 
   <div class="popover notif-panel" id="notif-panel" hidden></div>
@@ -240,11 +244,11 @@
   <div class="modal-root" id="modal-root"></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/js/admin-data.js?v=20261102c" defer></script>
+  <script src="/js/admin-data.js?v=20261103e" defer></script>
   <script src="/js/supabase-config.js?v=20261030d" defer></script>
   <script src="/js/admin-cloud.js?v=20261028p" defer></script>
-  <script src="/js/admin-store.js?v=20261102c" defer></script>
+  <script src="/js/admin-store.js?v=20261103e" defer></script>
   <script src="/js/admin-charts.js?v=20261028p" defer></script>
-  <script src="/js/admin-app.js?v=20261102c" defer></script>
+  <script src="/js/admin-app.js?v=20261103e" defer></script>
 </body>
 </html>
