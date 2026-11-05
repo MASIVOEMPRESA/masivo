@@ -207,7 +207,7 @@
     resumen: "Inicio",
     operacion: "Operación",
     contenido: "Contenido",
-    capacitaciones: "Cursos",
+    capacitaciones: "Capacitaciones",
     puntos: "Puntos",
     academia: "Academia",
     equipo: "Equipo",
@@ -217,7 +217,7 @@
     "mi-panel": "Mi panel",
     "mis-tareas": "Tareas",
     "mi-contenido": "Contenido",
-    "mis-capacitaciones": "Cursos",
+    "mis-capacitaciones": "Capacitaciones",
     "mis-puntos": "Puntos"
   };
 
@@ -2044,6 +2044,7 @@
       Ingreso: "coins",
       Costo: "coins",
       Cohorte: "graduation",
+      Curso: "graduation",
       Alumno: "graduation"
     }[entity] || "grid";
   }
@@ -3767,7 +3768,7 @@
 
     <div class="grid grid--2-1">
       <article class="panel" data-reveal>
-        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Cohortes</h2><p class="panel-sub">Ocupación y fechas</p></div><a class="link-btn" href="#/academia/alumnos">Ver alumnos <svg><use href="#i-arrow"/></svg></a></div>
+        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Cursos</h2><p class="panel-sub">Ocupación y fechas</p></div><a class="link-btn" href="#/academia/alumnos">Ver alumnos <svg><use href="#i-arrow"/></svg></a></div>
         <div class="panel-body"><div class="cohort-grid">
           ${cohorts.map((cohort) => `<div class="cohort-card">
             <div class="cohort-head"><div><b class="cohort-name">${esc(cohort.name)}</b><span class="cohort-meta">${dateFull(cohort.startDate)} → ${dateFull(cohort.endDate)}</span></div>${status(LEVEL_LABEL[cohort.level] || cohort.level, "violet")}</div>
@@ -3799,7 +3800,7 @@
     const stages = ["consulta", "entrevista", "inscripto", "perdido"];
     return `<div class="row row--between">
       <div class="filters"><button class="chip chip--button" type="button" data-action="lead">+ Nuevo lead</button><span class="section-sub">${leads.length} leads · ${S.weeklyLeads().length} esta semana</span></div>
-      <span class="section-sub">Mové la etapa o inscribí directo a una cohorte.</span>
+      <span class="section-sub">Mové la etapa o inscribí directo a un curso.</span>
     </div>
     <div class="lead-board">
       ${stages.map((stage) => {
@@ -3816,7 +3817,7 @@
                 ${lead.notes ? `<p style="color:var(--muted-2);font-size:12.5px;line-height:1.5">${esc(lead.notes)}</p>` : ""}
                 <div class="lead-actions">
                   ${next && stage !== "perdido" ? `<button class="btn btn--soft btn--sm" type="button" data-action="${next === "inscripto" ? "enroll-lead" : "move-lead"}" data-id="${esc(lead.id)}" ${next === "inscripto" ? "" : `data-stage="${next}"`}>${next === "entrevista" ? "Entrevista" : "Inscribir"} <svg><use href="#i-arrow"/></svg></button>` : ""}
-                  ${stage !== "inscripto" ? `<button class="btn btn--ghost btn--sm" type="button" data-action="enroll-lead" data-id="${esc(lead.id)}">A cohorte</button>` : ""}
+                  ${stage !== "inscripto" ? `<button class="btn btn--ghost btn--sm" type="button" data-action="enroll-lead" data-id="${esc(lead.id)}">A curso</button>` : ""}
                   <button class="row-action" type="button" data-action="edit-lead" data-id="${esc(lead.id)}" title="Editar"><svg><use href="#i-edit"/></svg></button>
                   <button class="row-action danger" type="button" data-action="confirm-delete" data-kind="lead" data-id="${esc(lead.id)}" title="Eliminar lead"><svg><use href="#i-trash"/></svg></button>
                   ${lead.phone ? `<a class="row-action" href="https://wa.me/${esc(String(lead.phone).replace(/[^0-9]/g, ""))}" target="_blank" rel="noopener" title="WhatsApp"><svg><use href="#i-message"/></svg></a>` : ""}
@@ -3851,13 +3852,13 @@
         <select class="select select--sm" data-filter="students-level" aria-label="Filtrar por nivel"><option value="">Todos los niveles</option>${Object.entries(LEVEL_LABEL).map(([key, label]) => `<option value="${key}" ${ui.studentsLevel === key ? "selected" : ""}>${label}</option>`).join("")}</select>
         <select class="select select--sm" data-filter="students-status" aria-label="Filtrar por estado"><option value="">Todos los estados</option><option value="cursando" ${ui.studentsStatus === "cursando" ? "selected" : ""}>Cursando</option><option value="desertor" ${ui.studentsStatus === "desertor" ? "selected" : ""}>Desertor</option><option value="egresado" ${ui.studentsStatus === "egresado" ? "selected" : ""}>Egresado</option></select>
       </div>
-      <div class="row">${btn("Nueva cohorte", { action: "cohort", icon: "calendar", size: "sm" })}${btn("Nuevo alumno", { action: "student", icon: "plus", variant: "primary", size: "sm" })}</div>
+      <div class="row">${btn("Nuevo curso", { action: "cohort", icon: "calendar", size: "sm" })}${btn("Nuevo alumno", { action: "student", icon: "plus", variant: "primary", size: "sm" })}</div>
     </div>
 
     <article class="panel" data-reveal>
       <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Alumnos</h2><p class="panel-sub">${students.length} resultados · ${S.activeStudents().length} cursando</p></div></div>
       <div class="table-wrap"><table class="data-table">
-        <thead><tr><th>Alumno</th><th>Nivel</th><th>Cohorte</th><th>Estado</th><th>Asistencia</th><th>Cuotas</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+        <thead><tr><th>Alumno</th><th>Nivel</th><th>Curso</th><th>Estado</th><th>Asistencia</th><th>Cuotas</th><th><span class="sr-only">Acciones</span></th></tr></thead>
         <tbody>${students.length ? students.map((student) => {
           const attendance = S.studentAttendance(student.id);
           const payments = S.getState().academy.payments.filter((payment) => payment.studentId === student.id);
@@ -3986,7 +3987,7 @@
         <div class="panel-body chart-holder">${C.barChart(sources, { height: 250, label: "Leads por origen" })}</div>
       </article>
       <article class="panel" data-reveal>
-        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Ocupación por cohorte</h2><p class="panel-sub">Lugares vendidos sobre capacidad</p></div></div>
+        <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Ocupación por curso</h2><p class="panel-sub">Lugares vendidos sobre capacidad</p></div></div>
         <div class="panel-body"><div class="source-list">
           ${cohorts.map((cohort) => `<div class="source-row"><span>${esc(cohort.name)}</span><div class="source-bar"><span style="--value:${cohort.occupancy}%"></span></div><span class="source-numbers">${cohort.count}/${cohort.capacity} · <b>${cohort.occupancy}%</b></span></div>`).join("")}
         </div></div>
@@ -5542,12 +5543,12 @@
   }
 
   function openCohort() {
-    if (!S.can("academy.students")) return toast("No tenés permiso para crear cohortes.", "error");
+    if (!S.can("academy.students")) return toast("No tenés permiso para crear cursos.", "error");
     const state = S.getState();
     const teachers = state.users.filter((user) => user.active && user.role !== "barber");
     const teacherId = teachers[0]?.id || S.currentUserId();
     const body = `<div class="form-grid">
-      ${textInput("name", "Nombre de la cohorte", "", { required: true, full: true, placeholder: "Inicial N1 · Enero" })}
+      ${textInput("name", "Nombre del curso", "", { required: true, full: true, placeholder: "Inicial N1 · Enero" })}
       ${selectField("level", "Nivel", optionsFrom([["inicial", "Inicial"], ["intermedio", "Intermedio"], ["avanzado", "Avanzado"], ["dueno", "Dueño"]], "inicial"), "inicial")}
       ${selectField("teacherId", "Docente", optionsFrom(teachers.map((user) => [user.id, user.name]), teacherId), teacherId)}
       ${textInput("startDate", "Inicio", D.iso(new Date()), { type: "date" })}
@@ -5558,15 +5559,15 @@
       ${textInput("schedule", "Días y horario", "", { full: true, placeholder: "Lun y Mar · 14 a 16" })}
     </div>`;
     openModal({
-      kicker: "Academia · cohortes",
-      title: "NUEVA COHORTE",
+      kicker: "Academia · cursos",
+      title: "NUEVO CURSO",
       sub: "Nivel, fechas, capacidad y valores.",
       body,
-      submitLabel: "Crear cohorte",
+      submitLabel: "Crear curso",
       onSubmit: (data) => {
-        if (!data.name.trim()) throw new Error("Poné un nombre a la cohorte.");
+        if (!data.name.trim()) throw new Error("Poné un nombre al curso.");
         S.addCohort({ ...data, capacity: Number(data.capacity), price: Number(data.price), inscription: Number(data.inscription) });
-        afterChange("Cohorte creada.");
+        afterChange("Curso creado.");
       }
     });
   }
@@ -5574,13 +5575,13 @@
   function openStudent() {
     if (!S.can("academy.students")) return toast("No tenés permiso para cargar alumnos.", "error");
     const cohorts = S.getState().academy.cohorts;
-    if (!cohorts.length) return toast("Primero creá una cohorte.", "error");
+    if (!cohorts.length) return toast("Primero creá un curso.", "error");
     const cohort = cohorts[0];
     const body = `<div class="form-grid">
       ${textInput("name", "Nombre y apellido", "", { required: true, full: true })}
       ${textInput("phone", "WhatsApp", "", { type: "tel" })}
       ${textInput("email", "Email", "", { type: "email" })}
-      ${selectField("cohortId", "Cohorte", cohortOptions(cohort.id), cohort.id)}
+      ${selectField("cohortId", "Curso", cohortOptions(cohort.id), cohort.id)}
       ${selectField("status", "Estado", optionsFrom([["cursando", "Cursando"], ["egresado", "Egresado"], ["desertor", "Desertor"]], "cursando"), "cursando")}
       ${textInput("enrolledAt", "Fecha de alta", D.iso(new Date()), { type: "date" })}
       ${textInput("inscription", "Inscripción (ARS)", cohort.inscription, { type: "number", min: 0 })}
@@ -5590,7 +5591,7 @@
     openModal({
       kicker: "Academia · alumnos",
       title: "NUEVO ALUMNO",
-      sub: "Alta en cohorte + inscripción.",
+      sub: "Alta en curso + inscripción.",
       body,
       submitLabel: "Cargar alumno",
       onSubmit: (data) => {
@@ -5608,7 +5609,7 @@
           createPayment: true
         });
         if (!student) throw new Error("No se pudo crear el alumno.");
-        afterChange("Alumno inscripto en la cohorte.");
+        afterChange("Alumno inscripto en el curso.");
       }
     });
   }
@@ -5618,12 +5619,12 @@
     const lead = S.leadById(leadId);
     const cohorts = S.getState().academy.cohorts.slice().sort((a, b) => a.startDate.localeCompare(b.startDate));
     if (!lead) return;
-    if (!cohorts.length) return toast("Primero creá una cohorte.", "error");
+    if (!cohorts.length) return toast("Primero creá un curso.", "error");
     const cohort = cohorts[0];
     const body = `<div class="form-grid">
       <input type="hidden" name="leadId" value="${esc(lead.id)}">
       <div class="field field--full"><label>Lead</label><div class="tag">${esc(lead.name)} · ${esc(lead.phone || "sin teléfono")}</div></div>
-      ${selectField("cohortId", "Cohorte", cohortOptions(cohort.id), cohort.id)}
+      ${selectField("cohortId", "Curso", cohortOptions(cohort.id), cohort.id)}
       ${textInput("amount", "Inscripción (ARS)", cohort.inscription, { type: "number", min: 0 })}
       ${selectField("method", "Medio de pago", optionsFrom([["Transferencia", "Transferencia"], ["Efectivo", "Efectivo"], ["Mercado Pago", "Mercado Pago"], ["Tarjeta", "Tarjeta"]], "Transferencia"), "Transferencia")}
       ${checkField("paid", "Inscripción paga", true, "Si está paga, genera el ingreso en Academia.")}
@@ -5631,7 +5632,7 @@
     openModal({
       kicker: "Academia · inscripción",
       title: "INSCRIBIR LEAD",
-      sub: `${lead.name} pasa a alumno de la cohorte.`,
+      sub: `${lead.name} pasa a alumno del curso.`,
       body,
       submitLabel: "Inscribir",
       onSubmit: (data) => {
@@ -5659,7 +5660,7 @@
     openModal({
       kicker: "Academia · cobranzas",
       title: "CARGAR PAGO",
-      sub: "La cuota queda vinculada al alumno y a su cohorte.",
+      sub: "La cuota queda vinculada al alumno y a su curso.",
       body,
       submitLabel: "Cargar pago",
       onSubmit: (data) => {
@@ -5705,7 +5706,7 @@
   function attendanceMarkup(cohort, dateValue) {
     const students = S.cohortStudents(cohort.id);
     const entry = S.getState().academy.attendance.find((item) => item.cohortId === cohort.id && item.date === dateValue);
-    if (!students.length) return `<div class="content-empty">No hay alumnos activos en esta cohorte.</div>`;
+    if (!students.length) return `<div class="content-empty">No hay alumnos activos en este curso.</div>`;
     return students
       .map((student) => {
         const checked = entry ? Boolean(entry.records?.[student.id]) : true;
@@ -5848,7 +5849,7 @@
     S.barbers().forEach((barber) => items.push({ label: barber.name, sub: `Barbero · ${barber.commission}% comisión`, route: `barbero/${barber.id}`, icon: "scissors" }));
     S.getState().academy.students.forEach((student) => {
       const cohort = S.cohortById(student.cohortId);
-      items.push({ label: student.name, sub: `Alumno · ${cohort?.name || "sin cohorte"}`, route: "academia/alumnos", icon: "graduation" });
+      items.push({ label: student.name, sub: `Alumno · ${cohort?.name || "sin curso"}`, route: "academia/alumnos", icon: "graduation" });
     });
     S.getState().academy.leads.forEach((lead) => items.push({ label: lead.name, sub: `Lead · ${LEAD_STAGE[lead.stage]?.label || lead.stage}`, route: "academia/embudo", icon: "target" }));
     S.getState().trainings.forEach((training) => items.push({ label: training.title, sub: "Capacitación", route: "capacitaciones", icon: "graduation" }));

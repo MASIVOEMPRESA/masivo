@@ -22,7 +22,7 @@
     { key: "contenido", label: "Contenido", group: "Operación", hint: "Calendario, piezas y publicaciones." },
     { key: "capacitaciones", label: "Capacitaciones", group: "Operación", hint: "Cursos, registros y aprobaciones." },
     { key: "puntos", label: "Puntos y strikes", group: "Operación", hint: "Reconocimientos, sanciones y respuestas." },
-    { key: "academia", label: "Academia", group: "Academia", hint: "Embudo, alumnos, cohortes y stock." },
+    { key: "academia", label: "Academia", group: "Academia", hint: "Embudo, alumnos, cursos y stock." },
     { key: "academia.pagos", label: "Academia · Pagos", group: "Academia", hint: "Cuotas, cobranzas y vencimientos." },
     { key: "academia.metricas", label: "Academia · Métricas", group: "Academia", hint: "Ingresos, conversión y rendimiento." },
     { key: "auditoria", label: "Auditoría", group: "Sistema", hint: "Historial de movimientos del panel." },
@@ -306,6 +306,141 @@
     };
   }
 
+  /* ---------------- limpieza de datos demo ---------------- */
+
+  /* Borra las personas y los historiales de demostración y deja
+     un solo ejemplo de cada cosa. Corre una única vez por estado
+     gracias a settings.demoCleanup. */
+  function pruneDemoData() {
+    if (!state || state.settings?.demoCleanup) return false;
+
+    const KEEP_USERS = ["u-nico", "u-diego", "u-tomi"];
+    const keptUsers = state.users.filter((user) => KEEP_USERS.includes(user.id));
+    if (!keptUsers.length) {
+      const owner = state.users.find((user) => user.role === "owner") || state.users[0];
+      if (owner) keptUsers.push(owner);
+    }
+    const fallbackUser = keptUsers[0]?.id || state.users[0]?.id || "";
+    const removedUsers = new Set(
+      state.users.filter((user) => !KEEP_USERS.includes(user.id)).map((user) => user.id)
+    );
+    state.users = keptUsers;
+
+    /* Reemplaza cualquier referencia exacta a una persona borrada. */
+    const remap = (value) => {
+      if (typeof value === "string") return removedUsers.has(value) ? fallbackUser : value;
+      if (Array.isArray(value)) return value.map(remap);
+      if (value && typeof value === "object") {
+        Object.keys(value).forEach((key) => {
+          value[key] = remap(value[key]);
+        });
+      }
+      return value;
+    };
+    remap(state);
+
+    /* Deja un solo registro por colección (el primero o el preferido). */
+    const only = (list, preferredId) => {
+      if (!Array.isArray(list) || !list.length) return [];
+      const preferred = preferredId ? list.find((item) => item.id === preferredId) : null;
+      return [preferred || list[0]];
+    };
+
+    const academy = state.academy || (state.academy = {});
+    const cohort = only(academy.cohorts, "co-inicial-oct")[0] || null;
+    const student = only(academy.students, "stu-1")[0] || null;
+    const payment =
+      (academy.payments || []).find((item) => student && item.studentId === student.id) ||
+      (academy.payments || [])[0] ||
+      null;
+    const transaction =
+      (state.transactions || []).find((item) => payment && item.id === payment.transactionId) ||
+      (state.transactions || [])[0] ||
+      null;
+    const attendance =
+      (academy.attendance || []).find((item) => cohort && item.cohortId === cohort.id) ||
+      (academy.attendance || [])[0] ||
+      null;
+    const lead = only(academy.leads, "lead-1")[0] || null;
+
+    state.transactions = transaction ? [transaction] : [];
+    state.checklists = only(state.checklists, "cl-apertura");
+    state.checklistRuns = only(state.checklistRuns, "cr-hoy-apertura");
+    state.sessions = only(state.sessions, "ms-ventas");
+    state.sessionViews = only(state.sessionViews);
+    state.tasks = only(state.tasks, "t-4");
+    state.meetings = only(state.meetings, "m-1");
+    state.meetSessions = only(state.meetSessions, "mb-1");
+    state.trainings = only(state.trainings, "tr-fade");
+    state.trainingRecords = only(state.trainingRecords, "trr-1");
+    state.contentPieces = only(state.contentPieces, "cp-u-tomi-0-0");
+    state.points = only(state.points, "pt-trr-1");
+    state.strikes = only(state.strikes, "st-3");
+    state.reports = only(state.reports, "rep-2");
+    state.audit = only(state.audit, "au-4");
+    academy.leads = lead ? [lead] : [];
+    academy.cohorts = cohort ? [cohort] : [];
+    academy.students = student ? [student] : [];
+    academy.payments = payment ? [payment] : [];
+    academy.attendance = attendance ? [attendance] : [];
+    academy.products = only(academy.products, "pr-1");
+    academy.stockMoves = only(academy.stockMoves, "sm-1");
+
+    /* Deja coherentes las referencias entre los registros que quedan. */
+    if (student) {
+      student.cohortId = cohort ? cohort.id : "";
+      const matchingLead = lead && lead.name === student.name ? lead : null;
+      student.leadId = matchingLead ? matchingLead.id : "";
+    }
+    if (payment) {
+      payment.studentId = student ? student.id : "";
+      payment.cohortId = cohort ? cohort.id : "";
+      payment.transactionId = transaction ? transaction.id : null;
+    }
+    if (attendance) {
+      attendance.cohortId = cohort ? cohort.id : "";
+      attendance.records = student ? { [student.id]: true } : {};
+    }
+    if (lead) lead.sellerId = fallbackUser;
+    if (cohort) cohort.teacherId = fallbackUser;
+    if (state.checklistRuns[0] && state.checklists[0]) state.checklistRuns[0].checklistId = state.checklists[0].id;
+    if (state.trainingRecords[0] && state.trainings[0]) state.trainingRecords[0].trainingId = state.trainings[0].id;
+    if (state.sessionViews[0] && state.sessions[0]) state.sessionViews[0].sessionId = state.sessions[0].id;
+    if (academy.stockMoves[0] && academy.products[0]) academy.stockMoves[0].productId = academy.products[0].id;
+
+    /* Una pieza de contenido publicada como ejemplo, sin puntos duplicados. */
+    if (state.contentPieces[0]) state.contentPieces[0].pointsAwarded = false;
+
+    /* La reunión de ejemplo no menciona a las personas borradas. */
+    const meeting = state.meetings[0];
+    if (meeting) {
+      meeting.attendees = [...new Set((meeting.attendees || []).filter(Boolean))];
+      if (!meeting.attendees.length) meeting.attendees = state.users.map((user) => user.id);
+      meeting.notes = "Repaso semanal del equipo: barbería, academia y contenido.";
+      meeting.decisions = [
+        "Mantener la meta semanal de contenido.",
+        "Revisar los puntos y las capacitaciones en la próxima reunión."
+      ];
+    }
+
+    /* Solo el barbero de ejemplo produce contenido automático. */
+    state.settings.contentGoal = 1;
+    state.users.forEach((user) => {
+      user.contentCreator = user.id === "u-tomi";
+    });
+
+    /* Mapas de responsabilidades solo de las personas que quedan. */
+    state.teamMaps = state.teamMaps && typeof state.teamMaps === "object" ? state.teamMaps : {};
+    const keptIds = new Set(state.users.map((user) => user.id));
+    Object.keys(state.teamMaps).forEach((id) => {
+      if (!keptIds.has(id)) delete state.teamMaps[id];
+    });
+
+    state.settings.demoCleanup = true;
+    if (!pushing) persist();
+    return true;
+  }
+
   function normalize() {
     if (!state.academy) {
       state.academy = { leads: [], cohorts: [], students: [], payments: [], attendance: [], products: [], stockMoves: [] };
@@ -378,6 +513,7 @@
 
     ensureTeamMaps();
     runContentAutomation();
+    pruneDemoData();
   }
 
   function loadSession() {
@@ -2249,7 +2385,7 @@
       schedule: data.schedule || ""
     };
     state.academy.cohorts.push(cohort);
-    commit({ action: "creó", entity: "Cohorte", entityId: cohort.id, detail: cohort.name });
+    commit({ action: "creó", entity: "Curso", entityId: cohort.id, detail: cohort.name });
     return cohort;
   }
 

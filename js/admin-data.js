@@ -285,7 +285,7 @@
         id: "academia",
         name: "Academia",
         kind: "academia",
-        description: "Cursos, cohortes y formación de barberos.",
+        description: "Cursos y formación de barberos.",
         color: "#e879f9",
         icon: "graduation",
         goal: 2500000,
@@ -666,7 +666,7 @@
         status: "pendiente",
         priority: "alta",
         unitId: "academia",
-        notes: "2 alumnas de la cohorte de septiembre.",
+        notes: "2 alumnas del curso de septiembre.",
         createdBy: "u-sofi",
         createdAt: daysAgo(5)
       },
@@ -792,9 +792,9 @@
         title: "MeetBarber · Semana 42",
         date: daysAgo(10),
         attendees: ["u-nico", "u-sofi", "u-caro", "u-tomi", "u-lauta", "u-mica", "u-fede"],
-        notes: "Revisión de números de septiembre y lanzamiento de la cohorte de noviembre. Foco en retención de alumnos.",
+        notes: "Revisión de números de septiembre y lanzamiento del curso de noviembre. Foco en retención de alumnos.",
         decisions: [
-          "Abrir cohorte avanzada para noviembre.",
+          "Abrir curso avanzado para noviembre.",
           "Sumar recordatorio de cuotas 48 horas antes del vencimiento."
         ],
         actions: [
@@ -1267,7 +1267,7 @@
         stage: "inscripto",
         level: "inicial",
         createdAt: daysAgo(6),
-        notes: "Ya pagó la inscripción. Arranca en la cohorte de noviembre."
+        notes: "Ya pagó la inscripción. Arranca en el curso de noviembre."
       },
       {
         id: "lead-6",
