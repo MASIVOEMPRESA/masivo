@@ -391,6 +391,7 @@
       student.cohortId = cohort ? cohort.id : "";
       const matchingLead = lead && lead.name === student.name ? lead : null;
       student.leadId = matchingLead ? matchingLead.id : "";
+      if (matchingLead) matchingLead.stage = "inscripto";
     }
     if (payment) {
       payment.studentId = student ? student.id : "";
@@ -401,7 +402,9 @@
       attendance.cohortId = cohort ? cohort.id : "";
       attendance.records = student ? { [student.id]: true } : {};
     }
-    if (lead) lead.sellerId = fallbackUser;
+    if (lead) {
+      lead.sellerId = state.users.some((user) => user.id === "u-diego") ? "u-diego" : fallbackUser;
+    }
     if (cohort) cohort.teacherId = fallbackUser;
     if (state.checklistRuns[0] && state.checklists[0]) state.checklistRuns[0].checklistId = state.checklists[0].id;
     if (state.trainingRecords[0] && state.trainings[0]) state.trainingRecords[0].trainingId = state.trainings[0].id;
@@ -415,6 +418,9 @@
     const meeting = state.meetings[0];
     if (meeting) {
       meeting.attendees = [...new Set((meeting.attendees || []).filter(Boolean))];
+      if (state.users.some((user) => user.id === "u-diego") && !meeting.attendees.includes("u-diego")) {
+        meeting.attendees.push("u-diego");
+      }
       if (!meeting.attendees.length) meeting.attendees = state.users.map((user) => user.id);
       meeting.notes = "Repaso semanal del equipo: barbería, academia y contenido.";
       meeting.decisions = [
