@@ -188,12 +188,12 @@
     {
       title: "Mi espacio",
       items: [
-        { route: "mi-panel", label: "Mi panel", icon: "home", roles: ["barber"] },
-        { route: "mi-ficha", label: "Mi ficha", icon: "user", roles: ["barber"] },
-        { route: "mis-tareas", label: "Mis tareas", icon: "check-square", roles: ["barber"], badge: () => S.openTasks(S.currentUserId()).length },
-        { route: "mi-contenido", label: "Mi contenido", icon: "image", roles: ["barber"] },
-        { route: "mis-capacitaciones", label: "Mis capacitaciones", icon: "graduation", roles: ["barber"] },
-        { route: "mis-puntos", label: "Mis puntos", icon: "zap", roles: ["barber"], badge: () => S.strikeScore(S.currentUserId()) }
+        { route: "mi-panel", label: "Mi panel", icon: "home", roles: ["barber", "academy"] },
+        { route: "mi-ficha", label: "Mi ficha", icon: "user", roles: ["barber", "academy"] },
+        { route: "mis-tareas", label: "Mis tareas", icon: "check-square", roles: ["barber", "academy"], badge: () => S.openTasks(S.currentUserId()).length },
+        { route: "mi-contenido", label: "Mi contenido", icon: "image", roles: ["barber", "academy"] },
+        { route: "mis-capacitaciones", label: "Mis capacitaciones", icon: "graduation", roles: ["barber", "academy"] },
+        { route: "mis-puntos", label: "Mis puntos", icon: "zap", roles: ["barber", "academy"], badge: () => S.strikeScore(S.currentUserId()) }
       ]
     }
   ];
@@ -202,6 +202,7 @@
 
   const DOCK_STAFF = ["resumen", "operacion", "contenido", "capacitaciones", "puntos", "academia"];
   const DOCK_BARBER = ["mi-panel", "mis-tareas", "mis-puntos", "mis-capacitaciones"];
+  const DOCK_ACADEMY = ["academia", "mi-panel", "mis-tareas", "mis-puntos", "mis-capacitaciones"];
   const DOCK_SHORT = {
     resumen: "Inicio",
     operacion: "Operación",
@@ -264,7 +265,7 @@
   function canAccess(base) {
     const user = S.currentUser();
     if (!user) return false;
-    if (/^mis?-/.test(String(base))) return user.role === "barber" && S.can("self");
+    if (/^mis?-/.test(String(base))) return (user.role === "barber" || user.role === "academy") && S.can("self");
     return S.can(ROUTE_PERMISSION[base] || base);
   }
 
@@ -493,7 +494,7 @@
   }
 
   function dockRouteItems() {
-    const wanted = S.isBarber() ? DOCK_BARBER : DOCK_STAFF;
+    const wanted = S.isBarber() ? DOCK_BARBER : S.isAcademy() ? DOCK_ACADEMY : DOCK_STAFF;
     const byRoute = new Map();
     NAV.forEach((group) => group.items.forEach((item) => byRoute.set(item.route, item)));
     return wanted.map((route) => byRoute.get(route)).filter((item) => item && canAccess(item.route));
@@ -2079,6 +2080,11 @@
     return S.barbers().map((user) => `<option value="${esc(user.id)}" ${user.id === selected ? "selected" : ""}>${esc(user.name)}</option>`).join("");
   }
 
+  function pointsOptions(selected) {
+    const list = typeof S.pointsParticipants === "function" ? S.pointsParticipants() : S.barbers();
+    return list.map((user) => `<option value="${esc(user.id)}" ${user.id === selected ? "selected" : ""}>${esc(user.name)} · ${esc(S.roleLabel(user.role))}</option>`).join("");
+  }
+
   function unitOptions(selected, activeOnly = false) {
     return S.getState().units
       .filter((unit) => !activeOnly || unit.active)
@@ -3523,7 +3529,7 @@
   }
 
   function renderPoints(self = false) {
-    const barbers = self ? [S.currentUser()].filter(Boolean) : S.contentCreators();
+    const barbers = self ? [S.currentUser()].filter(Boolean) : (typeof S.pointsParticipants === "function" ? S.pointsParticipants() : S.contentCreators());
     const canManage = S.isOwner() || S.can("points.manage");
     const points = S.getState().points
       .filter((entry) => !self || entry.userId === S.currentUserId())
@@ -4509,7 +4515,7 @@
       ${textInput("username", "Usuario", user?.username || "", { required: true, placeholder: "sin espacios, ej. tomi" })}
       ${textInput("password", user ? "Nueva contraseña" : "Contraseña", "", { type: "password", required: !user, placeholder: user ? "Dejar en blanco para mantener" : "mínimo simple" })}
       ${selectField("role", "Rol", optionsFrom(roleOptions, role), role)}
-      ${checkField("contentCreator", "Realiza contenido", user ? user.contentCreator !== false : role === "barber" || role === "manager", "Le aparecen las ideas semanales y cuenta para la meta de contenido.")}
+      ${checkField("contentCreator", "Realiza contenido", user ? user.contentCreator !== false : role === "barber" || role === "manager" || role === "academy", "Le aparecen las ideas semanales y cuenta para la meta de contenido.")}
       ${textInput("commission", "Comisión (%)", user?.commission ?? (role === "barber" ? 40 : 0), { type: "number", min: 0, max: 100 })}
       ${textInput("email", "Email", user?.email || "", { type: "email" })}
       ${textInput("phone", "Teléfono", user?.phone || "", { type: "tel" })}
@@ -5352,13 +5358,13 @@
 
   function openPoints(userId = "", mode = "sumar", pointId = "") {
     if (!(S.isOwner() || S.can("points.manage"))) return toast("No tenés permiso para mover puntos.", "error");
-    const barbers = S.barbers();
-    if (!barbers.length) return toast("Primero sumá un barbero.", "error");
+    const participants = typeof S.pointsParticipants === "function" ? S.pointsParticipants() : S.barbers();
+    if (!participants.length) return toast("Primero sumá un barbero.", "error");
     const entry = pointId ? S.getState().points.find((item) => item.id === pointId) : null;
     const subtracting = mode === "restar";
-    const target = entry?.userId || userId || barbers[0].id;
+    const target = entry?.userId || userId || participants[0].id;
     const body = `<div class="form-grid">
-      ${selectField("userId", "Persona", barberOptions(target), target)}
+      ${selectField("userId", "Persona", pointsOptions(target), target)}
       ${textInput("points", subtracting ? "Puntos a restar" : "Puntos", entry ? Math.abs(entry.points) : subtracting ? 10 : 20, { type: "number", min: 1, required: true })}
       ${selectField("category", "Categoría", optionsFrom([["contenido", "Contenido"], ["capacitacion", "Capacitación"], ["ventas", "Ventas"], ["equipo", "Equipo"], ["manual", "Manual"], ["ajuste", "Ajuste / corrección"]], entry?.category || (subtracting ? "ajuste" : "equipo")), entry?.category || (subtracting ? "ajuste" : "equipo"))}
       ${textInput("date", "Fecha", entry?.date || D.iso(new Date()), { type: "date" })}
@@ -5388,10 +5394,10 @@
 
   function openStrike(userId = "") {
     if (!(S.isOwner() || S.can("strikes.manage"))) return toast("No tenés permiso para registrar strikes.", "error");
-    const barbers = S.barbers();
-    if (!barbers.length) return toast("Primero sumá un barbero.", "error");
+    const participants = typeof S.pointsParticipants === "function" ? S.pointsParticipants() : S.barbers();
+    if (!participants.length) return toast("Primero sumá un barbero.", "error");
     const body = `<div class="form-grid">
-      ${selectField("userId", "Persona", barberOptions(userId || barbers[0].id), userId || barbers[0].id)}
+      ${selectField("userId", "Persona", pointsOptions(userId || participants[0].id), userId || participants[0].id)}
       ${textInput("date", "Fecha", D.iso(new Date()), { type: "date" })}
       ${textInput("reason", "Motivo", "", { full: true, required: true, placeholder: "Título corto del strike" })}
       ${textArea("detail", "Detalle", "", { rows: 3, placeholder: "Qué pasó, cuándo y con quién" })}

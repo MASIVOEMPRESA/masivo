@@ -251,7 +251,7 @@
     const roles = {
       owner: { label: "Dueño", description: "Ve todo. Finanzas, equipo, academia y auditoría." },
       manager: { label: "Encargado", description: "Maneja la operación diaria y el equipo. Sin finanzas." },
-      academy: { label: "Encargado academia", description: "Maneja toda la academia, cobranzas y métricas. Sin caja del salón." },
+      academy: { label: "Encargado academia", description: "Barbero + academia: participa como barbero (tareas, puntos, contenido, strikes) y gestiona academia, cobranzas y métricas." },
       barber: { label: "Barbero", description: "Ve solo su ficha, tareas, contenido, puntos y strikes." }
     };
 

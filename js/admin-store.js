@@ -35,7 +35,11 @@
   const DEFAULT_PERMISSIONS = {
     owner: ["*"],
     manager: ["resumen", "equipo", "barberos", "operacion", "contenido", "capacitaciones", "puntos", "academia"],
-    academy: ["resumen", "contenido", "capacitaciones", "academia", "academia.pagos", "academia.metricas"],
+    /* Encargado de Academia = barbero + responsabilidad de Academia.
+       Tiene su "Mi espacio" (self) y participa en tareas, puntos,
+       strikes, contenido y capacitaciones como un barbero, además
+       de gestionar academia. No gestiona puntos de terceros. */
+    academy: ["resumen", "contenido", "capacitaciones", "academia", "academia.pagos", "academia.metricas", "self"],
     barber: ["self"]
   };
 
@@ -308,13 +312,20 @@
     }
     state.roles = state.roles || {};
     if (!state.roles.academy) {
-      state.roles.academy = { label: "Encargado academia", description: "Maneja toda la academia, cobranzas y métricas. Sin caja del salón." };
+      state.roles.academy = { label: "Encargado academia", description: "Barbero + academia: participa como barbero (tareas, puntos, contenido, strikes) y gestiona academia, cobranzas y métricas." };
     }
     state.permissions = state.permissions || {};
     ROLES.forEach((role) => {
       const current = state.permissions[role];
       state.permissions[role] = Array.isArray(current) ? current.filter((key) => MODULES.some((module) => module.key === key)) : clone(DEFAULT_PERMISSIONS[role] || []);
     });
+    /* Híbrido: un encargado de Academia es barbero + academia.
+       Los estados ya guardados con la matriz anterior sumaban
+       SOLO Academia; les faltaba "Mi espacio" para ver sus
+       tareas, puntos, contenido y strikes. */
+    if (Array.isArray(state.permissions.academy) && !state.permissions.academy.includes("self")) {
+      state.permissions.academy.push("self");
+    }
     state.permissions.owner = ["*"];
     state.settings = Object.assign(
       {
@@ -482,6 +493,10 @@
     return currentUser()?.role === "barber";
   }
 
+  function isAcademy() {
+    return currentUser()?.role === "academy";
+  }
+
   /* ---------------- auditoría ---------------- */
 
   function log(action, entity, entityId, detail) {
@@ -514,13 +529,24 @@
   const leadById = (id) => state.academy.leads.find((item) => item.id === id) || null;
   const productById = (id) => state.academy.products.find((item) => item.id === id) || null;
 
+  /* Híbrido: un encargado de Academia participa como barbero.
+     Joaquín, Cristian, Caro etc. aparecen en listados de barberos
+     para tareas, puntos, strikes, MeetBarber y fichas. */
   function barbers() {
-    return state.users.filter((user) => user.role === "barber" && user.active);
+    return state.users.filter((user) => (user.role === "barber" || user.role === "academy") && user.active);
   }
 
-  /* Quiénes producen contenido: barberos y encargados. */
+  /* Quiénes producen contenido: barberos, encargados y academia.
+     El encargado de Academia crea contenido como un barbero. */
   function contentCreators() {
-    return state.users.filter((user) => user.active && user.contentCreator !== false && (user.role === "barber" || user.role === "manager"));
+    return state.users.filter((user) => user.active && user.contentCreator !== false && (user.role === "barber" || user.role === "manager" || user.role === "academy"));
+  }
+
+  /* Quiénes aparecen en el dashboard de Puntos y strikes.
+     Incluye dueño (Aitor) para que también esté en el tablero,
+     además de barberos (incl. academia) y encargados. */
+  function pointsParticipants() {
+    return state.users.filter((user) => user.active && (user.role === "barber" || user.role === "manager" || user.role === "academy" || user.role === "owner"));
   }
 
   function managers() {
@@ -2582,6 +2608,7 @@
     defaultPermissions: () => clone(DEFAULT_PERMISSIONS),
     isOwner,
     isBarber,
+    isAcademy,
     roleLabel,
     log,
     userById,
@@ -2599,6 +2626,7 @@
     barbers,
     managers,
     team,
+    pointsParticipants,
     transactionsForMonth,
     unitSummary,
     totalsForMonth,
