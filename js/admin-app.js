@@ -106,6 +106,7 @@
   const ui = {
     month: D.monthKey(0),
     contentWeek: D.weekStart(0),
+    contentBase: "todas",
     opsTab: "tareas",
     trainingTab: "training",
     academyTab: "resumen",
@@ -299,10 +300,23 @@
     if (year) year.textContent = new Date().getFullYear();
     renderLogin();
     bindGlobal();
+    startNotificationWatcher();
     if (S.currentUser()) enterApp();
     else showLogin();
     renderSyncChip();
     hideBoot();
+  }
+
+  function startNotificationWatcher() {
+    if (startNotificationWatcher.started) return;
+    startNotificationWatcher.started = true;
+    setInterval(() => {
+      if (!S.currentUser() || document.hidden) return;
+      const changed = S.syncContentNotifications ? S.syncContentNotifications() : false;
+      if (changed) renderShell();
+      if (parseHash().base === "contenido" || parseHash().base === "mi-contenido") updateNotificationBadge();
+      flushBrowserNotifications();
+    }, 60000);
   }
 
   async function boot() {
@@ -755,6 +769,7 @@
     initLambo(view);
     animateCounters(view);
     window.scrollTo({ top: 0, behavior: "instant" in document.documentElement.style ? "instant" : "auto" });
+    flushBrowserNotifications();
   }
 
   function syncTabFromRoute(base, sub) {
@@ -1485,34 +1500,124 @@
 
   /* ---------------- notificaciones / menús ---------------- */
 
+  const BROWSER_NOTIF_KEY = "masivo.browser.notified.v1";
+
+  function browserNotificationSupported() {
+    return typeof window !== "undefined" && "Notification" in window;
+  }
+
+  function browserPermission() {
+    return browserNotificationSupported() ? Notification.permission : "unsupported";
+  }
+
+  function browserSeenIds() {
+    try {
+      const raw = localStorage.getItem(BROWSER_NOTIF_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveBrowserSeenIds(ids) {
+    try {
+      localStorage.setItem(BROWSER_NOTIF_KEY, JSON.stringify([...new Set(ids.map(String))].slice(-300)));
+    } catch {
+      /* sin almacenamiento: se reintenta en la próxima sesión */
+    }
+  }
+
+  function flushBrowserNotifications() {
+    if (browserPermission() !== "granted") return;
+    const user = S.currentUser();
+    if (!user || !S.notificationsFor) return;
+    const seen = new Set(browserSeenIds());
+    const pending = S.notificationsFor(user.id);
+    let changed = false;
+    pending.forEach((notice) => {
+      if (seen.has(notice.id)) return;
+      seen.add(notice.id);
+      changed = true;
+      try {
+        const note = new Notification("MASIVO CONTROL", {
+          body: `${notice.title} · ${notice.detail}`,
+          tag: notice.id,
+          icon: "/img/app/icon-192.png"
+        });
+        note.onclick = () => {
+          window.focus();
+          navigate(notice.route || "mi-contenido");
+        };
+      } catch {
+        /* algunos navegadores bloquean el constructor: queda el aviso en el panel */
+      }
+    });
+    if (changed) saveBrowserSeenIds([...seen]);
+  }
+
+  async function enableBrowserNotifications() {
+    if (!browserNotificationSupported()) {
+      toast("Este navegador no permite avisos del sistema.", "error");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      toast("Los avisos quedaron desactivados. Podés activarlos desde el candado del navegador.", "error");
+      return;
+    }
+    /* Los avisos que ya están en el panel no se disparan todos juntos. */
+    const user = S.currentUser();
+    if (user && S.notificationsFor) saveBrowserSeenIds(S.notificationsFor(user.id).map((notice) => notice.id));
+    try {
+      new Notification("MASIVO CONTROL", { body: "Listo. Te avisamos cuando tengas una pieza para subir.", tag: "masivo-bienvenida", icon: "/img/app/icon-192.png" });
+    } catch {
+      /* sin constructor de notificaciones, alcanza con el permiso */
+    }
+    toast("Avisos del navegador activados.");
+    renderUserMenu();
+  }
+
   function notifications() {
     const user = S.currentUser();
     if (!user) return [];
+    const stored = (S.notificationsFor ? S.notificationsFor(user.id) : []).map((notice) => ({
+      id: notice.id,
+      type: notice.type,
+      tone: notice.tone || "warning",
+      icon: notice.icon || "bell",
+      title: notice.title,
+      detail: notice.detail,
+      route: notice.route || "mi-contenido",
+      stored: true
+    }));
+    const hasContent = stored.some((notice) => String(notice.type || "").startsWith("content"));
     if (user.role === "barber") {
       const list = [];
       S.activeStrikes(user.id).forEach((strike) => list.push({ id: strike.id, tone: "danger", icon: "shield", title: "Strike activo", detail: strike.reason, route: "mis-puntos" }));
       S.overdueTasks(user.id).forEach((task) => list.push({ id: task.id, tone: "warning", icon: "clock", title: "Tarea vencida", detail: task.title, route: "mis-tareas" }));
       const stats = S.contentStats(user.id);
-      if (stats.compliance < 100) list.push({ id: "content", tone: "warning", icon: "image", title: "Contenido pendiente", detail: `Vas ${stats.compliance}% de la meta semanal.`, route: "mi-contenido" });
+      if (!hasContent && stats.compliance < 100) list.push({ id: "content", tone: "warning", icon: "image", title: "Contenido pendiente", detail: `Vas ${stats.compliance}% de la meta semanal.`, route: "mi-contenido" });
       const training = S.trainingStats(user.id);
       if (training.pending) list.push({ id: "training", tone: "warning", icon: "graduation", title: "Capacitación pendiente", detail: `Tenés ${training.pending} para completar.`, route: "mis-capacitaciones" });
-      return list;
+      return [...stored, ...list];
     }
-    return S.alerts();
+    return [...stored, ...S.alerts()];
   }
 
   function renderNotifications() {
     const list = notifications();
+    const unread = list.filter((item) => item.stored).length;
     $("#notif-panel").innerHTML = `
       <div class="popover-head"><strong>Alertas</strong><span>${list.length} pendientes</span></div>
       <div class="notif-list">
         ${list.length ? list.map((item) => `
-          <button class="notif-item" type="button" data-action="go" data-route="${esc(item.route)}">
+          <button class="notif-item" type="button" data-action="${item.stored ? "read-notification" : "go"}" data-route="${esc(item.route)}" ${item.stored ? `data-id="${esc(item.id)}"` : ""}>
             <span class="notif-icon ${item.tone === "danger" ? "danger" : ""}"><svg><use href="#i-${item.icon}"/></svg></span>
             <span class="notif-copy"><b>${esc(item.title)}</b><small>${esc(item.detail)}</small></span>
           </button>`).join("") : emptyState("Todo en orden", "No hay alertas para tu perfil.", "check-circle")}
       </div>
-      <div class="popover-foot">Se actualiza con cada movimiento</div>`;
+      <div class="popover-foot notif-foot"><span>${unread ? `${unread} aviso${unread === 1 ? "" : "s"} sin leer` : "Se actualiza con cada movimiento"}</span>${unread ? `<button class="link-btn" type="button" data-action="read-all-notifications">Marcar leídas</button>` : ""}</div>`;
   }
 
   function renderQuickMenu() {
@@ -1554,6 +1659,7 @@
       <div class="user-menu-head">${avatar(user, "")}<div><b>${esc(user.name)}</b><small>${esc(S.roleLabel(user.role))} · ${esc(user.email || "")}</small></div></div>
       <div class="user-menu-list">
         <button class="user-menu-item" type="button" data-action="open-search"><svg><use href="#i-search"/></svg> Buscar en el panel</button>
+        ${browserNotificationSupported() ? `<button class="user-menu-item" type="button" data-action="enable-browser-notifications"><svg><use href="#i-bell"/></svg> Avisos del navegador${browserPermission() === "granted" ? " · Activados" : ""}</button>` : ""}
         ${S.can("config") ? `<button class="user-menu-item" type="button" data-action="go" data-route="config"><svg><use href="#i-settings"/></svg> Configuración</button>` : ""}
       </div>
       <div class="user-menu-list" style="border-top:1px solid var(--line)">
@@ -1898,7 +2004,7 @@
       <div class="content-deadline ${content.compliance >= 100 ? "is-done" : contentDaysLeft() === 0 ? "is-last" : ""}">
         <span class="content-deadline-icon"><svg><use href="#i-${content.compliance >= 100 ? "check-circle" : "calendar"}"/></svg></span>
         <div>
-          <b>${content.compliance >= 100 ? "Meta de contenido cumplida" : content.published ? `Te faltan ${Math.max(0, content.goal - content.published)} piezas` : "Tenés que publicar esta semana"}</b>
+          <b>${content.compliance >= 100 ? "Meta de contenido cumplida" : content.published ? `Te falta${Math.max(0, content.goal - content.published) === 1 ? "" : "n"} ${Math.max(0, content.goal - content.published)} pieza${Math.max(0, content.goal - content.published) === 1 ? "" : "s"}` : "Tenés que publicar esta semana"}</b>
           <p>${content.compliance >= 100 ? `Publicaste ${content.published} de ${content.goal}. Buen trabajo.` : `Meta: ${content.goal} piezas antes del sábado · ${content.published} publicadas · ${daysLeftLabel()}.`}</p>
         </div>
         <a class="btn btn--ghost btn--sm" href="#/mi-contenido">Ver contenido <svg><use href="#i-arrow"/></svg></a>
@@ -2008,7 +2114,8 @@
   }
 
   function pieceMeta(piece) {
-    return [piece.type, piece.format, piece.stage === "idea" ? "Idea" : stageLabel(piece.stage)].filter(Boolean).join(" · ");
+    const base = S.pieceBase(piece);
+    return [base?.label || piece.type, piece.format, piece.stage === "idea" ? "Idea" : stageLabel(piece.stage)].filter(Boolean).join(" · ");
   }
 
   function pointIcon(category) {
@@ -3290,29 +3397,93 @@
 
   /* ---------------- contenido ---------------- */
 
+  function contentBasePoints(baseKey) {
+    const base = S.contentBase(baseKey) || S.CONTENT_BASES[0];
+    const custom = S.getState().settings.contentBasePoints || {};
+    return Number(custom[base.key] ?? base.points);
+  }
+
+  function contentBaseCards(pieces) {
+    const cards = [{ key: "todas", label: "Todas", icon: "grid", singular: "Pieza", plural: "piezas" }, ...S.CONTENT_BASES];
+    return `<div class="content-bases">
+      ${cards.map((item) => {
+        const isAll = item.key === "todas";
+        const list = isAll ? pieces : pieces.filter((piece) => S.pieceBase(piece)?.key === item.key);
+        const published = list.filter((piece) => piece.stage === "publicado").length;
+        const active = ui.contentBase === item.key || (isAll && !S.contentBase(ui.contentBase));
+        return `<button class="content-base-card ${isAll ? "is-all" : `is-${item.key}`} ${active ? "active" : ""}" type="button" data-action="content-base" data-id="${item.key}">
+          <span class="content-base-icon"><svg><use href="#i-${item.icon}"/></svg></span>
+          <span class="content-base-copy"><b>${esc(item.label)}</b><small>${published}/${list.length} publicadas</small></span>
+          <span class="content-base-points">${isAll ? `${S.CONTENT_BASES.length} bases` : `${contentBasePoints(item.key)}<em>pts</em>`}</span>
+        </button>`;
+      }).join("")}
+    </div>`;
+  }
+
+  function contentPlanRow(plan, canManage) {
+    const user = S.userById(plan.userId);
+    const base = S.contentBase(plan.base) || S.CONTENT_BASES[0];
+    const days = Array.isArray(plan.days) ? plan.days.map(Number) : [];
+    const active = plan.active !== false;
+    const points = Number(plan.points ?? contentBasePoints(base.key));
+    return `<div class="plan-row ${active ? "" : "is-paused"}">
+      <span class="plan-icon is-${esc(base.key)}"><svg><use href="#i-${base.icon}"/></svg></span>
+      <div class="plan-copy">
+        <b>${esc(plan.title || `${base.singular} del día`)}</b>
+        <small>${esc(user?.name || "Sin responsable")} · ${esc(base.label)} · ${points} punto${points === 1 ? "" : "s"} por publicación</small>
+        <span class="plan-days">${[1, 2, 3, 4, 5, 6, 0].map((day) => `<i class="${days.includes(day) ? "on" : ""}">${S.DAY_LABELS[day]}</i>`).join("")}</span>
+      </div>
+      ${status(active ? "Activa" : "Pausada", active ? "ok" : "muted")}
+      ${canManage ? `<span class="plan-actions">
+        <button class="row-action" type="button" data-action="toggle-content-plan" data-id="${esc(plan.id)}" title="${active ? "Pausar" : "Activar"}"><svg><use href="#i-${active ? "eye-off" : "eye"}"/></svg></button>
+        <button class="row-action" type="button" data-action="edit-content-plan" data-id="${esc(plan.id)}" title="Editar pieza fija"><svg><use href="#i-edit"/></svg></button>
+        <button class="row-action danger" type="button" data-action="confirm-delete" data-kind="content-plan" data-id="${esc(plan.id)}" title="Eliminar pieza fija"><svg><use href="#i-trash"/></svg></button>
+      </span>` : ""}
+    </div>`;
+  }
+
+  function contentPlansPanel(plans, canManage, self) {
+    if (!plans.length && !canManage) return "";
+    return `<article class="panel content-plans-panel" data-reveal>
+      <div class="panel-head panel-head--bordered">
+        <div><h2 class="panel-title">Piezas fijas</h2><p class="panel-sub">${self ? "Tu calendario recurrente. Cada semana aparece la pieza del día." : "Se repiten cada semana y generan la pieza del día para cada persona."}</p></div>
+        ${canManage ? `<button class="btn btn--soft btn--sm" type="button" data-action="new-content-plan"><svg><use href="#i-plus"/></svg>Nueva pieza fija</button>` : ""}
+      </div>
+      <div class="panel-body panel-body--flush">
+        ${plans.length ? `<div class="plan-list">${plans.map((plan) => contentPlanRow(plan, canManage)).join("")}</div>` : `<div class="content-empty">Sin piezas fijas todavía.${canManage ? " Programá la primera con días, persona y puntos." : ""}</div>`}
+      </div>
+    </article>`;
+  }
+
   function renderContent(self = false) {
+    S.ensureContentWeek(ui.contentWeek);
     const barbers = self ? [S.currentUser()].filter(Boolean) : S.contentCreators();
     const week = ui.contentWeek;
-    const stats = barbers.map((barber) => ({ barber, stats: S.contentStats(barber.id, week) }));
-    const totalGoal = barbers.length * Number(S.getState().settings.contentGoal || 2);
+    const baseFilter = S.contentBase(ui.contentBase) ? ui.contentBase : "";
+    const stats = barbers.map((barber) => ({ barber, stats: S.contentStats(barber.id, week, baseFilter) }));
+    const allPieces = stats.flatMap((item) => item.stats.pieces);
+    const totalGoal = stats.reduce((sum, item) => sum + item.stats.goal, 0);
     const totalPublished = stats.reduce((sum, item) => sum + item.stats.published, 0);
     const avg = barbers.length ? Math.round(stats.reduce((sum, item) => sum + item.stats.compliance, 0) / barbers.length) : 0;
     const weekIsCurrent = week === D.weekStart(0);
     const canManage = S.isOwner() || S.can("content.manage");
+    const plans = (self ? S.contentPlansFor(S.currentUserId()) : S.contentPlans()).filter((plan) => !baseFilter || plan.base === baseFilter);
 
     return `<section class="page">
       ${pageHead({
         kicker: `Contenido · semana ${D.isoWeek(week)} · ${D.weekLabel(week)}`,
         title: self ? "Tu contenido" : "Contenido",
-        desc: self ? "Idea → grabado → Drive → publicado. Cada pieza publicada suma puntos y llena la agenda." : "El pipeline semanal de cada creador. Ideas con guion, meta clara y puntos cuando se publica.",
-        actions: `${monthSwitcherFor(D.weekLabel(week), "week-prev", "week-next")}${weekIsCurrent ? "" : btn("Semana actual", { action: "week-now", icon: "refresh", size: "sm" })}${btn("Nueva idea", { action: "content-idea", icon: "spark", variant: "primary" })}${btn("Nueva pieza", { action: "content", icon: "plus" })}`,
-        meta: `<span><svg><use href="#i-image"/></svg>${totalPublished}/${totalGoal} publicadas</span><span><svg><use href="#i-target"/></svg>${avg}% cumplimiento promedio</span>`,
+        desc: self ? "Tus piezas fijas de la semana, con recordatorio y puntos por publicar." : "Tres bases: Reels, Historias y Carruseles. Cada pieza publicada suma puntos; si no se publica, avisa al encargado y al dueño.",
+        actions: `${monthSwitcherFor(D.weekLabel(week), "week-prev", "week-next")}${weekIsCurrent ? "" : btn("Semana actual", { action: "week-now", icon: "refresh", size: "sm" })}${btn("Nueva pieza", { action: "content", icon: "plus", variant: "primary" })}${canManage ? btn("Pieza fija", { action: "new-content-plan", icon: "refresh" }) : ""}`,
+        meta: `<span><svg><use href="#i-image"/></svg>${totalPublished}/${totalGoal} publicadas</span><span><svg><use href="#i-refresh"/></svg>${plans.length} fijas planificadas</span><span><svg><use href="#i-target"/></svg>${avg}% cumplimiento</span>`,
         hero: true
       })}
 
+      ${contentBaseCards(allPieces)}
+
       <div class="content-hero">
         <article class="panel" data-reveal>
-          <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">${self ? "Tu semana" : "Ritmo de publicación"}</h2><p class="panel-sub">${D.weekLabel(week)} · meta ${S.getState().settings.contentGoal} piezas por persona</p></div><span class="status ${avg >= 100 ? "status--ok" : "status--warn"}">${avg >= 100 ? "Meta cumplida" : "En progreso"}</span></div>
+          <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">${self ? "Tu semana" : "Ritmo de publicación"}</h2><p class="panel-sub">${D.weekLabel(week)} · ${baseFilter ? `${S.contentBase(baseFilter).label} · ` : ""}${totalGoal} piezas agendadas</p></div><span class="status ${avg >= 100 ? "status--ok" : "status--warn"}">${avg >= 100 ? "Meta cumplida" : "En progreso"}</span></div>
           <div class="panel-body" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
             ${C.ring(avg, { size: 128, thickness: 9, color: avg >= 100 ? "#34d399" : "#a78bfa", label: "del equipo" })}
             <div style="flex:1;min-width:220px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
@@ -3327,10 +3498,12 @@
           <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Cómo se mide</h2><p class="panel-sub">Cada etapa vale distinto</p></div></div>
           <div class="panel-body" style="display:flex;flex-direction:column;gap:9px">
             ${[["Idea", "0%", "muted"], ["Grabado", "34%", "warn"], ["En Drive", "67%", "violet"], ["Publicado", "100%", "ok"]].map(([label, value, tone]) => `<div class="row row--between"><span style="font-size:12px">${status(label, tone)}</span><b class="mono" style="font-size:12px">${value}</b></div>`).join("")}
-            <p class="form-hint" style="margin-top:2px">La idea arranca el lunes. El objetivo es publicar antes del sábado.</p>
+            <p class="form-hint" style="margin-top:2px">Puntos por base: ${S.CONTENT_BASES.map((base) => `${base.label} ${contentBasePoints(base.key)}`).join(" · ")}. Se pueden ajustar por pieza.</p>
           </div>
         </article>
       </div>
+
+      ${contentPlansPanel(plans, canManage, self)}
 
       <div class="content-grid">
         ${stats.map(({ barber, stats: item }) => {
@@ -3348,17 +3521,21 @@
               <span class="pipeline-step ${item.inDrive ? "done" : ""}"><b>${item.inDrive}</b> Drive</span>
               <span class="pipeline-step ${item.published ? "done" : ""}"><b>${item.published}</b> publicadas</span>
             </div>
-            ${item.pieces.length ? `<div class="piece-list">${item.pieces.map((piece) => `<div class="piece">
-              <span class="piece-copy"><b>${esc(piece.title)}</b><small>${esc(pieceMeta(piece))} · ${date(piece.createdAt)}${piece.link ? " · con link" : ""}</small>${piece.hook ? `<small class="piece-hook">“${esc(piece.hook)}”</small>` : ""}</span>
-              ${stageChip(piece.stage)}
-              <span class="piece-actions">
-                ${piece.stage !== "publicado" && (canManage || self || piece.userId === S.currentUserId()) ? `<button class="row-action" type="button" data-action="advance-content" data-id="${esc(piece.id)}" title="Avanzar etapa"><svg><use href="#i-arrow"/></svg></button>` : ""}
-                ${canManage || self || piece.userId === S.currentUserId() ? `<button class="row-action" type="button" data-action="content-edit" data-id="${esc(piece.id)}" title="Editar idea, guion o estado"><svg><use href="#i-edit"/></svg></button>` : ""}
-                ${piece.link ? `<a class="row-action" href="${esc(piece.link)}" target="_blank" rel="noopener" title="Abrir link"><svg><use href="#i-link"/></svg></a>` : ""}
-                ${canManage || self || piece.userId === S.currentUserId() ? `<button class="row-action danger" type="button" data-action="confirm-delete" data-kind="content" data-id="${esc(piece.id)}" title="Eliminar"><svg><use href="#i-trash"/></svg></button>` : ""}
-              </span>
-            </div>`).join("")}</div>` : `<div class="content-empty">Sin piezas esta semana. ${self || canManage ? "Cargá la primera y arrancá el pipeline." : ""}</div>`}
-            ${canManage || self ? `<button class="btn btn--ghost btn--sm btn--block" type="button" data-action="content-idea" data-id="${esc(barber.id)}"><svg><use href="#i-spark"/></svg>Sumar idea</button>` : ""}
+            ${item.pieces.length ? `<div class="piece-list">${item.pieces.map((piece) => {
+              const base = S.pieceBase(piece);
+              const late = piece.dueDate && piece.stage !== "publicado" && piece.dueDate < D.iso(new Date());
+              return `<div class="piece ${late ? "is-late" : ""}">
+                <span class="piece-copy"><b>${esc(piece.title)}</b><small>${esc(pieceMeta(piece))}${piece.dueDate ? ` · ${date(piece.dueDate)}` : ""}${piece.link ? " · con link" : ""}</small><span class="piece-tags">${piece.fixed ? `<i class="piece-tag piece-tag--fixed">Fija</i>` : ""}${late ? `<i class="piece-tag piece-tag--late">Atrasada</i>` : ""}${base ? `<i class="piece-tag piece-tag--base">${esc(base.label)}</i>` : ""}</span>${piece.hook ? `<small class="piece-hook">“${esc(piece.hook)}”</small>` : ""}${piece.idea && piece.stage === "idea" ? `<small class="piece-guide">${esc(piece.idea)}</small>` : ""}</span>
+                <span class="piece-side"><span class="piece-points">+${S.piecePoints(piece)} pts</span>${stageChip(piece.stage)}</span>
+                <span class="piece-actions">
+                  ${piece.stage !== "publicado" && (canManage || self || piece.userId === S.currentUserId()) ? `<button class="row-action" type="button" data-action="advance-content" data-id="${esc(piece.id)}" title="Avanzar etapa"><svg><use href="#i-arrow"/></svg></button>` : ""}
+                  ${canManage || self || piece.userId === S.currentUserId() ? `<button class="row-action" type="button" data-action="content-edit" data-id="${esc(piece.id)}" title="Editar idea, guion o estado"><svg><use href="#i-edit"/></svg></button>` : ""}
+                  ${piece.link ? `<a class="row-action" href="${esc(piece.link)}" target="_blank" rel="noopener" title="Abrir link"><svg><use href="#i-link"/></svg></a>` : ""}
+                  ${canManage || self || piece.userId === S.currentUserId() ? `<button class="row-action danger" type="button" data-action="confirm-delete" data-kind="content" data-id="${esc(piece.id)}" title="Eliminar"><svg><use href="#i-trash"/></svg></button>` : ""}
+                </span>
+              </div>`;
+            }).join("")}</div>` : `<div class="content-empty">Sin piezas ${baseFilter ? `de ${S.contentBase(baseFilter).label} ` : ""}esta semana. ${self || canManage ? "Cargá la primera o programá una pieza fija." : ""}</div>`}
+            ${canManage || self ? `<button class="btn btn--ghost btn--sm btn--block" type="button" data-action="content" data-id="${esc(barber.id)}"><svg><use href="#i-plus"/></svg>Nueva pieza</button>` : ""}
           </article>`;
         }).join("") || emptyState("Sin barberos activos", "Sumá al equipo para trackear contenido.", "image")}
       </div>
@@ -4096,6 +4273,11 @@
               ${textInput("monthlyGoal", "Meta mensual global (ARS)", state.settings.monthlyGoal, { type: "number", min: 0 })}
               ${textInput("contentGoal", "Piezas de contenido por semana", state.settings.contentGoal, { type: "number", min: 1 })}
               ${textInput("pointsContent", "Puntos por contenido publicado", state.settings.pointsContent, { type: "number", min: 0 })}
+              <div class="field field--full"><label>Puntos por base de contenido</label><div class="form-grid" style="gap:10px">
+                ${textInput("basePointsReel", "Reels", (state.settings.contentBasePoints || {}).reel ?? 3, { type: "number", min: 0 })}
+                ${textInput("basePointsHistoria", "Historias", (state.settings.contentBasePoints || {}).historia ?? 1, { type: "number", min: 0 })}
+                ${textInput("basePointsCarrusel", "Carruseles", (state.settings.contentBasePoints || {}).carrusel ?? 2, { type: "number", min: 0 })}
+              </div></div>
               ${textInput("pointsTraining", "Puntos por capacitación aprobada", state.settings.pointsTraining, { type: "number", min: 0 })}
               ${textInput("pointsSale", "Puntos por venta de producto", state.settings.pointsSale, { type: "number", min: 0 })}
               ${textInput("strikeLimit", "Strikes para discontinuar", state.settings.strikeLimit, { type: "number", min: 1 })}
@@ -4973,6 +5155,10 @@
     return ["", ...list].map((value) => `<option value="${esc(value)}" ${String(value) === String(selected || "") ? "selected" : ""}>${esc(value || "Elegí un formato")}</option>`).join("");
   }
 
+  function contentBaseOptions(selected) {
+    return S.CONTENT_BASES.map((base) => `<option value="${esc(base.key)}" ${base.key === selected ? "selected" : ""}>${esc(base.label)} · ${contentBasePoints(base.key)} pts</option>`).join("");
+  }
+
   function openContent(presetUserId = "", pieceId = "", forcedStage = "") {
     const piece = pieceId ? S.getState().contentPieces.find((item) => item.id === pieceId) : null;
     if (pieceId && !piece) return toast("No encontramos esa pieza.", "error");
@@ -4983,24 +5169,27 @@
     const locked = S.isBarber();
     const defaultCreator = creators.find((item) => item.id === S.currentUserId())?.id || creators[0].id;
     const userId = editing ? piece.userId : locked ? S.currentUserId() : (creators.some((item) => item.id === presetUserId) ? presetUserId : defaultCreator);
-    const type = piece?.type || "Video";
+    const baseKey = S.pieceBase(piece)?.key || S.contentBase(ui.contentBase)?.key || "reel";
+    const base = S.contentBase(baseKey) || S.CONTENT_BASES[0];
     const stage = piece?.stage || forcedStage || "idea";
+    const points = piece ? S.piecePoints(piece) : contentBasePoints(base.key);
     const creatorOptions = creators.map((item) => [item.id, `${item.name} · ${S.roleLabel(item.role)}`]);
     const stageOptions = [["idea", "Idea (recién anotada)"], ["grabado", "Grabado"], ["drive", "Subido a Drive"], ["publicado", "Publicado"]];
     const body = `<div class="form-grid">
       ${locked
         ? `<input type="hidden" name="userId" value="${esc(userId)}"><div class="field field--full"><label>Persona</label><div class="tag">${esc(S.userById(userId)?.name || "")}</div></div>`
         : selectField("userId", "Persona", optionsFrom(creatorOptions, userId), userId, "", true)}
-      ${textInput("title", "Título de la pieza", piece?.title || "", { required: true, full: true, placeholder: "Ej. Video 1: cómo pedir el corte" })}
+      ${textInput("title", "Título de la pieza", piece?.title || "", { required: true, full: true, placeholder: "Ej. Historia del día: turnos del sábado" })}
       <div class="field field--full content-type-row">
+        ${selectField("base", "Base", contentBaseOptions(base.key), base.key)}
         <div class="field">
-          <label for="f-type">Tipo</label>
-          <select class="select" id="f-type" name="type">${S.CONTENT_TYPES.map((item) => `<option value="${esc(item)}" ${item === type ? "selected" : ""}>${esc(item)}</option>`).join("")}</select>
+          <label for="f-points">Puntos que suma</label>
+          <input class="input" id="f-points" name="points" type="number" min="0" step="1" value="${points}">
         </div>
-        <div class="field">
-          <label for="f-format">Formato</label>
-          <select class="select" id="f-format" name="format">${contentFormatOptions(type, piece?.format || "")}</select>
-        </div>
+      </div>
+      <div class="field field--full">
+        <label for="f-format">Formato</label>
+        <select class="select" id="f-format" name="format">${contentFormatOptions(base.type, piece?.format || "")}</select>
       </div>
       <div class="field field--full">
         <label for="f-newFormat">Agregar un formato</label>
@@ -5008,29 +5197,30 @@
           <input class="input" id="f-newFormat" name="newFormat" placeholder="Ej. Tutorial, Reacción, B-Roll…">
           <button class="btn btn--ghost btn--sm" type="button" data-add-format><svg><use href="#i-plus"/></svg>Agregar</button>
         </div>
-        <span class="form-hint">Se suma al tipo que tengas elegido y queda disponible para todos.</span>
+        <span class="form-hint">Se suma a la base que tengas elegida y queda disponible para todos.</span>
       </div>
       ${selectField("stage", "Etapa", optionsFrom(stageOptions, stage), stage)}
       ${textInput("link", "Link (Drive o publicación)", piece?.link || "", { type: "url", full: true, placeholder: "https://…" })}
-      ${textArea("hook", "Hook / primera frase", piece?.hook || "", { rows: 2, full: true, placeholder: "La frase con la que arranca el video" })}
+      ${textArea("hook", "Hook / primera frase", piece?.hook || "", { rows: 2, full: true, placeholder: "La frase con la que arranca la pieza" })}
       ${textArea("idea", "Idea o guía", piece?.idea || "", { rows: 3, full: true, placeholder: "Qué tiene que mostrar y por qué" })}
       ${textArea("script", "Guion", piece?.script || "", { rows: 3, full: true, placeholder: "Paso a paso: 1…, 2…, 3…" })}
     </div>
-    <p class="form-hint" style="margin-top:10px">Semana ${D.weekLabel(editing ? piece.weekStart : ui.contentWeek)}. Cada pieza publicada suma ${S.getState().settings.pointsContent} puntos automáticamente.</p>`;
+    <p class="form-hint" style="margin-top:10px">Semana ${D.weekLabel(editing ? piece.weekStart : ui.contentWeek)}. Cada pieza publicada suma ${points} puntos. Podés cambiar el valor en esta pieza.</p>`;
     const form = openModal({
-      kicker: editing ? "Contenido · editar" : forcedStage === "idea" ? "Contenido · nueva idea" : "Contenido semanal",
-      title: editing ? "EDITAR PIEZA" : forcedStage === "idea" ? "NUEVA IDEA" : "NUEVA PIEZA",
-      sub: editing ? "Cambiá la idea, el guion, el formato o la etapa." : "Idea → grabado → Drive → publicado. La idea puede quedar cargada con guion para el barbero.",
+      kicker: editing ? "Contenido · editar" : "Contenido semanal",
+      title: editing ? "EDITAR PIEZA" : "NUEVA PIEZA",
+      sub: editing ? "Cambiá la idea, el guion, la base, los puntos o la etapa." : "Elegí la base, el responsable y los puntos. Si es recurrente, usá «Pieza fija».",
       body,
-      submitLabel: editing ? "Guardar cambios" : forcedStage === "idea" ? "Guardar idea" : "Cargar pieza",
+      submitLabel: editing ? "Guardar cambios" : "Cargar pieza",
       size: "lg",
       onSubmit: (data) => {
         if (!data.title.trim()) throw new Error("Poné un título a la pieza.");
         if (data.stage === "publicado" && !data.link && (!editing || piece.stage !== "publicado")) throw new Error("Si ya está publicada, agregá el link.");
         const payload = {
           userId: locked ? userId : data.userId,
+          base: data.base,
+          points: Number(data.points),
           title: data.title.trim(),
-          type: data.type,
           format: data.format,
           stage: data.stage,
           link: data.link,
@@ -5048,21 +5238,98 @@
       }
     });
     if (!form) return;
-    const typeEl = form.querySelector('[name="type"]');
+    const baseEl = form.querySelector('[name="base"]');
+    const pointsEl = form.querySelector('[name="points"]');
     const formatEl = form.querySelector('[name="format"]');
     const newFormatEl = form.querySelector('[name="newFormat"]');
+    const currentBase = () => S.contentBase(baseEl?.value) || S.CONTENT_BASES[0];
     const refreshFormats = (selected = "") => {
-      if (!typeEl || !formatEl) return;
-      formatEl.innerHTML = contentFormatOptions(typeEl.value, selected);
+      if (!formatEl) return;
+      formatEl.innerHTML = contentFormatOptions(currentBase().type, selected);
     };
-    typeEl?.addEventListener("change", () => refreshFormats());
+    baseEl?.addEventListener("change", () => {
+      if (pointsEl) pointsEl.value = contentBasePoints(currentBase().key);
+      refreshFormats();
+    });
     form.querySelector("[data-add-format]")?.addEventListener("click", () => {
       const label = String(newFormatEl?.value || "").trim();
       if (!label) return toast("Escribí el nombre del formato.", "error");
-      if (!S.addContentFormat(typeEl.value, label)) return toast("Ese formato ya existe en ese tipo.", "error");
+      if (!S.addContentFormat(currentBase().type, label)) return toast("Ese formato ya existe en esa base.", "error");
       refreshFormats(label);
       if (newFormatEl) newFormatEl.value = "";
       toast("Formato agregado.");
+    });
+  }
+
+  function openContentPlan(planId = "", presetUserId = "") {
+    if (!S.isOwner() && !S.can("content.manage")) return toast("Solo el dueño o el encargado pueden editar piezas fijas.", "error");
+    const plan = planId ? S.getState().contentPlans.find((item) => item.id === planId) : null;
+    if (planId && !plan) return toast("No encontramos esa pieza fija.", "error");
+    const creators = S.contentCreators();
+    if (!creators.length) return toast("Primero sumá personas al equipo.", "error");
+    const defaultCreator = creators.find((item) => item.id === S.currentUserId())?.id || creators[0].id;
+    const userId = plan?.userId || (creators.some((item) => item.id === presetUserId) ? presetUserId : defaultCreator);
+    const baseKey = plan?.base || S.contentBase(ui.contentBase)?.key || "historia";
+    const base = S.contentBase(baseKey) || S.CONTENT_BASES[0];
+    const days = Array.isArray(plan?.days) ? plan.days.map(Number) : [1];
+    const points = Number(plan?.points ?? contentBasePoints(base.key));
+    const creatorOptions = creators.map((item) => [item.id, `${item.name} · ${S.roleLabel(item.role)}`]);
+    const body = `<div class="form-grid">
+      ${selectField("userId", "Persona", optionsFrom(creatorOptions, userId), userId, "", true)}
+      <div class="field field--full content-type-row">
+        ${selectField("base", "Base", contentBaseOptions(base.key), base.key)}
+        <div class="field">
+          <label for="f-points">Puntos por publicación</label>
+          <input class="input" id="f-points" name="points" type="number" min="0" step="1" value="${points}">
+        </div>
+      </div>
+      ${textInput("title", "Nombre de la pieza", plan?.title || `${base.singular} del día`, { required: true, full: true, placeholder: "Ej. Historia del día" })}
+      <div class="field field--full">
+        <label>Días de la semana</label>
+        <div class="day-picker">
+          ${[1, 2, 3, 4, 5, 6, 0].map((day) => `<label class="day-chip"><input type="checkbox" name="days" value="${day}" data-multi="true" ${days.includes(day) ? "checked" : ""}><span>${S.DAY_LABELS[day]}</span></label>`).join("")}
+        </div>
+        <span class="form-hint">Cada semana se genera una pieza para esta persona en esos días.</span>
+      </div>
+      ${textInput("format", "Formato (opcional)", plan?.format || "", { full: true, placeholder: "Ej. Resultados, Promoción, POV" })}
+      ${textArea("idea", "Consigna o guion (opcional)", plan?.idea || "", { rows: 3, full: true, placeholder: "Qué tiene que mostrar la pieza cuando le toca" })}
+      ${checkField("active", "Pieza activa", plan ? plan.active !== false : true, "Si la pausás, deja de generar piezas nuevas")}
+    </div>
+    <p class="form-hint" style="margin-top:10px">${plan ? "Los cambios se aplican a las piezas pendientes de esta semana." : "Se genera automáticamente la pieza de esta semana y las próximas."}</p>`;
+    const form = openModal({
+      kicker: "Contenido · recurrencia",
+      title: plan ? "EDITAR PIEZA FIJA" : "NUEVA PIEZA FIJA",
+      sub: "Persona + base + días. Es el calendario fijo que se repite cada semana.",
+      body,
+      submitLabel: plan ? "Guardar cambios" : "Crear pieza fija",
+      size: "lg",
+      onSubmit: (data) => {
+        const payload = {
+          userId: data.userId,
+          base: data.base,
+          title: data.title.trim(),
+          days: Array.isArray(data.days) ? data.days.map(Number) : [],
+          points: Number(data.points),
+          format: data.format,
+          idea: data.idea,
+          active: data.active !== false
+        };
+        if (!payload.title) throw new Error("Poné un nombre a la pieza fija.");
+        if (!payload.days.length) throw new Error("Elegí al menos un día de la semana.");
+        if (plan) {
+          S.updateContentPlan(plan.id, payload);
+          afterChange("Pieza fija actualizada.");
+        } else {
+          S.addContentPlan(payload);
+          afterChange("Pieza fija creada. Ya aparece en esta semana.");
+        }
+      }
+    });
+    if (!form) return;
+    const baseEl = form.querySelector('[name="base"]');
+    const pointsEl = form.querySelector('[name="points"]');
+    baseEl?.addEventListener("change", () => {
+      if (pointsEl) pointsEl.value = contentBasePoints(S.contentBase(baseEl.value)?.key || "historia");
     });
   }
 
@@ -6217,6 +6484,40 @@
       case "content-edit":
         openContent("", id);
         return;
+      case "content-base":
+        ui.contentBase = id || "todas";
+        renderView();
+        return;
+      case "new-content-plan":
+        openContentPlan("", id);
+        return;
+      case "edit-content-plan":
+        openContentPlan(id);
+        return;
+      case "toggle-content-plan": {
+        const plan = S.toggleContentPlan(id);
+        renderView();
+        if (plan) toast(plan.active ? "Pieza fija activada." : "Pieza fija pausada.");
+        return;
+      }
+      case "read-notification": {
+        S.markNotificationRead(id);
+        closePopovers();
+        navigate(target.dataset.route || "mi-contenido");
+        renderShell();
+        return;
+      }
+      case "read-all-notifications": {
+        const user = S.currentUser();
+        if (user) S.markAllNotificationsRead(user.id);
+        renderShell();
+        renderNotifications();
+        toast("Avisos marcados como leídos.");
+        return;
+      }
+      case "enable-browser-notifications":
+        enableBrowserNotifications();
+        return;
       case "advance-content": {
         const piece = S.advanceContent(id);
         renderView();
@@ -6591,6 +6892,19 @@
           afterChange("Pieza eliminada.");
         }
       });
+      return;
+    }
+    if (kind === "content-plan") {
+      const plan = state.contentPlans.find((item) => item.id === id);
+      if (!plan) return;
+      confirmDialog({
+        title: "ELIMINAR PIEZA FIJA",
+        text: `“${plan.title}” deja de repetirse. Se mantienen las piezas ya publicadas y las semanas anteriores.`,
+        onConfirm: () => {
+          S.deleteContentPlan(id);
+          afterChange("Pieza fija eliminada.");
+        }
+      });
     }
   }
 
@@ -6843,6 +7157,11 @@
           monthlyGoal: Number(data.monthlyGoal || 0),
           contentGoal: Number(data.contentGoal || 1),
           pointsContent: Number(data.pointsContent || 0),
+          contentBasePoints: {
+            reel: Number(data.basePointsReel || 0),
+            historia: Number(data.basePointsHistoria || 0),
+            carrusel: Number(data.basePointsCarrusel || 0)
+          },
           pointsTraining: Number(data.pointsTraining || 0),
           pointsSale: Number(data.pointsSale || 0),
           strikeLimit: Number(data.strikeLimit || 3),
