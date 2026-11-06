@@ -18,10 +18,10 @@
     { key: "unidades", label: "Unidades y finanzas", group: "Control", hint: "Caja, metas y movimientos de cada unidad." },
     { key: "equipo", label: "Equipo y roles", group: "Personas", hint: "Fichas del equipo y nombres de las jerarquías." },
     { key: "barberos", label: "Barberos", group: "Personas", hint: "Fichas, puntos, strikes y contenido del equipo." },
-    { key: "operacion", label: "Operación", group: "Operación", hint: "Tareas, checklists y reuniones." },
-    { key: "contenido", label: "Contenido", group: "Operación", hint: "Calendario, piezas y publicaciones." },
-    { key: "capacitaciones", label: "Capacitaciones", group: "Operación", hint: "Cursos, registros y aprobaciones." },
-    { key: "puntos", label: "Puntos y strikes", group: "Operación", hint: "Reconocimientos, sanciones y respuestas." },
+    { key: "operacion", label: "Barbería", group: "Barbería", hint: "Tareas, checklists, MeetBarber, reuniones, capacitaciones y puntos." },
+    { key: "contenido", label: "Marketing", group: "Marketing", hint: "Calendario, piezas y publicaciones." },
+    { key: "capacitaciones", label: "Capacitaciones", group: "Barbería", hint: "Cursos, registros y aprobaciones." },
+    { key: "puntos", label: "Puntos y strikes", group: "Barbería", hint: "Reconocimientos, sanciones y respuestas." },
     { key: "academia", label: "Academia", group: "Academia", hint: "Embudo, alumnos, cursos y stock." },
     { key: "academia.pagos", label: "Academia · Pagos", group: "Academia", hint: "Cuotas, cobranzas y vencimientos." },
     { key: "academia.metricas", label: "Academia · Métricas", group: "Academia", hint: "Ingresos, conversión y rendimiento." },
@@ -505,6 +505,9 @@
       { reel: 3, historia: 1, carrusel: 2 },
       state.settings.contentBasePoints && typeof state.settings.contentBasePoints === "object" ? state.settings.contentBasePoints : {}
     );
+    state.settings.moduleTexts = state.settings.moduleTexts && typeof state.settings.moduleTexts === "object" ? state.settings.moduleTexts : {};
+    state.settings.routeTexts = state.settings.routeTexts && typeof state.settings.routeTexts === "object" ? state.settings.routeTexts : {};
+    state.settings.submoduleTexts = state.settings.submoduleTexts && typeof state.settings.submoduleTexts === "object" ? state.settings.submoduleTexts : {};
     /* Masivo Session: los estados viejos arrancan con los dos módulos que ya dimos. */
     if (!Array.isArray(state.sessions)) {
       state.sessions = [
@@ -3144,6 +3147,39 @@
     commit({ action: "editó", entity: "Configuración", entityId: "settings", detail: "Parámetros generales" });
   }
 
+  /* ---------------- textos editables del panel ---------------- */
+
+  const cleanText = (value = "", max = 80) => String(value || "").trim().slice(0, max);
+
+  function normalizeTexts(map, fields = ["label"]) {
+    const out = {};
+    if (!map || typeof map !== "object") return out;
+    Object.entries(map).forEach(([key, value]) => {
+      if (!value || typeof value !== "object") return;
+      const entry = {};
+      fields.forEach((field) => {
+        const text = cleanText(value[field], field === "desc" ? 220 : field === "title" ? 60 : 48);
+        if (text) entry[field] = text;
+      });
+      if (Object.keys(entry).length) out[String(key)] = entry;
+    });
+    return out;
+  }
+
+  function saveTexts(data = {}) {
+    if (data.moduleTexts) state.settings.moduleTexts = normalizeTexts(data.moduleTexts, ["label", "title", "desc"]);
+    if (data.routeTexts) state.settings.routeTexts = normalizeTexts(data.routeTexts, ["title", "desc"]);
+    if (data.submoduleTexts) state.settings.submoduleTexts = normalizeTexts(data.submoduleTexts, ["label"]);
+    commit({ action: "editó", entity: "Configuración", entityId: "texts", detail: "Nombres, títulos y submódulos" });
+  }
+
+  function resetTexts() {
+    state.settings.moduleTexts = {};
+    state.settings.routeTexts = {};
+    state.settings.submoduleTexts = {};
+    commit({ action: "editó", entity: "Configuración", entityId: "texts", detail: "Textos restaurados" });
+  }
+
   function exportData() {
     return JSON.stringify(state, null, 2);
   }
@@ -3366,6 +3402,8 @@
     updateProduct,
     stockMove,
     saveSettings,
+    saveTexts,
+    resetTexts,
     exportData,
     importData,
     resetData,

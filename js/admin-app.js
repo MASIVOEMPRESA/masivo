@@ -134,10 +134,10 @@
     equipo: { label: "Equipo y roles", group: "Personas" },
     barberos: { label: "Barberos", group: "Personas" },
     barbero: { label: "Ficha", group: "Personas" },
-    operacion: { label: "Operación", group: "Operación" },
-    contenido: { label: "Contenido", group: "Operación" },
-    capacitaciones: { label: "Capacitaciones", group: "Operación" },
-    puntos: { label: "Puntos y strikes", group: "Operación" },
+    operacion: { label: "Barbería", group: "Barbería" },
+    contenido: { label: "Marketing", group: "Marketing" },
+    capacitaciones: { label: "Capacitaciones", group: "Barbería" },
+    puntos: { label: "Puntos y strikes", group: "Barbería" },
     academia: { label: "Academia", group: "Academia" },
     auditoria: { label: "Auditoría", group: "Sistema" },
     config: { label: "Configuración", group: "Sistema" },
@@ -165,12 +165,17 @@
       ]
     },
     {
-      title: "Operación",
+      title: "Barbería",
       items: [
-        { route: "operacion", label: "Operación", icon: "check-square", roles: ["owner", "manager"], badge: () => S.overdueTasks().length },
-        { route: "contenido", label: "Contenido", icon: "image", roles: ["owner", "manager"] },
+        { route: "operacion", label: "Barbería", icon: "scissors", roles: ["owner", "manager"], badge: () => S.overdueTasks().length },
         { route: "capacitaciones", label: "Capacitaciones", icon: "graduation", roles: ["owner", "manager"] },
         { route: "puntos", label: "Puntos y strikes", icon: "zap", roles: ["owner", "manager"], badge: () => S.strikeScore() }
+      ]
+    },
+    {
+      title: "Marketing",
+      items: [
+        { route: "contenido", label: "Marketing", icon: "trending", roles: ["owner", "manager", "academy"] }
       ]
     },
     {
@@ -201,13 +206,13 @@
 
   /* ---------------- dock (isla de navegación) ---------------- */
 
-  const DOCK_STAFF = ["resumen", "operacion", "contenido", "capacitaciones", "puntos", "academia"];
+  const DOCK_STAFF = ["resumen", "operacion", "contenido", "academia", "equipo"];
   const DOCK_BARBER = ["mi-panel", "mis-tareas", "mis-puntos", "mis-capacitaciones"];
   const DOCK_ACADEMY = ["academia", "mi-panel", "mis-tareas", "mis-puntos", "mis-capacitaciones"];
   const DOCK_SHORT = {
     resumen: "Inicio",
-    operacion: "Operación",
-    contenido: "Contenido",
+    operacion: "Barbería",
+    contenido: "Marketing",
     capacitaciones: "Capacitaciones",
     puntos: "Puntos",
     academia: "Academia",
@@ -223,6 +228,43 @@
   };
 
   /* ---------------- router / init ---------------- */
+
+  /* ---- textos editables (Configuración) ---- */
+
+  function textsOf(key) {
+    try {
+      const settings = S.getState().settings || {};
+      const store = settings[key];
+      return store && typeof store === "object" ? store : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function modLabel(key, def) {
+    const value = textsOf("moduleTexts")[key]?.label;
+    return value && String(value).trim() ? String(value).trim() : def;
+  }
+
+  function modHint(key, def) {
+    const value = textsOf("moduleTexts")[key]?.desc || textsOf("routeTexts")[key]?.desc;
+    return value && String(value).trim() ? String(value).trim() : def;
+  }
+
+  function routeTitle(base, def) {
+    const value = textsOf("routeTexts")[base]?.title || textsOf("moduleTexts")[base]?.title;
+    return value && String(value).trim() ? String(value).trim() : def;
+  }
+
+  function routeDesc(base, def) {
+    const value = textsOf("routeTexts")[base]?.desc || textsOf("moduleTexts")[base]?.desc;
+    return value && String(value).trim() ? String(value).trim() : def;
+  }
+
+  function subLabel(id, def) {
+    const value = textsOf("submoduleTexts")[id]?.label;
+    return value && String(value).trim() ? String(value).trim() : def;
+  }
 
   const ROUTE_PERMISSION = {
     resumen: "resumen",
@@ -515,44 +557,47 @@
   }
 
   function dockSubItems(base) {
-    if (base === "operacion") {
+    if (base === "operacion" || base === "capacitaciones" || base === "puntos") {
       const meetings = S.getState().meetings;
+      const active = base === "capacitaciones" ? "capacitaciones" : base === "puntos" ? "puntos" : ui.opsTab;
       return {
-        active: ui.opsTab,
+        active,
         items: [
-          { key: "tareas", label: "Tareas", route: "operacion/tareas", badge: S.openTasks().length },
-          { key: "checklists", label: "Checklists", route: "operacion/checklists" },
-          { key: "meetbarber", label: "MeetBarber", route: "operacion/meetbarber", badge: S.meetSessions().length },
-          { key: "reuniones", label: "Reuniones", route: "operacion/reuniones", badge: meetings.length }
+          { key: "tareas", label: subLabel("ops-tareas", "Tareas"), route: "operacion/tareas", badge: S.openTasks().length },
+          { key: "checklists", label: subLabel("ops-checklists", "Checklists"), route: "operacion/checklists" },
+          { key: "meetbarber", label: subLabel("ops-meetbarber", "MeetBarber"), route: "operacion/meetbarber", badge: S.meetSessions().length },
+          { key: "reuniones", label: subLabel("ops-reuniones", "Reuniones"), route: "operacion/reuniones", badge: meetings.length },
+          { key: "capacitaciones", label: subLabel("ops-capacitaciones", "Capacitaciones"), route: "capacitaciones" },
+          { key: "puntos", label: subLabel("ops-puntos", "Puntos"), route: "puntos", badge: S.isBarber() ? 0 : fmtStrike(S.strikeScore()) }
         ]
       };
     }
     if (base === "academia") {
       const items = [
-        { key: "resumen", label: "Resumen", route: "academia/resumen" },
-        { key: "embudo", label: "Embudo", route: "academia/embudo", badge: S.weeklyLeads().length },
-        { key: "alumnos", label: "Alumnos", route: "academia/alumnos", badge: S.activeStudents().length }
+        { key: "resumen", label: subLabel("ac-resumen", "Resumen"), route: "academia/resumen" },
+        { key: "embudo", label: subLabel("ac-embudo", "Embudo"), route: "academia/embudo", badge: S.weeklyLeads().length },
+        { key: "alumnos", label: subLabel("ac-alumnos", "Alumnos"), route: "academia/alumnos", badge: S.activeStudents().length }
       ];
-      if (S.can("academia.pagos")) items.push({ key: "pagos", label: "Pagos", route: "academia/pagos", badge: S.overduePayments().length });
-      items.push({ key: "stock", label: "Stock", route: "academia/stock", badge: S.lowStock().length });
-      if (S.can("academia.metricas")) items.push({ key: "metricas", label: "Métricas", route: "academia/metricas" });
+      if (S.can("academia.pagos")) items.push({ key: "pagos", label: subLabel("ac-pagos", "Pagos"), route: "academia/pagos", badge: S.overduePayments().length });
+      items.push({ key: "stock", label: subLabel("ac-stock", "Stock"), route: "academia/stock", badge: S.lowStock().length });
+      if (S.can("academia.metricas")) items.push({ key: "metricas", label: subLabel("ac-metricas", "Métricas"), route: "academia/metricas" });
       return { active: ui.academyTab, items };
     }
-    if (base === "puntos") {
+    if (base === "mis-puntos") {
       return {
         active: ui.pointsTab,
         items: [
-          { key: "puntos", label: "Puntos", action: "points-tab", id: "puntos" },
-          { key: "strikes", label: "Strikes", action: "points-tab", id: "strikes", badge: S.isBarber() ? 0 : fmtStrike(S.strikeScore()) }
+          { key: "puntos", label: subLabel("pts-puntos", "Puntos"), action: "points-tab", id: "puntos" },
+          { key: "strikes", label: subLabel("pts-strikes", "Strikes"), action: "points-tab", id: "strikes", badge: S.isBarber() ? 0 : fmtStrike(S.strikeScore()) }
         ]
       };
     }
-    if (base === "capacitaciones" || base === "mis-capacitaciones") {
+    if (base === "mis-capacitaciones") {
       return {
         active: ui.trainingTab === "session" ? "session" : "training",
         items: [
-          { key: "training", label: "Training", action: "training-tab", id: "training" },
-          { key: "session", label: "Masivo Session", action: "training-tab", id: "session" }
+          { key: "training", label: subLabel("cap-training", "Training"), action: "training-tab", id: "training" },
+          { key: "session", label: subLabel("cap-session", "Masivo Session"), action: "training-tab", id: "session" }
         ]
       };
     }
@@ -563,15 +608,18 @@
     const main = $("#dock-main");
     if (!main) return;
     const items = dockRouteItems();
-    const activeInDock = items.some((item) => item.route === current || (item.route === "barberos" && current === "barbero"));
+    const isBarberiaSection = current === "operacion" || current === "capacitaciones" || current === "puntos";
+    const isActive = (item) => item.route === current || (item.route === "barberos" && current === "barbero") || (isBarberiaSection && item.route === "operacion");
+    const activeInDock = items.some(isActive);
     main.innerHTML =
       items
         .map((item) => {
           const badge = typeof item.badge === "function" ? item.badge() : 0;
-          const active = item.route === current || (item.route === "barberos" && current === "barbero");
+          const active = isActive(item);
+          const dockLabel = modLabel(item.route, DOCK_SHORT[item.route] || item.label);
           return `<a class="dock-item ${active ? "is-active" : ""}" href="#/${item.route}" aria-current="${active ? "page" : "false"}">
             <span class="dock-icon"><svg><use href="#i-${item.icon}"/></svg>${badge ? `<i class="dock-badge">${badge}</i>` : ""}</span>
-            <span class="dock-label">${esc(DOCK_SHORT[item.route] || item.label)}</span>
+            <span class="dock-label">${esc(dockLabel)}</span>
           </a>`;
         })
         .join("") +
@@ -609,15 +657,16 @@
     body.innerHTML = NAV.map((group) => {
       const items = group.items.filter((item) => canAccess(item.route));
       if (!items.length) return "";
+      const groupTitle = group.title === "Barbería" ? modLabel("operacion", "Barbería") : group.title === "Marketing" ? modLabel("contenido", "Marketing") : group.title;
       return `<div class="dock-sheet-group">
-        <span class="dock-sheet-title">${esc(group.title)}</span>
+        <span class="dock-sheet-title">${esc(groupTitle)}</span>
         <div class="dock-sheet-grid">${items
           .map((item) => {
             const badge = typeof item.badge === "function" ? item.badge() : 0;
             const active = item.route === current || (item.route === "barberos" && current === "barbero");
             return `<a class="dock-sheet-item ${active ? "is-active" : ""}" href="#/${item.route}">
               <span class="dock-sheet-icon"><svg><use href="#i-${item.icon}"/></svg></span>
-              <span class="dock-sheet-text"><b>${esc(item.label)}</b><small>${esc(group.title)}</small></span>
+              <span class="dock-sheet-text"><b>${esc(modLabel(item.route, item.label))}</b><small>${esc(groupTitle)}</small></span>
               ${badge ? `<span class="dock-sheet-badge">${badge}</span>` : ""}
             </a>`;
           })
@@ -661,8 +710,11 @@
   }
 
   function updateBreadcrumb(base) {
-    const label = ROUTES[base]?.label || "Panel";
-    $("#breadcrumb").innerHTML = `<span>${esc(ROUTES[base]?.group || "Control")}</span><svg><use href="#i-chevron"/></svg><b>${esc(label)}</b>`;
+    const defLabel = ROUTES[base]?.label || "Panel";
+    const label = modLabel(base, defLabel);
+    const group = ROUTES[base]?.group || "Control";
+    const finalGroup = base === "capacitaciones" || base === "puntos" ? modLabel("operacion", "Barbería") : group;
+    $("#breadcrumb").innerHTML = `<span>${esc(finalGroup)}</span><svg><use href="#i-chevron"/></svg><b>${esc(label)}</b>`;
   }
 
   /* ---------------- render ---------------- */
@@ -757,7 +809,7 @@
     view.innerHTML = html;
     renderShell();
     updateBreadcrumb(base);
-    document.title = `MASIVO CONTROL · ${ROUTES[base]?.label || "Panel"}`;
+    document.title = `MASIVO CONTROL · ${modLabel(base, ROUTES[base]?.label || "Panel")}`;
     document.body.classList.remove("sidebar-open");
     closeDockSheet();
     $("#notif-panel").hidden = true;
@@ -1447,11 +1499,20 @@
   /* ---------------- shared UI ---------------- */
 
   function pageHead({ kicker, title, desc = "", actions = "", meta = "", hero = false }) {
+    let finalTitle = title;
+    let finalDesc = desc;
+    try {
+      const base = parseHash().base;
+      const overriddenTitle = textsOf("routeTexts")[base]?.title || textsOf("moduleTexts")[base]?.title;
+      const overriddenDesc = textsOf("routeTexts")[base]?.desc || textsOf("moduleTexts")[base]?.desc;
+      if (overriddenTitle && String(overriddenTitle).trim()) finalTitle = String(overriddenTitle).trim();
+      if (overriddenDesc && String(overriddenDesc).trim()) finalDesc = String(overriddenDesc).trim();
+    } catch {}
     return `<header class="page-head ${hero ? "page-head--hero" : ""}">
       <div class="page-head-copy">
         <span class="kicker"><i></i>${kicker}</span>
-        <h1 class="page-title">${title}</h1>
-        ${desc ? `<p class="page-desc">${desc}</p>` : ""}
+        <h1 class="page-title">${finalTitle}</h1>
+        ${finalDesc ? `<p class="page-desc">${finalDesc}</p>` : ""}
         ${meta ? `<div class="page-meta">${meta}</div>` : ""}
       </div>
       ${actions ? `<div class="page-actions">${actions}</div>` : ""}
@@ -3080,8 +3141,8 @@
 
     return `<section class="page">
       ${pageHead({
-        kicker: "Operación · el día a día",
-        title: "Operación",
+        kicker: "Barbería · el día a día",
+        title: "Barbería",
         desc: "Tareas con responsable y fecha, checklists que se repiten, las sesiones uno a uno de MeetBarber y las actas del equipo. Nada queda en el aire.",
         actions: `${btn("Nueva tarea", { action: "task", icon: "plus", variant: "primary" })}${btn("Nueva reunión", { action: "meeting", icon: "message" })}`,
         meta: `<span><svg><use href="#i-check-square"/></svg>${S.openTasks().length} tareas abiertas</span><span><svg><use href="#i-alert"/></svg>${S.overdueTasks().length} vencidas</span>`,
@@ -3089,10 +3150,10 @@
       })}
 
       ${tabs([
-        { key: "tareas", label: "Tareas", route: "operacion/tareas", badge: S.openTasks().length },
-        { key: "checklists", label: "Checklists", route: "operacion/checklists" },
-        { key: "meetbarber", label: "MeetBarber", route: "operacion/meetbarber", badge: S.meetSessions().length },
-        { key: "reuniones", label: "Reuniones", route: "operacion/reuniones", badge: meetings.length }
+        { key: "tareas", label: subLabel("ops-tareas", "Tareas"), route: "operacion/tareas", badge: S.openTasks().length },
+        { key: "checklists", label: subLabel("ops-checklists", "Checklists"), route: "operacion/checklists" },
+        { key: "meetbarber", label: subLabel("ops-meetbarber", "MeetBarber"), route: "operacion/meetbarber", badge: S.meetSessions().length },
+        { key: "reuniones", label: subLabel("ops-reuniones", "Reuniones"), route: "operacion/reuniones", badge: meetings.length }
       ], ui.opsTab)}
 
       ${ui.opsTab === "tareas" ? renderTaskBoard(tasks, columns, today) : ""}
@@ -3471,8 +3532,8 @@
 
     return `<section class="page">
       ${pageHead({
-        kicker: `Contenido · semana ${D.isoWeek(week)} · ${D.weekLabel(week)}`,
-        title: self ? "Tu contenido" : "Contenido",
+        kicker: self ? `Contenido · semana ${D.isoWeek(week)} · ${D.weekLabel(week)}` : `Marketing · semana ${D.isoWeek(week)} · ${D.weekLabel(week)}`,
+        title: self ? "Tu contenido" : "Marketing",
         desc: self ? "Tus piezas fijas de la semana, con recordatorio y puntos por publicar." : "Tres bases: Reels, Historias y Carruseles. Cada pieza publicada suma puntos; si no se publica, avisa al encargado y al dueño.",
         actions: `${monthSwitcherFor(D.weekLabel(week), "week-prev", "week-next")}${weekIsCurrent ? "" : btn("Semana actual", { action: "week-now", icon: "refresh", size: "sm" })}${btn("Nueva pieza", { action: "content", icon: "plus", variant: "primary" })}${canManage ? btn("Pieza fija", { action: "new-content-plan", icon: "refresh" }) : ""}`,
         meta: `<span><svg><use href="#i-image"/></svg>${totalPublished}/${totalGoal} publicadas</span><span><svg><use href="#i-refresh"/></svg>${plans.length} fijas planificadas</span><span><svg><use href="#i-target"/></svg>${avg}% cumplimiento</span>`,
@@ -3559,7 +3620,7 @@
 
     return `<section class="page">
       ${pageHead({
-        kicker: self ? "Mi espacio · capacitaciones" : "Operación · formación",
+        kicker: self ? "Mi espacio · capacitaciones" : "Barbería · formación",
         title: self ? "Tus capacitaciones" : "Capacitaciones",
         desc: self
           ? "Mirá las Masivo Session cuando quieras y rendí los exámenes de Training. Aprobar suma puntos y queda en tu ficha."
@@ -3570,8 +3631,8 @@
       })}
 
       <nav class="page-tabs">
-        <button class="tab ${!onSessions ? "active" : ""}" type="button" data-action="training-tab" data-id="training">Training${trainings.length ? `<span class="tab-badge">${trainings.length}</span>` : ""}</button>
-        <button class="tab ${onSessions ? "active" : ""}" type="button" data-action="training-tab" data-id="session">Masivo Session${sessions.length ? `<span class="tab-badge">${sessions.length}</span>` : ""}</button>
+        <button class="tab ${!onSessions ? "active" : ""}" type="button" data-action="training-tab" data-id="training">${esc(subLabel("cap-training", "Training"))}${trainings.length ? `<span class="tab-badge">${trainings.length}</span>` : ""}</button>
+        <button class="tab ${onSessions ? "active" : ""}" type="button" data-action="training-tab" data-id="session">${esc(subLabel("cap-session", "Masivo Session"))}${sessions.length ? `<span class="tab-badge">${sessions.length}</span>` : ""}</button>
       </nav>
 
       ${onSessions ? renderSessions(sessions, self, canManage) : renderTrainingBoard(self, trainings, canManage, myStats)}
@@ -3701,8 +3762,8 @@
 
   function pointsTabs() {
     return `<nav class="page-tabs">
-      <button class="tab ${ui.pointsTab === "puntos" ? "active" : ""}" type="button" data-action="points-tab" data-id="puntos">Puntos</button>
-      <button class="tab ${ui.pointsTab === "strikes" ? "active" : ""}" type="button" data-action="points-tab" data-id="strikes">Strikes ${S.isBarber() ? "" : `<span class="tab-badge">${fmtStrike(S.strikeScore())}</span>`}</button>
+      <button class="tab ${ui.pointsTab === "puntos" ? "active" : ""}" type="button" data-action="points-tab" data-id="puntos">${esc(subLabel("pts-puntos", "Puntos"))}</button>
+      <button class="tab ${ui.pointsTab === "strikes" ? "active" : ""}" type="button" data-action="points-tab" data-id="strikes">${esc(subLabel("pts-strikes", "Strikes"))} ${S.isBarber() ? "" : `<span class="tab-badge">${fmtStrike(S.strikeScore())}</span>`}</button>
     </nav>`;
   }
 
@@ -3736,7 +3797,7 @@
 
     return `<section class="page">
       ${pageHead({
-        kicker: self ? "Mi espacio · puntos y strikes" : "Operación · reconocimiento y conducta",
+        kicker: self ? "Mi espacio · puntos y strikes" : "Barbería · reconocimiento y conducta",
         title: self ? "Tus puntos" : "Puntos y strikes",
         desc: self ? "Los puntos se ganan con contenido, ventas y capacitaciones. Los strikes son sanciones con motivo, evidencia y descargo." : "Dos sistemas separados: puntos para premiar lo objetivo, strikes para cuidar la conducta. Tres strikes activos pueden discontinuar la relación.",
         actions: canManage ? `${btn("Sumar puntos", { action: "new-points", icon: "zap", variant: "soft" })}${btn("Restar puntos", { action: "subtract-points", icon: "trending", variant: "ghost" })}${btn("Registrar strike", { action: "new-strike", icon: "shield", variant: "danger" })}` : "",
@@ -3861,12 +3922,12 @@
     const canPay = S.can("academia.pagos");
     const canMetrics = S.can("academia.metricas");
     const items = [
-      { key: "resumen", label: "Resumen", route: "academia/resumen" },
-      { key: "embudo", label: "Embudo", route: "academia/embudo", badge: S.weeklyLeads().length },
-      { key: "alumnos", label: "Alumnos", route: "academia/alumnos", badge: S.activeStudents().length },
-      ...(canPay ? [{ key: "pagos", label: "Pagos", route: "academia/pagos", badge: S.overduePayments().length }] : []),
-      { key: "stock", label: "Stock", route: "academia/stock", badge: S.lowStock().length },
-      ...(canMetrics ? [{ key: "metricas", label: "Métricas", route: "academia/metricas" }] : [])
+      { key: "resumen", label: subLabel("ac-resumen", "Resumen"), route: "academia/resumen" },
+      { key: "embudo", label: subLabel("ac-embudo", "Embudo"), route: "academia/embudo", badge: S.weeklyLeads().length },
+      { key: "alumnos", label: subLabel("ac-alumnos", "Alumnos"), route: "academia/alumnos", badge: S.activeStudents().length },
+      ...(canPay ? [{ key: "pagos", label: subLabel("ac-pagos", "Pagos"), route: "academia/pagos", badge: S.overduePayments().length }] : []),
+      { key: "stock", label: subLabel("ac-stock", "Stock"), route: "academia/stock", badge: S.lowStock().length },
+      ...(canMetrics ? [{ key: "metricas", label: subLabel("ac-metricas", "Métricas"), route: "academia/metricas" }] : [])
     ];
     return `<nav class="page-tabs">${items.map((item) => `<button class="tab ${item.key === ui.academyTab ? "active" : ""}" type="button" data-action="go" data-route="${esc(item.route)}">${esc(item.label)}${item.badge ? `<span class="tab-badge">${item.badge}</span>` : ""}</button>`).join("")}</nav>`;
   }
@@ -4254,6 +4315,40 @@
       return (order[a.role] ?? 4) - (order[b.role] ?? 4) || a.name.localeCompare(b.name);
     });
 
+    const routeDefaults = {
+      resumen: { title: "Cómo vas este mes", desc: "Facturación, margen y pulso del equipo." },
+      unidades: { title: "Unidades y finanzas", desc: "Cada ingreso y cada costo tiene una unidad. La facturación de barbería se carga a mano y se suma al resto." },
+      equipo: { title: "Equipo y roles", desc: "Mapas mentales, jerarquías y equipo completo." },
+      barberos: { title: "Barberos", desc: "La ficha de cada barbero con puntos, strikes, contenido y capacitación. Todo el historial en un lugar." },
+      operacion: { title: "Barbería", desc: "Tareas con responsable y fecha, checklists que se repiten, las sesiones uno a uno de MeetBarber y las actas del equipo. Nada queda en el aire." },
+      contenido: { title: "Marketing", desc: "Tres bases: Reels, Historias y Carruseles. Cada pieza publicada suma puntos; si no se publica, avisa al encargado y al dueño." },
+      capacitaciones: { title: "Capacitaciones", desc: "Training: los exámenes internos del equipo. Masivo Session: las capacitaciones presenciales con grabación, resumen y material descargable." },
+      puntos: { title: "Puntos y strikes", desc: "Dos sistemas separados: puntos para premiar lo objetivo, strikes para cuidar la conducta. Tres strikes activos pueden discontinuar la relación." },
+      academia: { title: "Academia", desc: "Embudo, alumnas y alumnos, cobranzas, asistencia y stock de herramientas. Todo el recorrido de la academia." },
+      auditoria: { title: "Auditoría", desc: "Cada creación, edición y cobro queda registrado. Sirve para ordenar el equipo y para resolver dudas con datos." },
+      config: { title: "Configuración", desc: "Metas, puntos, límites de strikes, usuarios y permisos por módulo. Todo lo que define cómo funciona el panel." }
+    };
+    const textModuleKeys = ["resumen", "unidades", "equipo", "barberos", "operacion", "contenido", "capacitaciones", "puntos", "academia", "auditoria", "config"];
+    const textSubmodules = [
+      { id: "ops-tareas", label: "Tareas" },
+      { id: "ops-checklists", label: "Checklists" },
+      { id: "ops-meetbarber", label: "MeetBarber" },
+      { id: "ops-reuniones", label: "Reuniones" },
+      { id: "ops-capacitaciones", label: "Capacitaciones" },
+      { id: "ops-puntos", label: "Puntos" },
+      { id: "ac-resumen", label: "Resumen" },
+      { id: "ac-embudo", label: "Embudo" },
+      { id: "ac-alumnos", label: "Alumnos" },
+      { id: "ac-pagos", label: "Pagos" },
+      { id: "ac-stock", label: "Stock" },
+      { id: "ac-metricas", label: "Métricas" },
+      { id: "pts-puntos", label: "Puntos" },
+      { id: "pts-strikes", label: "Strikes" },
+      { id: "cap-training", label: "Training" },
+      { id: "cap-session", label: "Masivo Session" }
+    ];
+    const settingsTexts = state.settings || {};
+
     return `<section class="page">
       ${pageHead({
         kicker: "Sistema · configuración",
@@ -4339,6 +4434,44 @@
         </div>
       </div>
 
+      <article class="panel" data-reveal>
+        <div class="panel-head panel-head--bordered">
+          <div><h2 class="panel-title">Módulos, títulos y submódulos</h2><p class="panel-sub">Cambios el nombre, el título y la descripción sin pedirme. Se guardan en la nube como el resto.</p></div>
+          <button class="btn btn--ghost btn--sm" type="button" data-action="reset-texts"><svg><use href="#i-refresh"/></svg>Restaurar textos</button>
+        </div>
+        <div class="panel-body">
+          <form data-inline="texts" class="form-grid">
+            <div class="field field--full"><label>Módulos</label>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                ${textModuleKeys.map((key) => {
+                  const mod = modules.find((m) => m.key === key);
+                  const defLabel = ROUTES[key]?.label || mod?.label || key;
+                  const defTitle = routeDefaults[key]?.title || defLabel;
+                  const defDesc = routeDefaults[key]?.desc || mod?.hint || "";
+                  const savedLabel = settingsTexts.moduleTexts?.[key]?.label || modLabel(key, defLabel);
+                  const savedTitle = settingsTexts.routeTexts?.[key]?.title || settingsTexts.moduleTexts?.[key]?.title || "";
+                  const savedDesc = settingsTexts.routeTexts?.[key]?.desc || settingsTexts.moduleTexts?.[key]?.desc || "";
+                  return `<div class="field field--full" style="border:1px solid rgba(167,139,250,.16);border-radius:14px;padding:12px">
+                    <label style="margin-bottom:8px">${esc(defLabel)} <small style="font-weight:500;color:var(--muted-2)">(${esc(key)})</small></label>
+                    <div class="form-grid" style="gap:8px">
+                      ${textInput(`modLabel-${key}`, "Nombre", savedLabel, { maxlength: "40" })}
+                      ${textInput(`modTitle-${key}`, "Título de página", savedTitle, { placeholder: `Por defecto: ${defTitle}`, maxlength: "60" })}
+                      ${textArea(`modDesc-${key}`, "Descripción", savedDesc, { rows: 2, placeholder: `Por defecto: ${defDesc}` })}
+                    </div>
+                  </div>`;
+                }).join("")}
+              </div>
+            </div>
+            <div class="field field--full"><label>Submódulos</label>
+              <div class="form-grid">
+                ${textSubmodules.map((sub) => textInput(`sub-${sub.id}`, sub.label, settingsTexts.submoduleTexts?.[sub.id]?.label || sub.label, { placeholder: sub.label })).join("")}
+              </div>
+            </div>
+            <div class="form-actions field--full"><button class="btn btn--primary btn--sm" type="submit"><svg><use href="#i-check"/></svg>Guardar textos</button></div>
+          </form>
+        </div>
+      </article>
+
       ${canUsers ? `<article class="panel" data-reveal>
         <div class="panel-head panel-head--bordered"><div><h2 class="panel-title">Usuarios y contraseñas</h2><p class="panel-sub">${users.filter((user) => user.active).length} cuentas activas · editá usuario, clave, rol y estado</p></div>${btn("Nueva persona", { action: "new-user", icon: "plus", size: "sm", variant: "soft" })}</div>
         <div class="table-wrap"><table class="data-table user-table">
@@ -4364,13 +4497,17 @@
           <div class="table-wrap"><table class="data-table permission-matrix">
             <thead><tr><th>Módulo</th>${roles.map((role) => `<th>${esc(state.roles[role]?.label || role)}</th>`).join("")}</tr></thead>
             <tbody>
-              ${groups.map((group) => `<tr class="perm-group-row"><td colspan="${roles.length + 1}">${esc(group)}</td></tr>${modules.filter((module) => module.group === group).map((module) => `<tr>
-                <td><b style="font-size:12px">${esc(module.label)}</b><small class="perm-hint">${esc(module.hint)}</small></td>
+              ${groups.map((group) => `<tr class="perm-group-row"><td colspan="${roles.length + 1}">${esc(group)}</td></tr>${modules.filter((module) => module.group === group).map((module) => {
+                const mLabel = modLabel(module.key, module.label);
+                const mHint = modHint(module.key, module.hint);
+                return `<tr>
+                <td><b style="font-size:12px">${esc(mLabel)}</b><small class="perm-hint">${esc(mHint)}</small></td>
                 ${roles.map((role) => {
                   const checked = role === "owner" || S.permissionsFor(role).includes(module.key);
-                  return `<td><label class="perm-check ${role === "owner" ? "is-locked" : ""}" title="${esc(module.label)} · ${esc(state.roles[role]?.label || role)}"><input type="checkbox" name="perm-${role}" value="${esc(module.key)}" data-multi="true" ${checked ? "checked" : ""} ${role === "owner" ? "disabled" : ""}><span><svg><use href="#i-check"/></svg></span></label></td>`;
+                  return `<td><label class="perm-check ${role === "owner" ? "is-locked" : ""}" title="${esc(mLabel)} · ${esc(state.roles[role]?.label || role)}"><input type="checkbox" name="perm-${role}" value="${esc(module.key)}" data-multi="true" ${checked ? "checked" : ""} ${role === "owner" ? "disabled" : ""}><span><svg><use href="#i-check"/></svg></span></label></td>`;
                 }).join("")}
-              </tr>`).join("")}`).join("")}
+              </tr>`;
+              }).join("")}`).join("")}
             </tbody>
           </table></div>
           <div class="panel-body form-actions" style="justify-content:flex-end"><button class="btn btn--primary btn--sm" type="submit"><svg><use href="#i-check"/></svg>Guardar permisos</button></div>
@@ -4919,7 +5056,7 @@
       ${textArea("notes", "Notas", task?.notes || "", { rows: 2, placeholder: "Contexto, links o criterio de cierre" })}
     </div>`;
     openModal({
-      kicker: "Operación",
+      kicker: "Barbería",
       title: task ? "EDITAR TAREA" : "NUEVA TAREA",
       sub: presetAssignee && !task ? `Se asigna a ${S.userById(presetAssignee)?.name || "la persona elegida"}.` : "Con responsable y fecha. Nada queda en el aire.",
       body,
@@ -4946,7 +5083,7 @@
     </div>
     <p class="form-hint">Escribí un ítem por línea. Podés agregar, borrar o reordenar la lista completa; los ítems que mantengas conservan su progreso de hoy.</p>`;
     openModal({
-      kicker: "Operación · checklist",
+      kicker: "Barbería · checklist",
       title: checklist ? "EDITAR CHECKLIST" : "NUEVO CHECKLIST",
       sub: checklist ? "Cambios aplican al instante para todo el equipo." : "Definí la lista completa de ítems que va a ver el encargado.",
       body,
@@ -6687,6 +6824,21 @@
         });
         return;
       }
+      case "reset-texts": {
+        confirmDialog({
+          title: "RESTAURAR TEXTOS",
+          text: "Vuelven los nombres por defecto (Barbería, Marketing, etc.) y se borran los títulos y submódulos que hayas editado.",
+          label: "Restaurar textos",
+          onConfirm: () => {
+            S.resetTexts();
+            closeModal();
+            renderShell();
+            renderView();
+            toast("Textos restaurados.");
+          }
+        });
+        return;
+      }
       case "reset": {
         confirmDialog({
           title: "RESTAURAR DEMO",
@@ -7169,6 +7321,29 @@
         });
         renderView();
         toast("Configuración guardada.");
+        return;
+      }
+      if (inline === "texts") {
+        const data = formValues(form);
+        const moduleTexts = {};
+        const routeTexts = {};
+        const submoduleTexts = {};
+        ["resumen", "unidades", "equipo", "barberos", "operacion", "contenido", "capacitaciones", "puntos", "academia", "auditoria", "config"].forEach((key) => {
+          const label = String(data[`modLabel-${key}`] || "").trim();
+          const title = String(data[`modTitle-${key}`] || "").trim();
+          const desc = String(data[`modDesc-${key}`] || "").trim();
+          if (label) moduleTexts[key] = { ...(moduleTexts[key] || {}), label, ...(title ? { title } : {}), ...(desc ? { desc } : {}) };
+          if (title || desc) routeTexts[key] = { ...(title ? { title } : {}), ...(desc ? { desc } : {}) };
+        });
+        ["ops-tareas", "ops-checklists", "ops-meetbarber", "ops-reuniones", "ops-capacitaciones", "ops-puntos", "ac-resumen", "ac-embudo", "ac-alumnos", "ac-pagos", "ac-stock", "ac-metricas", "pts-puntos", "pts-strikes", "cap-training", "cap-session"].forEach((id) => {
+          const label = String(data[`sub-${id}`] || "").trim();
+          if (label) submoduleTexts[id] = { label };
+        });
+        S.saveTexts({ moduleTexts, routeTexts, submoduleTexts });
+        renderShell();
+        renderView();
+        toast("Textos guardados.");
+        return;
       }
     });
 
